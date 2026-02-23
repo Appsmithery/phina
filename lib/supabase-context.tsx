@@ -17,9 +17,19 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const [member, setMember] = useState<Member | null>(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
 
-  const fetchMember = async (userId: string) => {
+  const fetchMember = async (userId: string, email?: string) => {
     const { data } = await supabase.from("members").select("*").eq("id", userId).single();
-    setMember(data ?? null);
+    if (data) {
+      setMember(data);
+      return;
+    }
+    if (email) {
+      await supabase.from("members").upsert({ id: userId, email }, { onConflict: "id" });
+      const { data: created } = await supabase.from("members").select("*").eq("id", userId).single();
+      setMember(created ?? null);
+    } else {
+      setMember(null);
+    }
   };
 
   const refreshMember = async () => {
@@ -30,7 +40,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);
-      if (s?.user?.id) fetchMember(s.user.id).finally(() => setSessionLoaded(true));
+      if (s?.user?.id) fetchMember(s.user.id, s.user.email ?? undefined).finally(() => setSessionLoaded(true));
       else setSessionLoaded(true);
     });
 
@@ -38,7 +48,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
-      if (s?.user?.id) fetchMember(s.user.id);
+      if (s?.user?.id) fetchMember(s.user.id, s.user.email ?? undefined);
       else setMember(null);
       setSessionLoaded(true);
     });

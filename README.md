@@ -29,6 +29,28 @@ A wine club app that digitizes themed tasting events: members snap a photo of th
 
 ---
 
+## Development
+
+1. **Clone and install**
+   ```bash
+   cd phina && npm install
+   ```
+2. **Environment**
+   - Copy `.env.example` to `.env` and set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` from your [Supabase](https://supabase.com) project.
+   - Optional: set `EXPO_PUBLIC_APP_URL` (default `https://phina.appsmithery.co`).
+3. **Database**
+   - In Supabase: SQL Editor → run the migrations in `supabase/migrations/` in order (e.g. `001_initial.sql`).
+   - In Authentication → Providers, enable Email and optionally disable "Confirm email" for magic links during dev.
+4. **Assets**
+   - Add app icon and splash images under `assets/` (see `assets/README.md`). If missing, you may need to point `app.config.ts` at placeholder assets to run.
+5. **Run**
+   ```bash
+   npx expo start
+   ```
+   Then press `w` for web, or scan with Expo Go for native.
+
+---
+
 ## Docs
 
 - [Roadmap & architecture](docs/ROADMAP.md) — Context, data model, screen flow, and implementation order.

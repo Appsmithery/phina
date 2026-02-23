@@ -96,13 +96,12 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   title: {
-    fontFamily: "PlayfairDisplay_700Bold",
     fontSize: 36,
+    fontWeight: "700",
     textAlign: "center",
     marginBottom: 8,
   },
   subtitle: {
-    fontFamily: "Montserrat_400Regular",
     fontSize: 16,
     textAlign: "center",
     marginBottom: 24,
@@ -122,6 +121,6 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontSize: 16,
-    fontFamily: "Montserrat_600SemiBold",
+    fontWeight: "600",
   },
 });
