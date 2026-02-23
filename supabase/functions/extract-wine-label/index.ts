@@ -1,17 +1,18 @@
 // Supabase Edge Function: extract wine label data using Perplexity Sonar (vision + structured output)
+// Sonar provides: (1) OCR / vision over the label image, (2) web-grounded search for tasting notes and basic wine info in ai_summary.
 // See https://docs.perplexity.ai/docs/sonar/quickstart and https://docs.perplexity.ai/docs/sonar/media
 
 const PERPLEXITY_URL = "https://api.perplexity.ai/chat/completions";
 const MODEL = "sonar-pro";
 
-const EXTRACTION_PROMPT = `You are analyzing a photo of a wine bottle label. Extract the following from the label text and any recognizable design or branding. If something is not visible or unclear, omit it or use null.
+const EXTRACTION_PROMPT = `You are analyzing a photo of a wine bottle label. Extract the following from the label text and any recognizable design or branding. Use your knowledge (and search if helpful) to add a short summary. If something is not visible or unclear, omit it or use null.
 
 Return a JSON object with exactly these keys (use null for missing values):
 - producer: string (winery or producer name)
 - varietal: string (e.g. Pinot Noir, Chardonnay)
 - vintage: number or null (year)
 - region: string (e.g. Burgundy, Napa Valley)
-- ai_summary: string (2-3 sentences about this wine's region, typical flavor profile, and any notable facts a dinner guest would find interesting; if you cannot infer, use a brief generic note or null)`;
+- ai_summary: string (2-3 sentences about this wine's region, typical flavor profile, and any notable facts a dinner guest would find interesting; use search/knowledge to enrich if needed; if you cannot infer, use a brief generic note or null)`;
 
 const jsonSchema = {
   type: "object",
@@ -37,6 +38,17 @@ interface WineExtraction {
   vintage: number | null;
   region: string | null;
   ai_summary: string | null;
+}
+
+function normalizeWineExtraction(obj: unknown): WineExtraction {
+  const o = obj && typeof obj === "object" ? obj as Record<string, unknown> : {};
+  return {
+    producer: typeof o.producer === "string" ? o.producer : null,
+    varietal: typeof o.varietal === "string" ? o.varietal : null,
+    vintage: typeof o.vintage === "number" && Number.isInteger(o.vintage) ? o.vintage : null,
+    region: typeof o.region === "string" ? o.region : null,
+    ai_summary: typeof o.ai_summary === "string" ? o.ai_summary : null,
+  };
 }
 
 function buildContent(body: ReqBody): { type: string; text?: string; image_url?: { url: string } }[] {
@@ -117,7 +129,17 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "Empty response from AI" }, 502);
     }
 
-    const extracted = JSON.parse(raw) as WineExtraction;
+    const rawTrimmed = raw.trim();
+    const jsonStr = rawTrimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch {
+      console.error("extract-wine-label: invalid JSON from model", rawTrimmed.slice(0, 200));
+      return jsonResponse({ error: "Invalid extraction response" }, 502);
+    }
+
+    const extracted = normalizeWineExtraction(parsed);
     return jsonResponse(extracted);
   } catch (e) {
     console.error("extract-wine-label error", e);

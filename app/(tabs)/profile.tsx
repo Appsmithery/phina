@@ -6,10 +6,15 @@ import { useTheme } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
 import { useQueryClient } from "@tanstack/react-query";
 
+const MIN_PASSWORD_LENGTH = 6;
+
 export default function ProfileScreen() {
   const { member, session, refreshMember } = useSupabase();
   const theme = useTheme();
   const [name, setName] = useState(member?.name ?? "");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     setName(member?.name ?? "");
@@ -46,6 +51,29 @@ export default function ProfileScreen() {
     router.replace("/(auth)");
   };
 
+  const changePassword = async () => {
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      Alert.alert("Error", `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      Alert.alert("Error", "Passwords do not match.");
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      Alert.alert("Success", "Your password has been updated.");
+      setNewPassword("");
+      setConfirmNewPassword("");
+    } catch (e: unknown) {
+      Alert.alert("Error", e instanceof Error ? e.message : "Could not update password.");
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Text style={[styles.title, { color: theme.text }]}>Profile</Text>
@@ -66,6 +94,32 @@ export default function ProfileScreen() {
           disabled={saving}
         >
           <Text style={styles.buttonText}>{saving ? "Saving…" : "Save"}</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <Text style={[styles.label, { color: theme.textSecondary }]}>Change password</Text>
+        <TextInput
+          style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+          value={newPassword}
+          onChangeText={setNewPassword}
+          placeholder="New password"
+          placeholderTextColor={theme.textMuted}
+          secureTextEntry
+        />
+        <TextInput
+          style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+          value={confirmNewPassword}
+          onChangeText={setConfirmNewPassword}
+          placeholder="Confirm new password"
+          placeholderTextColor={theme.textMuted}
+          secureTextEntry
+        />
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: theme.primary }]}
+          onPress={changePassword}
+          disabled={changingPassword}
+        >
+          <Text style={styles.buttonText}>{changingPassword ? "Updating…" : "Change password"}</Text>
         </TouchableOpacity>
       </View>
       <TouchableOpacity style={[styles.signOut, { borderColor: theme.border }]} onPress={signOut}>

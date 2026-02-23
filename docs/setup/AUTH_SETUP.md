@@ -1,6 +1,6 @@
 # Auth setup (Supabase)
 
-The app uses **email + password** sign-up and sign-in. Supabase must be configured so that the Email provider is enabled and (optionally) redirect URLs are set for any password-reset or magic-link emails.
+The app uses **magic link** for sign-up and **email + password** for sign-in. Sign Up sends a magic link; when the user taps it they land on a **set-password** page to choose a password. Returning users can use the Sign In page (email + password). Supabase must be configured so that the Email provider is enabled and redirect URLs include the set-password page.
 
 ---
 
@@ -8,7 +8,7 @@ The app uses **email + password** sign-up and sign-in. Supabase must be configur
 
 - Go to **Authentication** → **Providers**.
 - Ensure **Email** is enabled.
-- **Confirm email:** If **off**, users are signed in immediately after Sign Up. If **on**, they must tap the confirmation link in email before they can sign in.
+- **Confirm email:** For magic-link sign-up, the link in the email takes users to the set-password page; no separate confirmation step is required.
 
 ---
 
@@ -21,7 +21,8 @@ The link in the email must redirect to a URL that your app can open. Add every U
 Add:
 
 - `https://phina.appsmithery.co/**` (PWA / web)
-- If you use a different app origin (e.g. custom domain), add that too, e.g. `https://your-domain.com/**`
+- `https://phina.appsmithery.co/auth/set-password` (magic link redirect target; users land here to set their password)
+- If you use a different app origin (e.g. custom domain), add that too, e.g. `https://your-domain.com/**` and `https://your-domain.com/auth/set-password`
 
 Without these, Supabase may block the redirect or use a default that doesn't open your app.
 
@@ -56,16 +57,20 @@ If the browser or app shows **401 (Unauthorized)** on auth requests:
 
 ## 5. Check Auth logs
 
-If Sign Up or Sign In fails or you need to debug:
+If Sign Up (magic link), Sign In, or set-password fails:
 
 - **Authentication** → **Logs**.
-- Look for `signUp`, `signInWithPassword`, or other auth events and any error messages.
+- Look for `signInWithOtp`, `signInWithPassword`, or `updateUser` and any error messages.
 
 ---
 
 ## 6. Rate limits (OTP / magic link)
 
-If you add "Forgot password?" or magic-link flows later, Supabase limits how often you can send those emails (e.g. once per 60 seconds per email). You can adjust limits under **Authentication** → **Rate limits**.
+Supabase limits how often you can send magic-link emails (e.g. once per 60 seconds per email). You can adjust limits under **Authentication** → **Rate limits**.
+
+## 7. Change password
+
+Signed-in users can change their password from **Profile** (Change password section). This uses Supabase `updateUser`; no redirect URL is required.
 
 ---
 
@@ -77,4 +82,5 @@ If you add "Forgot password?" or magic-link flows later, Supabase limits how oft
 | Redirect URLs | Auth → URL Configuration | Add `https://phina.appsmithery.co/**` (and any other app origins) |
 | Emails not received | Auth → SMTP / Team | Use team member email for testing, or set up custom SMTP for production |
 | 401 on Sign Up / Sign In | Auth → Providers / .env | Enable Email provider; check URL and anon key |
-| Debug | Auth → Logs | Confirm signUp / signInWithPassword and any errors |
+| Set-password redirect | Auth → URL Configuration | Add `https://phina.appsmithery.co/auth/set-password` |
+| Debug | Auth → Logs | Confirm signInWithOtp / signInWithPassword and any errors |

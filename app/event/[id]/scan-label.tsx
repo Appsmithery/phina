@@ -93,7 +93,7 @@ export default function ScanLabelScreen() {
 
   return (
     <View style={styles.container}>
-      <CameraView style={StyleSheet.absoluteFill} ref={cameraRef} />
+      <CameraView style={StyleSheet.absoluteFill} ref={cameraRef} pointerEvents="none" />
       <View style={styles.footer}>
         <Text style={[styles.hint, { color: theme.textSecondary }]}>Frame the wine label in the viewfinder</Text>
         <TouchableOpacity

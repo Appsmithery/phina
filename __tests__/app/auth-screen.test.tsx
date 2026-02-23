@@ -2,15 +2,14 @@ import React from "react";
 import { render, screen } from "@testing-library/react-native";
 import AuthScreen from "@/app/(auth)/index";
 
+jest.mock("expo-router", () => ({
+  router: { push: jest.fn() },
+}));
+
 jest.mock("@/lib/supabase", () => ({
   supabase: {
     auth: {
-      signUp: jest.fn(() =>
-        Promise.resolve({ data: { session: null, user: null }, error: null })
-      ),
-      signInWithPassword: jest.fn(() =>
-        Promise.resolve({ data: { session: null, user: null }, error: null })
-      ),
+      signInWithOtp: jest.fn(() => Promise.resolve({ error: null })),
     },
   },
 }));
@@ -31,15 +30,15 @@ describe("AuthScreen", () => {
   it("renders Phína logo and Sign Up / Sign In CTAs", () => {
     render(<AuthScreen />);
     expect(screen.getByLabelText("Phína logo")).toBeTruthy();
-    expect(screen.getByText(/Create an account or sign in/)).toBeTruthy();
+    expect(screen.getByText(/Enter your email/)).toBeTruthy();
     expect(screen.getByText("Sign Up")).toBeTruthy();
     expect(screen.getByText("Sign In")).toBeTruthy();
   });
 
-  it("has email and password inputs", () => {
+  it("has email input only", () => {
     render(<AuthScreen />);
     expect(screen.getByPlaceholderText("you@example.com")).toBeTruthy();
-    expect(screen.getByPlaceholderText("Password")).toBeTruthy();
-    expect(screen.getByPlaceholderText("Confirm password")).toBeTruthy();
+    expect(screen.queryByPlaceholderText("Password")).toBeNull();
+    expect(screen.queryByPlaceholderText("Confirm password")).toBeNull();
   });
 });

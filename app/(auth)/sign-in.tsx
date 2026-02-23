@@ -9,8 +9,6 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
-  Image,
-  useWindowDimensions,
 } from "react-native";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
@@ -19,58 +17,36 @@ import { useTheme } from "@/lib/theme";
 const UNAUTHORIZED_HINT =
   "In Supabase: Authentication → Providers → turn Email ON. Check Project Settings → API: use the anon public key and project URL in .env, then restart the app.";
 
-const LOGO_MAX_SIDE = 560;
-const LOGO_MIN_SIDE = 320;
-const LOGO_WIDTH_RATIO = 0.9;
-
-export default function AuthScreen() {
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+export default function SignInScreen() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorHint, setErrorHint] = useState<string | null>(null);
   const theme = useTheme();
 
-  const logoSize = Math.max(
-    LOGO_MIN_SIDE,
-    Math.min(LOGO_MAX_SIDE, screenWidth * LOGO_WIDTH_RATIO, screenHeight * 0.5)
-  );
-
-  const handleSignUp = async () => {
+  const handleSignIn = async () => {
     const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail) {
-      setErrorHint("Please enter your email.");
+    if (!trimmedEmail || !password) {
+      setErrorHint("Please enter your email and password.");
       return;
     }
     setLoading(true);
     setErrorHint(null);
-    const baseUrl = (process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co").replace(
-      /\/+$/,
-      ""
-    );
-    const redirectUrl = Platform.OS === "web" ? `${baseUrl}/auth/set-password` : undefined;
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const { error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
-        options: { emailRedirectTo: redirectUrl },
+        password,
       });
       if (error) throw error;
-      Alert.alert(
-        "Check your email",
-        "We sent you a magic link. Tap it to set your password and sign in.",
-        [{ text: "OK" }]
-      );
+      // Session set; app/index will redirect to (tabs)
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
       const is401 = message.includes("401") || message.toLowerCase().includes("unauthorized");
-      setErrorHint(is401 ? UNAUTHORIZED_HINT : message);
-      Alert.alert("Error", is401 ? UNAUTHORIZED_HINT : message);
+      setErrorHint(is401 ? UNAUTHORIZED_HINT : "Invalid email or password.");
+      Alert.alert("Sign in failed", is401 ? UNAUTHORIZED_HINT : "Invalid email or password.");
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSignIn = () => {
-    router.push("/(auth)/sign-in");
   };
 
   const inputStyle = [
@@ -88,16 +64,12 @@ export default function AuthScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
     >
       <View style={styles.content}>
-        <View style={[styles.logoWrapper, { backgroundColor: theme.background }]}>
-          <Image
-            source={require("../../phina_logo_transparent.png")}
-            style={[styles.logo, { width: logoSize, height: logoSize }]}
-            resizeMode="contain"
-            accessibilityLabel="Phína logo"
-          />
-        </View>
+        <TouchableOpacity onPress={() => router.back()} style={styles.back}>
+          <Text style={[styles.backText, { color: theme.textSecondary }]}>Back</Text>
+        </TouchableOpacity>
+        <Text style={[styles.title, { color: theme.text }]}>Sign In</Text>
         <Text style={[styles.subtitle, { color: theme.text }]}>
-          Enter your email to get a sign-in link
+          Enter your email and password
         </Text>
         <TextInput
           style={inputStyle}
@@ -110,25 +82,27 @@ export default function AuthScreen() {
           autoCorrect={false}
           editable={!loading}
         />
+        <TextInput
+          style={inputStyle}
+          placeholder="Password"
+          placeholderTextColor={theme.textMuted}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!loading}
+        />
         <TouchableOpacity
           style={[styles.button, { backgroundColor: theme.primary }]}
-          onPress={handleSignUp}
+          onPress={handleSignIn}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>Sign Up</Text>
+            <Text style={styles.buttonText}>Sign In</Text>
           )}
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.buttonSecondary, { borderColor: theme.border }]}
-          onPress={handleSignIn}
-          disabled={loading}
-        >
-          <Text style={[styles.buttonSecondaryText, { color: theme.textSecondary }]}>
-            Sign In
-          </Text>
         </TouchableOpacity>
         {errorHint ? (
           <Text style={[styles.errorHint, { color: theme.textMuted }]}>{errorHint}</Text>
@@ -139,11 +113,7 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  container: { flex: 1, justifyContent: "center", alignItems: "center" },
   content: {
     flex: 1,
     justifyContent: "center",
@@ -153,17 +123,12 @@ const styles = StyleSheet.create({
     width: "100%",
     alignSelf: "center",
   },
-  logoWrapper: {
-    alignSelf: "center",
-    marginBottom: 12,
-  },
-  logo: {
-    alignSelf: "center",
-  },
+  back: { alignSelf: "flex-start", marginBottom: 16 },
+  backText: { fontSize: 16 },
+  title: { fontFamily: "Montserrat_600SemiBold", fontSize: 24, marginBottom: 8 },
   subtitle: {
     fontFamily: "Montserrat_400Regular",
     fontSize: 16,
-    textAlign: "center",
     marginBottom: 16,
   },
   input: {
@@ -174,25 +139,10 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_400Regular",
     marginBottom: 12,
   },
-  button: {
-    borderRadius: 14,
-    padding: 16,
-    alignItems: "center",
-    marginBottom: 12,
-  },
+  button: { borderRadius: 14, padding: 16, alignItems: "center" },
   buttonText: {
     fontFamily: "Montserrat_600SemiBold",
     color: "#fff",
-    fontSize: 16,
-  },
-  buttonSecondary: {
-    borderRadius: 14,
-    padding: 16,
-    alignItems: "center",
-    borderWidth: 1,
-  },
-  buttonSecondaryText: {
-    fontFamily: "Montserrat_600SemiBold",
     fontSize: 16,
   },
   errorHint: {
