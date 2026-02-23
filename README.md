@@ -40,7 +40,7 @@ A wine club app that digitizes themed tasting events: members snap a photo of th
    - Optional: set `EXPO_PUBLIC_APP_URL` (default `https://phina.appsmithery.co`).
 3. **Database**
    - In Supabase: SQL Editor → run the migrations in `supabase/migrations/` in order (e.g. `001_initial.sql`).
-   - In Authentication → Providers, enable Email and optionally disable "Confirm email" for magic links during dev.
+   - In Authentication → Providers, enable Email and optionally disable "Confirm email" for magic links during dev. **If you never receive the magic link email**, see [Auth setup](docs/AUTH_SETUP.md) (redirect URLs, SMTP, and team email limits).
 4. **Assets**
    - Add app icon and splash images under `assets/` (see `assets/README.md`). If missing, you may need to point `app.config.ts` at placeholder assets to run.
 5. **Run**
