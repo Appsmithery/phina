@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  ScrollView,
 } from "react-native";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
@@ -49,48 +50,54 @@ export default function AuthScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={[styles.container, { backgroundColor: theme.background }]}
     >
-      <View style={styles.content}>
-        <View style={[styles.logoWrapper, { backgroundColor: theme.background }]}>
-          <Image
-            source={require("../../phina-logo.png")}
-            style={styles.logo}
-            resizeMode="contain"
-            accessibilityLabel="Phína logo"
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.content}>
+          <View style={[styles.logoWrapper, { backgroundColor: theme.background }]}>
+            <Image
+              source={require("../../phina-logo.png")}
+              style={styles.logo}
+              resizeMode="contain"
+              accessibilityLabel="Phína logo"
+            />
+          </View>
+          <Text style={[styles.subtitle, { color: theme.text }]}>
+            Enter your email to get a sign-in link
+          </Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.surface,
+                color: theme.text,
+                borderColor: theme.border,
+              },
+            ]}
+            placeholder="you@example.com"
+            placeholderTextColor={theme.textMuted}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!loading}
           />
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: theme.primary }]}
+            onPress={sendMagicLink}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Send magic link</Text>
+            )}
+          </TouchableOpacity>
         </View>
-        <Text style={[styles.subtitle, { color: theme.text }]}>
-          Enter your email to get a sign-in link
-        </Text>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: theme.surface,
-              color: theme.text,
-              borderColor: theme.border,
-            },
-          ]}
-          placeholder="you@example.com"
-          placeholderTextColor={theme.textMuted}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!loading}
-        />
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: theme.primary }]}
-          onPress={sendMagicLink}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Send magic link</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -98,7 +105,11 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: "center",
+    paddingVertical: 24,
   },
   content: {
     padding: 24,
