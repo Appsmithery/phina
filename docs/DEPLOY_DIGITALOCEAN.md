@@ -115,7 +115,27 @@ The script loads `.env`, runs `npm run export:web`, then rsyncs `dist/` to `/var
 
 ---
 
-## 5. Checklist
+## 5. CI/CD (GitHub Actions)
+
+Pushes to `main` automatically build and deploy to the droplet after CI (typecheck, lint, test) passes.
+
+**Required secrets** (repo **Settings → Secrets and variables → Actions**):
+
+| Secret | Description |
+|--------|-------------|
+| `DROPLET_HOST` | SSH target, e.g. `root@1.2.3.4` or `root@phina.appsmithery.co` |
+| `DROPLET_SSH_KEY` | Private key contents (same key the droplet accepts for `ssh $DROPLET_HOST`) |
+| `EXPO_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
+| `EXPO_PUBLIC_APP_URL` | Optional; e.g. `https://phina.appsmithery.co` (used at build time) |
+
+To use a dedicated deploy key: on the droplet run `ssh-keygen`, add the **public** key to `~/.ssh/authorized_keys`, and put the **private** key in `DROPLET_SSH_KEY`.
+
+You can still run `./scripts/deploy-do.sh` locally anytime for a manual deploy.
+
+---
+
+## 6. Checklist
 
 | Step | Done |
 |------|------|
@@ -128,7 +148,7 @@ The script loads `.env`, runs `npm run export:web`, then rsyncs `dist/` to `/var
 
 ---
 
-## Troubleshooting
+## 7. Troubleshooting
 
 ### SSH auth (“Connection closed” or “Permission denied”)
 
