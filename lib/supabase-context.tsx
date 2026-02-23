@@ -34,7 +34,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 
   const refreshMember = async () => {
     const { data: { session: s } } = await supabase.auth.getSession();
-    if (s?.user?.id) await fetchMember(s.user.id);
+    if (s?.user?.id) await fetchMember(s.user.id, s.user.email ?? undefined);
   };
 
   useEffect(() => {

@@ -1,14 +1,18 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { useEffect, useState } from "react";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
-import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 export default function ProfileScreen() {
   const { member, session, refreshMember } = useSupabase();
   const theme = useTheme();
   const [name, setName] = useState(member?.name ?? "");
+
+  useEffect(() => {
+    setName(member?.name ?? "");
+  }, [member?.name]);
   const [saving, setSaving] = useState(false);
   const queryClient = useQueryClient();
 

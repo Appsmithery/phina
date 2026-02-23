@@ -35,6 +35,7 @@ function SupabaseLayout() {
       <Stack.Screen name="join/[eventId]" />
       <Stack.Screen name="event/create" />
       <Stack.Screen name="event/[id]/index" />
+      <Stack.Screen name="event/[id]/add-wine" />
       <Stack.Screen name="event/[id]/qr" />
       <Stack.Screen name="event/[id]/wine/[wineId]" />
       <Stack.Screen name="event/[id]/rate/[wineId]" />

@@ -1,5 +1,6 @@
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput } from "react-native";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
@@ -7,6 +8,7 @@ import type { Event } from "@/types/database";
 
 export default function HistoryScreen() {
   const theme = useTheme();
+  const [search, setSearch] = useState("");
 
   const { data: events = [] } = useQuery({
     queryKey: ["events", "ended"],
@@ -21,16 +23,36 @@ export default function HistoryScreen() {
     },
   });
 
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return events;
+    return events.filter(
+      (e) =>
+        e.title.toLowerCase().includes(q) ||
+        e.theme.toLowerCase().includes(q) ||
+        new Date(e.date).toLocaleDateString().toLowerCase().includes(q)
+    );
+  }, [events, search]);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Text style={[styles.title, { color: theme.text }]}>History</Text>
-      {events.length === 0 ? (
+      <TextInput
+        style={[styles.search, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
+        placeholder="Search by title, theme, or date…"
+        placeholderTextColor={theme.textMuted}
+        value={search}
+        onChangeText={setSearch}
+      />
+      {filtered.length === 0 ? (
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>
-          Past events will appear here after hosts end them.
+          {events.length === 0
+            ? "Past events will appear here after hosts end them."
+            : "No events match your search."}
         </Text>
       ) : (
         <FlatList
-          data={events}
+          data={filtered}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
@@ -53,6 +75,14 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   title: { fontSize: 24, fontWeight: "700", padding: 16 },
+  search: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
   list: { padding: 16, paddingTop: 0 },
   card: {
     borderWidth: 1,

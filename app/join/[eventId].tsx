@@ -1,10 +1,11 @@
 import { useLocalSearchParams, router } from "expo-router";
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { useSupabase } from "@/lib/supabase-context";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 import { useQueryClient } from "@tanstack/react-query";
+import { setPendingJoinEventId } from "@/lib/pending-join";
 
 export default function JoinEventScreen() {
   const { eventId } = useLocalSearchParams<{ eventId: string }>();
@@ -17,7 +18,7 @@ export default function JoinEventScreen() {
   useEffect(() => {
     if (!sessionLoaded || !eventId) return;
     if (!session) {
-      router.replace({ pathname: "/(auth)", params: { redirect: `join/${eventId}` } });
+      setPendingJoinEventId(eventId).then(() => router.replace("/(auth)"));
       return;
     }
     (async () => {

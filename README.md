@@ -49,6 +49,19 @@ A wine club app that digitizes themed tasting events: members snap a photo of th
    ```
    Then press `w` for web, or scan with Expo Go for native.
 
+**Scripts**
+
+| Command | Description |
+|--------|-------------|
+| `npm start` | Start Expo dev server |
+| `npm run web` | Start with web |
+| `npm run export:web` | Build PWA to `dist/` |
+| `npm run typecheck` | TypeScript check |
+| `npm run lint` | Expo lint |
+| `npm test` | Run Jest tests |
+
+**Security:** We use `overrides` in `package.json` to pin patched versions of `minimatch` and `tar`. Most other audit findings are in transitive Expo/Jest/React Native deps; fixing them with `npm audit fix --force` would apply breaking version changes. Re-run `npm audit` after upgrading Expo (e.g. `npx expo install expo@latest`) when newer SDKs ship with updated dependencies.
+
 ---
 
 ## Docs

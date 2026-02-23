@@ -9,6 +9,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Image,
 } from "react-native";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
@@ -46,7 +47,12 @@ export default function AuthScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
     >
       <View style={styles.content}>
-        <Text style={[styles.title, { color: theme.text }]}>Phína</Text>
+        <Image
+          source={require("../../Gemini_Generated_Image_nd308snd308snd30.png")}
+          style={styles.logo}
+          resizeMode="contain"
+          accessibilityLabel="Phína logo"
+        />
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
           Enter your email to get a sign-in link
         </Text>
@@ -95,11 +101,11 @@ const styles = StyleSheet.create({
     width: "100%",
     alignSelf: "center",
   },
-  title: {
-    fontSize: 36,
-    fontWeight: "700",
-    textAlign: "center",
-    marginBottom: 8,
+  logo: {
+    width: 160,
+    height: 160,
+    alignSelf: "center",
+    marginBottom: 16,
   },
   subtitle: {
     fontSize: 16,
