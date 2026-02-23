@@ -44,7 +44,17 @@ So:
 
 ---
 
-## 4. Check Auth logs
+## 4. 401 Unauthorized on “Send magic link”
+
+If the browser shows **401 (Unauthorized)** on `auth/v1/otp`:
+
+- **Authentication** → **Providers**: ensure **Email** is **enabled** (401 often means the Email provider is off).
+- **Project URL and keys:** In **Project Settings** → **API**, confirm you’re using the **Project URL** and **anon public** key in `.env` as `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` (no trailing slashes, no quotes). Restart the dev server after changing `.env`.
+- If the project was **paused**, resume it in the Supabase dashboard.
+
+---
+
+## 5. Check Auth logs
 
 If the button succeeds in the app but you still get no email:
 
@@ -60,4 +70,5 @@ If the button succeeds in the app but you still get no email:
 | Enable Email | Auth → Providers | Turn on Email provider |
 | Redirect URLs | Auth → URL Configuration | Add `https://phina.appsmithery.co/**` (and any other app origins) |
 | Emails not received | Auth → SMTP / Team | Use team member email for testing, or set up custom SMTP for production |
+| 401 on magic link | Auth → Providers / .env | Enable Email provider; check URL and anon key |
 | Debug | Auth → Logs | Confirm the magic link request and any send errors |

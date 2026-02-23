@@ -107,14 +107,14 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   logoWrapper: {
-    alignSelf: "center",
+    width: "100%",
     borderRadius: 14,
     padding: 16,
     marginBottom: 16,
   },
   logo: {
-    width: 160,
-    height: 160,
+    width: "100%",
+    aspectRatio: 1,
     alignSelf: "center",
   },
   subtitle: {
