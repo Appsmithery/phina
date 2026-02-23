@@ -37,7 +37,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   web: {
     bundler: "metro",
-    favicon: "./assets/favicon.png",
+    favicon: "./phina_favicon.png",
     name: "Phína",
     shortName: "Phína",
     description: "Wine club hosting app with OCR label capture and anonymous ratings",
