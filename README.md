@@ -50,6 +50,21 @@ A wine club app that digitizes themed tasting events: members snap a photo of th
    ```
    Then press `w` for web, or scan with Expo Go for native.
 
+**Edge Functions (label extraction)**
+
+The “Scan label” feature calls the `extract-wine-label` Edge Function. You can either run it locally (needs Docker) or deploy it to your hosted project (no Docker).
+
+- **Local (requires [Docker Desktop](https://docs.docker.com/desktop))**
+  1. Start the local Supabase stack: `npx supabase start`
+  2. Serve the function: `npm run functions:serve` (or `npx supabase functions serve extract-wine-label`)
+  3. Point the app at local Supabase (e.g. set `EXPO_PUBLIC_SUPABASE_URL` to the URL from `supabase start`) so the app calls the local function.
+- **Deploy to hosted project (no Docker)**  
+  Use your existing Supabase project URL; the app will call the deployed function.
+  1. Link the CLI to your project: `npx supabase link --project-ref YOUR_REF` (ref from Supabase dashboard URL).
+  2. Deploy: `npx supabase functions deploy extract-wine-label`
+  3. Set the secret: `npx supabase secrets set PERPLEXITY_API_KEY=pplx-...`
+  Your app already uses `EXPO_PUBLIC_SUPABASE_URL`; once the function is deployed and the secret set, “Scan label” will use it.
+
 **Scripts**
 
 | Command | Description |
@@ -57,6 +72,7 @@ A wine club app that digitizes themed tasting events: members snap a photo of th
 | `npm start` | Start Expo dev server |
 | `npm run web` | Start with web |
 | `npm run export:web` | Build PWA to `dist/` |
+| `npm run functions:serve` | Serve `extract-wine-label` locally (requires `supabase start` + Docker) |
 | `npm run typecheck` | TypeScript check |
 | `npm run lint` | Expo lint |
 | `npm test` | Run Jest tests |

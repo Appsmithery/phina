@@ -19,9 +19,9 @@ import { useTheme } from "@/lib/theme";
 const UNAUTHORIZED_HINT =
   "In Supabase: Authentication → Providers → turn Email ON. Check Project Settings → API: use the anon public key and project URL in .env, then restart the app.";
 
-const LOGO_MAX_SIDE = 280;
-const LOGO_MIN_SIDE = 160;
-const LOGO_WIDTH_RATIO = 0.65;
+const LOGO_MAX_SIDE = 560;
+const LOGO_MIN_SIDE = 320;
+const LOGO_WIDTH_RATIO = 0.9;
 
 export default function AuthScreen() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -32,7 +32,7 @@ export default function AuthScreen() {
 
   const logoSize = Math.max(
     LOGO_MIN_SIDE,
-    Math.min(LOGO_MAX_SIDE, screenWidth * LOGO_WIDTH_RATIO, screenHeight * 0.35)
+    Math.min(LOGO_MAX_SIDE, screenWidth * LOGO_WIDTH_RATIO, screenHeight * 0.5)
   );
 
   const sendMagicLink = async () => {
