@@ -10,20 +10,24 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  ScrollView,
 } from "react-native";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 
+const UNAUTHORIZED_HINT =
+  "In Supabase: Authentication → Providers → turn Email ON. Check Project Settings → API: use the anon public key and project URL in .env, then restart the app.";
+
 export default function AuthScreen() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorHint, setErrorHint] = useState<string | null>(null);
   const theme = useTheme();
 
   const sendMagicLink = async () => {
     if (!email.trim()) return;
     setLoading(true);
+    setErrorHint(null);
     const appUrl = process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co";
     try {
       const { error } = await supabase.auth.signInWithOtp({
@@ -39,7 +43,10 @@ export default function AuthScreen() {
         [{ text: "OK" }]
       );
     } catch (e: unknown) {
-      Alert.alert("Error", e instanceof Error ? e.message : "Something went wrong");
+      const message = e instanceof Error ? e.message : String(e);
+      const is401 = message.includes("401") || message.toLowerCase().includes("unauthorized");
+      setErrorHint(is401 ? UNAUTHORIZED_HINT : message);
+      Alert.alert("Error", is401 ? UNAUTHORIZED_HINT : message);
     } finally {
       setLoading(false);
     }
@@ -50,42 +57,36 @@ export default function AuthScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={[styles.container, { backgroundColor: theme.background }]}
     >
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.content}>
-          <View style={[styles.logoWrapper, { backgroundColor: theme.background }]}>
-            <Image
-              source={require("../../phina-logo.png")}
-              style={styles.logo}
-              resizeMode="contain"
-              accessibilityLabel="Phína logo"
-            />
-          </View>
-          <Text style={[styles.subtitle, { color: theme.text }]}>
-            Enter your email to get a sign-in link
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: theme.surface,
-                color: theme.text,
-                borderColor: theme.border,
-              },
-            ]}
-            placeholder="you@example.com"
-            placeholderTextColor={theme.textMuted}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!loading}
+      <View style={styles.content}>
+        <View style={[styles.logoWrapper, { backgroundColor: theme.background }]}>
+          <Image
+            source={require("../../phina-logo.png")}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityLabel="Phína logo"
           />
+        </View>
+        <Text style={[styles.subtitle, { color: theme.text }]}>
+          Enter your email to get a sign-in link
+        </Text>
+        <TextInput
+          style={[
+            styles.input,
+            {
+              backgroundColor: theme.surface,
+              color: theme.text,
+              borderColor: theme.border,
+            },
+          ]}
+          placeholder="you@example.com"
+          placeholderTextColor={theme.textMuted}
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          editable={!loading}
+        />
           <TouchableOpacity
             style={[styles.button, { backgroundColor: theme.primary }]}
             onPress={sendMagicLink}
@@ -97,8 +98,10 @@ export default function AuthScreen() {
               <Text style={styles.buttonText}>Send magic link</Text>
             )}
           </TouchableOpacity>
+          {errorHint ? (
+            <Text style={[styles.errorHint, { color: theme.textMuted }]}>{errorHint}</Text>
+          ) : null}
         </View>
-      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -106,14 +109,8 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
     justifyContent: "center",
-    paddingVertical: 24,
+    alignItems: "center",
   },
   content: {
     padding: 24,
@@ -122,16 +119,14 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   logoWrapper: {
-    width: "100%",
-    maxWidth: 280,
     alignSelf: "center",
     borderRadius: 14,
     padding: 16,
     marginBottom: 16,
   },
   logo: {
-    width: "100%",
-    aspectRatio: 1,
+    width: 200,
+    height: 200,
     alignSelf: "center",
   },
   subtitle: {
@@ -157,5 +152,12 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_600SemiBold",
     color: "#fff",
     fontSize: 16,
+  },
+  errorHint: {
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 16,
+    paddingHorizontal: 8,
   },
 });
