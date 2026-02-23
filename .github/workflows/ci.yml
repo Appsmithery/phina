@@ -63,9 +63,11 @@ jobs:
           EXPO_PUBLIC_APP_URL: ${{ secrets.EXPO_PUBLIC_APP_URL }}
 
       - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DROPLET_SSH_KEY }}
         run: |
-          # Write key to file with Unix line endings (fixes "error in libcrypto" when key was pasted with CRLF)
-          printf '%s\n' "${{ secrets.DROPLET_SSH_KEY }}" | sed 's/\r$//' > deploy_key.pem
+          # Write key to file with Unix line endings (fixes "error in libcrypto" when pasted with CRLF)
+          echo "$SSH_PRIVATE_KEY" | sed 's/\r$//' > deploy_key.pem
           chmod 600 deploy_key.pem
           eval "$(ssh-agent -s)"
           ssh-add deploy_key.pem
