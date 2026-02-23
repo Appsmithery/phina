@@ -36,7 +36,7 @@ export default function HistoryScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Text style={[styles.title, { color: theme.text }]}>History</Text>
+      <Text style={[styles.title, { color: theme.text }]}>Library</Text>
       <TextInput
         style={[styles.search, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
         placeholder="Search by title, theme, or date…"

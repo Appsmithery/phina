@@ -1,4 +1,5 @@
 import { Tabs } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 
@@ -17,8 +18,22 @@ export default function TabsLayout() {
         tabBarStyle: { backgroundColor: theme.surface, borderTopColor: theme.border },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: "Events", tabBarLabel: "Events" }} />
-      <Tabs.Screen name="history" options={{ title: "History", tabBarLabel: "History" }} />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: "Events",
+          tabBarLabel: "Events",
+          tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: "Library",
+          tabBarLabel: "Library",
+          tabBarIcon: ({ color, size }) => <Ionicons name="library-outline" size={size} color={color} />,
+        }}
+      />
       <Tabs.Screen
         name="admin"
         options={{
@@ -27,7 +42,14 @@ export default function TabsLayout() {
           tabBarButton: showAdmin ? undefined : () => null,
         }}
       />
-      <Tabs.Screen name="profile" options={{ title: "Profile", tabBarLabel: "Profile" }} />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Profile",
+          tabBarLabel: "Profile",
+          tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" size={size} color={color} />,
+        }}
+      />
     </Tabs>
   );
 }
