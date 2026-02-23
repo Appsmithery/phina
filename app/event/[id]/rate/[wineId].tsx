@@ -12,10 +12,10 @@ import type { RatingRound } from "@/types/database";
 type Vote = -1 | 0 | 1;
 
 export default function RateWineScreen() {
-  const { id, wineId } = useLocalSearchParams<{ id: string; wineId: string }>();
+  const { wineId } = useLocalSearchParams<{ id: string; wineId: string }>();
   const { member } = useSupabase();
   const theme = useTheme();
-  const [vote, setVote] = useState<Vote | null>(null);
+  const [, setVote] = useState<Vote | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const queryClient = useQueryClient();
 

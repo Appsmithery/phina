@@ -36,7 +36,7 @@ export default function JoinEventScreen() {
         setJoining(false);
       }
     })();
-  }, [sessionLoaded, session, eventId]);
+  }, [sessionLoaded, session, eventId, queryClient]);
 
   if (!sessionLoaded || joining) {
     return (

@@ -6,7 +6,7 @@ import { useTheme } from "@/lib/theme";
 import type { Wine } from "@/types/database";
 
 export default function WineDetailScreen() {
-  const { id, wineId } = useLocalSearchParams<{ id: string; wineId: string }>();
+  const { wineId } = useLocalSearchParams<{ id: string; wineId: string }>();
   const theme = useTheme();
 
   const { data: wine, isLoading } = useQuery({

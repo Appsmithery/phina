@@ -12,7 +12,6 @@ import {
   Image,
   useWindowDimensions,
 } from "react-native";
-import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 

@@ -1,8 +1,6 @@
-import { useLocalSearchParams, router } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
+import { useLocalSearchParams } from "expo-router";
 import { View, Text, StyleSheet } from "react-native";
 import QRCode from "react-native-qrcode-svg";
-import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 
 const APP_BASE_URL = process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co";
