@@ -150,7 +150,19 @@ You can still run `./scripts/deploy-do.sh` locally anytime for a manual deploy.
 
 ## 7. Troubleshooting
 
-### SSH auth (“Connection closed” or “Permission denied”)
+### CI/CD: Permission denied (publickey)
+
+If the GitHub Actions deploy job fails at **Test SSH connection** with **Permission denied (publickey)**:
+
+1. The key in the **DROPLET_SSH_KEY** secret is not in the droplet’s `authorized_keys`.
+2. In the same workflow run, open the **Show deploy public key** step. It prints the single line that must be in `~/.ssh/authorized_keys` on the droplet.
+3. SSH into the droplet using a key that already works (e.g. from your machine or DO Console), then:
+   ```bash
+   echo 'PASTE_THE_FULL_LINE_FROM_SHOW_DEPLOY_PUBLIC_KEY' >> ~/.ssh/authorized_keys
+   ```
+4. Re-run the deploy (push a commit or use **Actions → Run workflow**). No need to change the secret.
+
+### SSH auth (“Connection closed” or “Permission denied”) — local / script
 
 Deploy uses `ssh`/`scp` to the droplet. If you see **Connection closed by … port 22** or **Permission denied**, the droplet is rejecting your login.
 

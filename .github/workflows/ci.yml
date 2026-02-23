@@ -98,9 +98,19 @@ jobs:
             echo "::error::ssh-add failed. Ensure DROPLET_SSH_KEY is a valid PEM (RSA or ED25519), full key with -----BEGIN ... ----- and -----END ... -----, no extra characters."
             exit 1
           fi
+          # Save public key for next step (so you can confirm it's on the droplet)
+          ssh-keygen -y -f "$KEY_FILE" > deploy_public_key.txt 2>/dev/null || true
           echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
           echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
           rm -f "$KEY_FILE"
+
+      - name: Show deploy public key
+        run: |
+          echo "The line below is the public key for DROPLET_SSH_KEY. It must appear in ~/.ssh/authorized_keys on the droplet (for the user in DROPLET_HOST)."
+          echo "To add it: SSH in with a key that already works, then run: echo 'PASTE_THE_LINE_BELOW' >> ~/.ssh/authorized_keys"
+          echo "---"
+          cat deploy_public_key.txt 2>/dev/null || echo "(could not derive public key)"
+          echo "---"
 
       - name: Test SSH connection
         env:
@@ -109,7 +119,8 @@ jobs:
           set -e
           SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
           if ! ssh $SSH_OPTS "$DROPLET_HOST" "echo OK"; then
-            echo "::error::Cannot SSH to $DROPLET_HOST. Check: 1) DROPLET_HOST (e.g. root@ip), 2) droplet firewall allows SSH (22), 3) DROPLET_SSH_KEY matches the key installed on the droplet."
+            echo "::error::Permission denied: the droplet is not authorizing the deploy key."
+            echo "Fix: On the droplet, ensure the public key from the 'Show deploy public key' step above is in ~/.ssh/authorized_keys for the user in DROPLET_HOST (e.g. root). SSH in with a key that works, then: echo '<that_public_key_line>' >> ~/.ssh/authorized_keys"
             exit 1
           fi
 
