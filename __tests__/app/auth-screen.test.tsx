@@ -5,7 +5,12 @@ import AuthScreen from "@/app/(auth)/index";
 jest.mock("@/lib/supabase", () => ({
   supabase: {
     auth: {
-      signInWithOtp: jest.fn(() => Promise.resolve({ error: null })),
+      signUp: jest.fn(() =>
+        Promise.resolve({ data: { session: null, user: null }, error: null })
+      ),
+      signInWithPassword: jest.fn(() =>
+        Promise.resolve({ data: { session: null, user: null }, error: null })
+      ),
     },
   },
 }));
@@ -23,15 +28,18 @@ jest.mock("@/lib/theme", () => ({
 }));
 
 describe("AuthScreen", () => {
-  it("renders Phína logo and magic link CTA", () => {
+  it("renders Phína logo and Sign Up / Sign In CTAs", () => {
     render(<AuthScreen />);
     expect(screen.getByLabelText("Phína logo")).toBeTruthy();
-    expect(screen.getByText(/Enter your email/)).toBeTruthy();
-    expect(screen.getByText("Send magic link")).toBeTruthy();
+    expect(screen.getByText(/Create an account or sign in/)).toBeTruthy();
+    expect(screen.getByText("Sign Up")).toBeTruthy();
+    expect(screen.getByText("Sign In")).toBeTruthy();
   });
 
-  it("has email input", () => {
+  it("has email and password inputs", () => {
     render(<AuthScreen />);
     expect(screen.getByPlaceholderText("you@example.com")).toBeTruthy();
+    expect(screen.getByPlaceholderText("Password")).toBeTruthy();
+    expect(screen.getByPlaceholderText("Confirm password")).toBeTruthy();
   });
 });

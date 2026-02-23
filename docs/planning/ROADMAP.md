@@ -1,6 +1,81 @@
-# Phína — App Scaffold Roadmap
+# Phína — Product Roadmap
 
-## Context
+This is the canonical roadmap for this repo. PRDs, implementation plans (Cursor/Claude Plan Mode), and epics/issues should link back here.
+
+## Product vision
+
+- **Vision:** Digitize wine club tasting events — photo-based wine entry (AI label extraction), live rating rounds (push-triggered, anonymous), and searchable history — so hosts and members get a smooth, persistent experience instead of sign-in sheets and verbal spiels.
+- **Target users:** Wine club hosts and members attending in-person themed tastings.
+- **North-star metric:** Events completed with full photo → rate → reveal flow; member re-engagement (return visits).
+- **Non-goals (v1):** Social features, e-commerce, price lookups, separate web-only product. *Later phases:* personal libraries (user-owned collections), optional payments (donations + subscription for library users).
+
+## How to use this roadmap
+
+- **PRDs** live in `docs/planning/PRDs/` and are referenced by stable IDs (e.g. `PRD-2026-001`). Use [PRD_Template.md](./PRDs/PRD_Template.md) and the [planning guide](./planning%20guide.md) for naming and structure.
+- **Plan Mode notes** live in `docs/planning/Plans/` and use the same PRD ID (e.g. `PRD-2026-001__cursor-plan.md`).
+- **Status conventions:** 🧠 Draft · ✅ Ready · 🛠 In progress · 🧪 Validating · 🚀 Shipped · 🧊 Parked
+- When you create or update a PRD, add or update its line in **Now / Next / Later** and in the **PRD index** below.
+
+## Now / Next / Later
+
+### Now (active)
+
+- **Label photo extraction — troubleshoot & finalize** — Status: 🛠 — Owner: TBD  
+  - **Why:** Extraction is still not working in production; blocks core value (photo → wine details).  
+  - **Exit criteria:** Reliable label extraction for representative labels (multiple styles/languages); clear error handling and fallback when extraction fails.  
+  - No PRD yet; consider a short PRD for scope and verification.
+
+### Next (queued)
+
+- **Sign in / sign up with Google** — Add Google OAuth alongside magic-link email. Reduces friction for new and returning members. Status: 🧠 — Target: TBD — No PRD yet.
+- **Personal libraries** — Wine collections not tied to events: users can build, search, and manage their own library (bottles they’ve had or want to try). Enables use outside event-only flow. Status: 🧠 — Target: TBD — No PRD yet.
+- **Payments** — Two streams: (1) **Donations** — optional one-time donate-to-project when joining events; (2) **Subscription** — $2.99/month for personal library users (unlocks/library features). Subscription tier depends on Personal libraries. Status: 🧠 — Target: TBD — No PRD yet.
+
+### Later (ideas)
+
+- **Brand application** — Apply [Brand Guidelines](../brand-guidelines.md) consistently across app (typography, palette, imagery). No PRD yet.
+- **Observability** — Error tracking, basic analytics. No PRD yet.
+- **Native store builds** — Google Play / App Store when accounts are ready. No PRD yet.
+
+## Releases (milestones)
+
+### v0.1 (MVP) — 🚀 Shipped
+
+- **Goal:** Core loop: events, QR join, photo wine entry, live rating rounds, event close & results reveal, history.
+- **Includes:** Supabase + Expo scaffold, event/QR, camera + label extraction, rating rounds, history tab, PWA deploy.
+
+### v0.2 — 🚀 Shipped
+
+- **Goal:** Rebrand (Phína), admin panel, domain & secrets, brand guidelines in repo.
+- **Includes:** Rebrand to Phína, in-app admin (promote/demote members), phina.appsmithery.co, env/secrets strategy, CI (typecheck/lint/test + deploy to droplet), [Brand Guidelines](../brand-guidelines.md) doc.
+
+### v0.3 (reliability & auth)
+
+- **Goal:** Fix label extraction; add Google sign-in for lower friction.
+- **Includes:** Label photo extraction troubleshooting and finalization; Sign in/up with Google (OAuth).
+
+### v0.4 (personal libraries & monetization)
+
+- **Goal:** Personal wine libraries (not event-tied); optional donations and subscription for library users.
+- **Includes:** Personal libraries (user-owned wine collections); Payments (donate on event join; $2.99/mo for library users).
+
+### v0.5+
+
+- **Goal:** TBD (e.g. brand application, observability, native store builds).
+
+## PRD index (by area)
+
+| Area        | PRD ID | Title | Status |
+|-------------|--------|--------|--------|
+| *Planned*   | — | Label photo extraction (troubleshoot & finalize) | 🛠 Now |
+| Auth        | — | Sign in/up with Google | 🧠 Next |
+| Product     | — | Personal libraries | 🧠 Next |
+| Monetization| — | Payments (donations + $2.99/mo library) | 🧠 Next |
+| *Add new*   | — | Use [PRD_Template](./PRDs/PRD_Template.md); assign ID and add here | — |
+
+---
+
+## Context (reference)
 
 A wine club holds themed tasting events where members bring bottles, share background info, and rate each other's selections. Today this is all manual — sign-in sheets, verbal spiels, no persistent history. The app digitizes this: members snap a photo of their bottle label, the app extracts wine details automatically, and the host can trigger live rating rounds via push notification. A persistent database builds a searchable history across all events.
 
@@ -325,7 +400,7 @@ Name, email, push notification preferences
 
 ---
 
-## Implementation Order (Completed)
+## Implementation Order — v0.1 (Completed)
 
 1. Supabase setup  
 2. Expo project scaffolding  
@@ -340,11 +415,11 @@ Name, email, push notification preferences
 
 ---
 
-## Next Changes: Rebrand to "Phína" + Admin Panel + Domain Setup
+## v0.2 Delivered: Rebrand + Admin Panel + Domain + Secrets + Brand Guidelines
 
 ### Context
 
-The app is now called Phína. It will be hosted at **phina.appsmithery.co** (domain managed via GoDaddy, deployed to Vercel). We also need an in-app admin panel so admins can promote/demote other club members without touching the database directly.
+The app is now called Phína, hosted at **phina.appsmithery.co** (domain via GoDaddy; CI deploys web build to a droplet). Delivered: rebrand, in-app admin panel (promote/demote members), env/secrets strategy, and brand guidelines in repo.
 
 ### Change 1: Rebrand to "Phína"
 
@@ -472,21 +547,9 @@ vercel env add EXPO_PUBLIC_APP_URL production
 
 ---
 
-## Next: Add Brand Guidelines + Publish All Files to Repo
+## v0.2: Brand Guidelines + Repo Publish — Done
 
-### Context
+- **Brand guidelines:** [docs/brand-guidelines.md](../brand-guidelines.md) created (palette, typography, UI principles, imagery).
+- **Config and repo:** `.env.example`, `.gitignore`, `app.config.ts` and related files tracked; repo has CI (typecheck, lint, test, deploy to droplet).
 
-The phina repo may have only some files committed. Config files (`.env.example`, `.gitignore`, `app.config.ts`) should be tracked. Brand guidelines can be added and everything pushed to the remote.
-
-### Steps
-
-1. Create `Brand Guidelines.md` with brand guidelines content (color palette, typography, UI principles, imagery style).
-2. Stage all relevant files: `Brand Guidelines.md`, `.env.example`, `.gitignore`, `app.config.ts`.
-3. Commit with message: "Add brand guidelines, app config, env template, and gitignore".
-4. Push to the appropriate branch (e.g. `feat/publish-config-<session_id>` if direct push to main is restricted); open a PR to merge into main if needed.
-
-### Verification
-
-- `git status` shows intended files staged/committed
-- `git log` shows the new commit
-- PR is visible on GitHub (if using a branch + PR workflow)
+**Next steps for planning:** Create PRDs for the next initiatives (e.g. brand application, observability) using [PRD_Template](./PRDs/PRD_Template.md) and add them to the [Now / Next / Later](#now--next--later) and [PRD index](#prd-index-by-area) above.
