@@ -38,12 +38,13 @@ export default function AuthScreen() {
     if (!email.trim()) return;
     setLoading(true);
     setErrorHint(null);
-    const appUrl = process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co";
+    const baseUrl = (process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co").replace(/\/+$/, "");
+    const redirectUrl = Platform.OS === "web" ? `${baseUrl}/` : undefined;
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim().toLowerCase(),
         options: {
-          emailRedirectTo: Platform.OS === "web" ? `${appUrl}/` : undefined,
+          emailRedirectTo: redirectUrl,
         },
       });
       if (error) throw error;

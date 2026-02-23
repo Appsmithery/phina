@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { Stack } from "expo-router";
+import { View, Text, StyleSheet, Platform } from "react-native";
+import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -72,6 +72,17 @@ function SupabaseLayout() {
     Montserrat_400Regular,
     Montserrat_600SemiBold,
   });
+
+  // On web, fix malformed path (e.g. // from magic link redirect) so router and Supabase can handle /
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") return;
+    const path = window.location.pathname;
+    if (path === "//" || path.startsWith("//")) {
+      const hash = window.location.hash || "";
+      window.history.replaceState(null, "", `/${hash}`);
+      router.replace("/");
+    }
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setSplashTimedOut(true), SPLASH_TIMEOUT_MS);
