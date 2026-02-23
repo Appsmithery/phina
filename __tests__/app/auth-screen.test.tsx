@@ -23,9 +23,9 @@ jest.mock("@/lib/theme", () => ({
 }));
 
 describe("AuthScreen", () => {
-  it("renders Phína title and magic link CTA", () => {
+  it("renders Phína logo and magic link CTA", () => {
     render(<AuthScreen />);
-    expect(screen.getByText("Phína")).toBeTruthy();
+    expect(screen.getByLabelText("Phína logo")).toBeTruthy();
     expect(screen.getByText(/Enter your email/)).toBeTruthy();
     expect(screen.getByText("Send magic link")).toBeTruthy();
   });
