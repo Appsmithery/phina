@@ -28,6 +28,7 @@ export interface Database {
           is_admin?: boolean;
           created_at?: string;
         };
+        Relationships: [];
       };
       events: {
         Row: {
@@ -57,6 +58,7 @@ export interface Database {
           created_by?: string;
           created_at?: string;
         };
+        Relationships: [];
       };
       event_members: {
         Row: {
@@ -74,6 +76,7 @@ export interface Database {
           member_id?: string;
           checked_in?: boolean;
         };
+        Relationships: [];
       };
       wines: {
         Row: {
@@ -112,6 +115,7 @@ export interface Database {
           ai_summary?: string | null;
           created_at?: string;
         };
+        Relationships: [];
       };
       ratings: {
         Row: {
@@ -135,6 +139,7 @@ export interface Database {
           value?: -1 | 0 | 1;
           created_at?: string;
         };
+        Relationships: [];
       };
       rating_rounds: {
         Row: {
@@ -161,6 +166,7 @@ export interface Database {
           ended_at?: string | null;
           is_active?: boolean;
         };
+        Relationships: [];
       };
     };
     Views: {
@@ -172,9 +178,15 @@ export interface Database {
           thumbs_down: number;
           total_votes: number;
         };
+        Relationships: [];
       };
     };
-    Functions: Record<string, never>;
+    Functions: {
+      get_event_wine_ratings: {
+        Args: { p_event_id: string };
+        Returns: { wine_id: string; thumbs_up: number; meh: number; thumbs_down: number }[];
+      };
+    };
     Enums: Record<string, never>;
   };
 }

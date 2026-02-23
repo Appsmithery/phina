@@ -1,6 +1,6 @@
 import "react-native-url-polyfill/auto";
 import { Platform } from "react-native";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import * as SecureStore from "expo-secure-store";
 import type { Database } from "@/types/database";
 
@@ -30,7 +30,7 @@ function getAuthStorage() {
   };
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+export const supabase: SupabaseClient<Database> = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: getAuthStorage(),
     autoRefreshToken: true,

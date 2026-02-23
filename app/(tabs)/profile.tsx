@@ -1,5 +1,6 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useEffect, useState } from "react";
+import { router } from "expo-router";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
@@ -40,8 +41,9 @@ export default function ProfileScreen() {
     }
   };
 
-  const signOut = () => {
-    supabase.auth.signOut();
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    router.replace("/(auth)");
   };
 
   return (
