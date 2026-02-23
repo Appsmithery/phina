@@ -38,11 +38,14 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      if (s?.user?.id) fetchMember(s.user.id, s.user.email ?? undefined).finally(() => setSessionLoaded(true));
-      else setSessionLoaded(true);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: { session: s } }) => {
+        setSession(s);
+        if (s?.user?.id) fetchMember(s.user.id, s.user.email ?? undefined).finally(() => setSessionLoaded(true));
+        else setSessionLoaded(true);
+      })
+      .catch(() => setSessionLoaded(true));
 
     const {
       data: { subscription },

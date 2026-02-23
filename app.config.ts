@@ -11,9 +11,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   newArchEnabled: true,
   icon: "./assets/icon.png",
   splash: {
-    image: "./assets/splash-icon.png",
+    image: "./phina-logo.png",
     resizeMode: "contain",
-    backgroundColor: "#ffffff",
+    backgroundColor: "#000000",
   },
   ios: {
     supportsTablet: false,

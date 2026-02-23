@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
+import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
 import { Redirect } from "expo-router";
 import { useSupabase } from "@/lib/supabase-context";
 import { getPendingJoinEventId, clearPendingJoinEventId } from "@/lib/pending-join";
+
+const loadingStyles = StyleSheet.create({
+  container: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" },
+  text: { marginTop: 8, fontSize: 16, color: "#666" },
+});
 
 export default function Index() {
   const { session, sessionLoaded, member } = useSupabase();
@@ -25,7 +31,12 @@ export default function Index() {
   }, [sessionLoaded, session]);
 
   if (!sessionLoaded) {
-    return null;
+    return (
+      <View style={loadingStyles.container}>
+        <ActivityIndicator size="large" />
+        <Text style={loadingStyles.text}>Loading…</Text>
+      </View>
+    );
   }
 
   if (session && pendingJoinId) {
