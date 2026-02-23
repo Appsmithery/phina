@@ -14,7 +14,14 @@ export default function ScanLabelScreen() {
   const cameraRef = useRef<CameraView>(null);
 
   const captureAndExtract = async () => {
-    if (!cameraRef.current || !id) return;
+    if (!id) {
+      Alert.alert("Error", "Event not found.");
+      return;
+    }
+    if (!cameraRef.current) {
+      Alert.alert("Camera not ready", "Please wait a moment and try again.");
+      return;
+    }
     if (!permission?.granted) {
       const { granted } = await requestPermission();
       if (!granted) {
@@ -24,7 +31,7 @@ export default function ScanLabelScreen() {
     }
     setExtracting(true);
     try {
-      const photo = await cameraRef.current.takePicture({
+      const photo = await cameraRef.current.takePictureAsync({
         base64: true,
         quality: 0.8,
       });
@@ -58,7 +65,9 @@ export default function ScanLabelScreen() {
       });
       router.replace(`/event/${id}/add-wine`);
     } catch (e) {
-      Alert.alert("Error", e instanceof Error ? e.message : "Label extraction failed.");
+      const message = e instanceof Error ? e.message : "Label extraction failed.";
+      console.warn("Scan label error:", e);
+      Alert.alert("Error", message);
     } finally {
       setExtracting(false);
     }

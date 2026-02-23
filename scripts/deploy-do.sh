@@ -44,6 +44,9 @@ done
 echo "Building web bundle (EXPO_PUBLIC_APP_URL=$EXPO_PUBLIC_APP_URL)..."
 npm run export:web
 
+echo "Ensuring /var/www/phina exists on droplet..."
+ssh "$DROPLET_HOST" "mkdir -p /var/www/phina"
+
 echo "Uploading dist/ to $DROPLET_HOST:/var/www/phina/ ..."
 if command -v rsync &>/dev/null; then
   rsync -avz --delete dist/ "$DROPLET_HOST:/var/www/phina/"

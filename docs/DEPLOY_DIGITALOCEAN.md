@@ -100,13 +100,18 @@ After the first Certbot run, Nginx will be serving HTTPS. Ensure Supabase **Redi
 
 ## 4. Optional: deploy script
 
-From the repo root you can use:
+From the repo root (Git Bash or WSL on Windows):
 
 ```bash
+# One-off: pass droplet as argument
+./scripts/deploy-do.sh root@YOUR_DROPLET_IP
+
+# Or set once then run
+export DROPLET_HOST=root@YOUR_DROPLET_IP
 ./scripts/deploy-do.sh
 ```
 
-See `scripts/deploy-do.sh` for the exact build + rsync steps and required env vars.
+The script loads `.env`, runs `npm run export:web`, then rsyncs `dist/` to `/var/www/phina/` on the droplet. See `scripts/deploy-do.sh` for required env vars (`EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`; optional `EXPO_PUBLIC_APP_URL`).
 
 ---
 
