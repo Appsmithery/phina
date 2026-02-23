@@ -1,0 +1,188 @@
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
+export interface Database {
+  public: {
+    Tables: {
+      members: {
+        Row: {
+          id: string;
+          name: string | null;
+          email: string;
+          push_token: string | null;
+          is_admin: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id: string;
+          name?: string | null;
+          email: string;
+          push_token?: string | null;
+          is_admin?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string | null;
+          email?: string;
+          push_token?: string | null;
+          is_admin?: boolean;
+          created_at?: string;
+        };
+      };
+      events: {
+        Row: {
+          id: string;
+          title: string;
+          theme: string;
+          date: string;
+          status: "active" | "ended";
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          theme: string;
+          date: string;
+          status?: "active" | "ended";
+          created_by: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          theme?: string;
+          date?: string;
+          status?: "active" | "ended";
+          created_by?: string;
+          created_at?: string;
+        };
+      };
+      event_members: {
+        Row: {
+          event_id: string;
+          member_id: string;
+          checked_in: boolean;
+        };
+        Insert: {
+          event_id: string;
+          member_id: string;
+          checked_in?: boolean;
+        };
+        Update: {
+          event_id?: string;
+          member_id?: string;
+          checked_in?: boolean;
+        };
+      };
+      wines: {
+        Row: {
+          id: string;
+          event_id: string;
+          brought_by: string;
+          producer: string | null;
+          varietal: string | null;
+          vintage: number | null;
+          region: string | null;
+          label_photo_url: string | null;
+          ai_summary: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          event_id: string;
+          brought_by: string;
+          producer?: string | null;
+          varietal?: string | null;
+          vintage?: number | null;
+          region?: string | null;
+          label_photo_url?: string | null;
+          ai_summary?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          event_id?: string;
+          brought_by?: string;
+          producer?: string | null;
+          varietal?: string | null;
+          vintage?: number | null;
+          region?: string | null;
+          label_photo_url?: string | null;
+          ai_summary?: string | null;
+          created_at?: string;
+        };
+      };
+      ratings: {
+        Row: {
+          id: string;
+          wine_id: string;
+          member_id: string;
+          value: -1 | 0 | 1;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          wine_id: string;
+          member_id: string;
+          value: -1 | 0 | 1;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          wine_id?: string;
+          member_id?: string;
+          value?: -1 | 0 | 1;
+          created_at?: string;
+        };
+      };
+      rating_rounds: {
+        Row: {
+          id: string;
+          event_id: string;
+          wine_id: string;
+          started_at: string;
+          ended_at: string | null;
+          is_active: boolean;
+        };
+        Insert: {
+          id?: string;
+          event_id: string;
+          wine_id: string;
+          started_at?: string;
+          ended_at?: string | null;
+          is_active?: boolean;
+        };
+        Update: {
+          id?: string;
+          event_id?: string;
+          wine_id?: string;
+          started_at?: string;
+          ended_at?: string | null;
+          is_active?: boolean;
+        };
+      };
+    };
+    Views: {
+      wine_rating_summary: {
+        Row: {
+          wine_id: string;
+          thumbs_up: number;
+          meh: number;
+          thumbs_down: number;
+          total_votes: number;
+        };
+      };
+    };
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+  };
+}
+
+export type Member = Database["public"]["Tables"]["members"]["Row"];
+export type Event = Database["public"]["Tables"]["events"]["Row"];
+export type EventMember = Database["public"]["Tables"]["event_members"]["Row"];
+export type Wine = Database["public"]["Tables"]["wines"]["Row"];
+export type Rating = Database["public"]["Tables"]["ratings"]["Row"];
+export type RatingRound = Database["public"]["Tables"]["rating_rounds"]["Row"];
+export type WineRatingSummary = Database["public"]["Views"]["wine_rating_summary"]["Row"];
