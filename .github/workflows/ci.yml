@@ -49,11 +49,19 @@ jobs:
 
       - name: Check deploy secrets
         run: |
-          if [[ -z "${{ secrets.DROPLET_HOST }}" ]]; then echo "::error::DROPLET_HOST secret is missing or empty"; exit 1; fi
-          if [[ -z "${{ secrets.DROPLET_SSH_KEY }}" ]]; then echo "::error::DROPLET_SSH_KEY secret is missing or empty"; exit 1; fi
-          if [[ -z "${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}" ]]; then echo "::error::EXPO_PUBLIC_SUPABASE_URL secret is missing or empty"; exit 1; fi
-          if [[ -z "${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}" ]]; then echo "::error::EXPO_PUBLIC_SUPABASE_ANON_KEY secret is missing or empty"; exit 1; fi
-          echo "Required secrets are set"
+          set -e
+          missing() { echo "::error::Secret $1 is missing or empty"; exit 1; }
+          [[ -n "${{ secrets.DROPLET_HOST }}" ]] || missing "DROPLET_HOST"
+          [[ -n "${{ secrets.DROPLET_SSH_KEY }}" ]] || missing "DROPLET_SSH_KEY"
+          [[ -n "${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}" ]] || missing "EXPO_PUBLIC_SUPABASE_URL"
+          [[ -n "${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}" ]] || missing "EXPO_PUBLIC_SUPABASE_ANON_KEY"
+          # Sanity-check key looks like a PEM (avoids cryptic libcrypto later)
+          key="${{ secrets.DROPLET_SSH_KEY }}"
+          if ! echo "$key" | grep -q "BEGIN.*PRIVATE KEY"; then
+            echo "::error::DROPLET_SSH_KEY does not look like a PEM private key (missing 'BEGIN ... PRIVATE KEY'). Paste the full key including -----BEGIN ... ----- and -----END ... ----- lines."
+            exit 1
+          fi
+          echo "Required secrets are set and key format looks valid"
 
       - name: Build web
         run: npm run export:web
@@ -62,22 +70,57 @@ jobs:
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
           EXPO_PUBLIC_APP_URL: ${{ secrets.EXPO_PUBLIC_APP_URL }}
 
+      - name: Verify build output
+        run: |
+          if [[ ! -d dist || ! -f dist/index.html ]]; then
+            echo "::error::Build did not produce dist/index.html"
+            exit 1
+          fi
+          echo "Build output: $(find dist -type f | wc -l) files"
+          ls -la dist/
+
       - name: Setup SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.DROPLET_SSH_KEY }}
         run: |
-          # Write key to file with Unix line endings (fixes "error in libcrypto" when pasted with CRLF)
-          echo "$SSH_PRIVATE_KEY" | sed 's/\r$//' > deploy_key.pem
-          chmod 600 deploy_key.pem
+          set -e
+          # Write key with newlines preserved; strip CRLF (fixes "error in libcrypto" on Windows-pasted keys)
+          KEY_FILE="deploy_key.pem"
+          printf '%s\n' "$SSH_PRIVATE_KEY" | sed 's/\r$//' > "$KEY_FILE"
+          chmod 600 "$KEY_FILE"
+          # Validate PEM shape so we fail with a clear message instead of libcrypto
+          if ! grep -q "BEGIN.*PRIVATE KEY" "$KEY_FILE" || ! grep -q "END.*PRIVATE KEY" "$KEY_FILE"; then
+            echo "::error::Written key file missing BEGIN/END lines. Check DROPLET_SSH_KEY: paste full PEM (all lines, LF line endings)."
+            exit 1
+          fi
           eval "$(ssh-agent -s)"
-          ssh-add deploy_key.pem
+          if ! ssh-add "$KEY_FILE" 2>&1; then
+            echo "::error::ssh-add failed. Ensure DROPLET_SSH_KEY is a valid PEM (RSA or ED25519), full key with -----BEGIN ... ----- and -----END ... -----, no extra characters."
+            exit 1
+          fi
           echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
           echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
-          rm -f deploy_key.pem
+          rm -f "$KEY_FILE"
+
+      - name: Test SSH connection
+        env:
+          DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
+        run: |
+          set -e
+          SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
+          if ! ssh $SSH_OPTS "$DROPLET_HOST" "echo OK"; then
+            echo "::error::Cannot SSH to $DROPLET_HOST. Check: 1) DROPLET_HOST (e.g. root@ip), 2) droplet firewall allows SSH (22), 3) DROPLET_SSH_KEY matches the key installed on the droplet."
+            exit 1
+          fi
 
       - name: Deploy to droplet
+        env:
+          DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
         run: |
-          DROPLET_HOST="${{ secrets.DROPLET_HOST }}"
-          SSH_OPTS="-o StrictHostKeyChecking=accept-new"
+          set -e
+          SSH_OPTS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
+          echo "Creating /var/www/phina on droplet..."
           ssh $SSH_OPTS "$DROPLET_HOST" "mkdir -p /var/www/phina"
+          echo "Uploading dist/..."
           rsync -avz --delete -e "ssh $SSH_OPTS" dist/ "$DROPLET_HOST:/var/www/phina/"
+          echo "Deploy finished."
