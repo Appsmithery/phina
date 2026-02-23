@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  useWindowDimensions,
 } from "react-native";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
@@ -18,11 +19,21 @@ import { useTheme } from "@/lib/theme";
 const UNAUTHORIZED_HINT =
   "In Supabase: Authentication → Providers → turn Email ON. Check Project Settings → API: use the anon public key and project URL in .env, then restart the app.";
 
+const LOGO_MAX_SIDE = 280;
+const LOGO_MIN_SIDE = 160;
+const LOGO_WIDTH_RATIO = 0.65;
+
 export default function AuthScreen() {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorHint, setErrorHint] = useState<string | null>(null);
   const theme = useTheme();
+
+  const logoSize = Math.max(
+    LOGO_MIN_SIDE,
+    Math.min(LOGO_MAX_SIDE, screenWidth * LOGO_WIDTH_RATIO, screenHeight * 0.35)
+  );
 
   const sendMagicLink = async () => {
     if (!email.trim()) return;
@@ -60,8 +71,8 @@ export default function AuthScreen() {
       <View style={styles.content}>
         <View style={[styles.logoWrapper, { backgroundColor: theme.background }]}>
           <Image
-            source={require("../../phina-logo.png")}
-            style={styles.logo}
+            source={require("../../phina_logo_transparent.png")}
+            style={[styles.logo, { width: logoSize, height: logoSize }]}
             resizeMode="contain"
             accessibilityLabel="Phína logo"
           />
@@ -113,27 +124,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   content: {
-    padding: 24,
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 16,
     maxWidth: 400,
     width: "100%",
     alignSelf: "center",
   },
   logoWrapper: {
     alignSelf: "center",
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   logo: {
-    width: 560,
-    height: 560,
     alignSelf: "center",
   },
   subtitle: {
     fontFamily: "Montserrat_400Regular",
     fontSize: 16,
     textAlign: "center",
-    marginBottom: 24,
+    marginBottom: 16,
   },
   input: {
     borderWidth: 1,
@@ -141,7 +151,7 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 16,
     fontFamily: "Montserrat_400Regular",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   button: {
     borderRadius: 14,

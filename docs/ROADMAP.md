@@ -45,18 +45,18 @@ Expo also supports web export (`npx expo export:web`), so the same codebase prod
 - Auth (email/magic link — no password friction for club members)
 - Row-level security (hosts can manage events, members can only rate)
 - Real-time subscriptions (vote count updates live for the host; full results revealed on event close)
-- Edge Functions for server-side logic (calling Claude API, sending push notifications)
+- Edge Functions for server-side logic (calling Perplexity Sonar API, sending push notifications)
 - Storage bucket for wine label photos
 
 ### 3. Wine Label Recognition (the "magic" feature)
 
 | Option | Pros | Cons |
 |--------|------|------|
-| **Claude Vision API** | Excellent at reading labels with artistic/non-standard fonts, can extract structured data in one call, can also return wine background info simultaneously | API cost per call (~$0.01–0.03/image) |
+| **Perplexity Sonar API** | Vision + web-grounded; reads labels with artistic/non-standard fonts, extracts structured data in one call, can return wine background info; OpenAI-compatible API | API cost per call |
 | **Google Cloud Vision OCR** | Raw text extraction is reliable | Returns raw text — you still need an LLM to parse "producer" vs "varietal" vs "vintage" from unstructured label text |
 | **Pre-trained wine label models** | Purpose-built | Hard to find, not maintained, limited |
 
-**Recommendation:** Claude Vision API (claude-sonnet-4-20250514). A single API call can:
+**Recommendation:** Perplexity Sonar API (sonar-pro). A single API call can:
 
 - Extract structured fields: `{ producer, varietal, vintage, region, appellation }`
 - Optionally return background info about the wine (saves a second lookup call)
@@ -69,10 +69,10 @@ The call would be made from a Supabase Edge Function (server-side), so the API k
 
 Two approaches, not mutually exclusive:
 
-- **Claude-generated summary** — When extracting label info, also ask Claude: "Provide a 2–3 sentence summary of this wine's region, typical flavor profile, and any notable facts a dinner guest would find interesting." This is free (same API call) and conversational.
+- **Sonar-generated summary** — When extracting label info, also ask the model: "Provide a 2–3 sentence summary of this wine's region, typical flavor profile, and any notable facts a dinner guest would find interesting." This is in the same API call and conversational.
 - **External wine API** — Wine-Searcher or similar for price/rating data. These APIs tend to be expensive or unreliable. Not worth it for v1.
 
-**Recommendation:** Claude-generated summary in the same vision call. One API call, two outputs. If a member wants to give a spiel, they have a cheat sheet right on their phone.
+**Recommendation:** Sonar-generated summary in the same vision call. One API call, two outputs. If a member wants to give a spiel, they have a cheat sheet right on their phone.
 
 ### 5. Push Notifications & Live Rating (Live Rounds Only)
 
@@ -203,7 +203,7 @@ wines
   vintage         int
   region          text
   label_photo_url text
-  ai_summary      text          -- Claude-generated background
+  ai_summary      text          -- Sonar-generated background
   created_at      timestamptz
 
 ratings
@@ -254,7 +254,7 @@ GROUP BY wine_id;
 | Navigation | Expo Router (file-based routing) |
 | State management | TanStack Query + Supabase real-time |
 | Backend | Supabase (Postgres, Auth, Storage, Edge Functions) |
-| Wine label AI | Claude API (vision) via Supabase Edge Function |
+| Wine label AI | Perplexity Sonar API (vision) via Supabase Edge Function |
 | Push (native) | Expo Push Notifications |
 | Push (web) | Web Push API via Supabase Edge Function |
 | PWA hosting | Vercel (free tier) |
@@ -415,7 +415,7 @@ No code changes needed — infrastructure setup documented for reference:
 | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | .env (local), Vercel env vars (prod) | Client-side — intentionally public, same as above |
 | `EXPO_PUBLIC_APP_URL` | .env (local), Vercel env vars (prod) | Client-side — just the domain, not secret |
 | `SUPABASE_SERVICE_ROLE_KEY` | supabase secrets set (prod), .env (local dev only) | Server-side only — Edge Functions. Full DB bypass, NEVER in client code |
-| `ANTHROPIC_API_KEY` | supabase secrets set (prod), .env (local dev only) | Server-side only — Edge Functions. Billed API key |
+| `PERPLEXITY_API_KEY` | supabase secrets set (prod), .env (local dev only) | Server-side only — Edge Functions (label extraction). Billed API key |
 | `VERCEL_TOKEN` | GitHub Actions secrets only | CI only — used for automated deployments |
 | `EXPO_TOKEN` | GitHub Actions secrets only | CI only — used for EAS Build |
 
@@ -442,7 +442,7 @@ cp .env.example .env
 # Fill in EXPO_PUBLIC_* values from Supabase dashboard
 # For Edge Function local dev:
 supabase secrets set SUPABASE_SERVICE_ROLE_KEY=eyJ...
-supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+supabase secrets set PERPLEXITY_API_KEY=pplx-...
 ```
 
 **Production deployment:**
@@ -450,7 +450,7 @@ supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 ```bash
 # Supabase Edge Functions (run once, persists):
 supabase secrets set SUPABASE_SERVICE_ROLE_KEY=eyJ...
-supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+supabase secrets set PERPLEXITY_API_KEY=pplx-...
 
 # Vercel (set in dashboard or CLI):
 vercel env add EXPO_PUBLIC_SUPABASE_URL production
@@ -483,7 +483,7 @@ The phina repo may have only some files committed. Config files (`.env.example`,
 1. Create `Brand Guidelines.md` with brand guidelines content (color palette, typography, UI principles, imagery style).
 2. Stage all relevant files: `Brand Guidelines.md`, `.env.example`, `.gitignore`, `app.config.ts`.
 3. Commit with message: "Add brand guidelines, app config, env template, and gitignore".
-4. Push to the appropriate branch (e.g. `claude/publish-config-<session_id>` if direct push to main is restricted); open a PR to merge into main if needed.
+4. Push to the appropriate branch (e.g. `feat/publish-config-<session_id>` if direct push to main is restricted); open a PR to merge into main if needed.
 
 ### Verification
 

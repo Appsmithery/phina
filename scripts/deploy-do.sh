@@ -16,6 +16,15 @@ if [[ -z "$DROPLET_HOST" ]]; then
   exit 1
 fi
 
+echo "Checking SSH access to $DROPLET_HOST..."
+if ! ssh -o BatchMode=yes -o ConnectTimeout=10 "$DROPLET_HOST" "echo ok" &>/dev/null; then
+  echo "SSH auth failed: cannot log in to $DROPLET_HOST."
+  echo "  - Use the same SSH key you added when creating the droplet (e.g. in DO: Add SSH Key, then choose it when creating the droplet)."
+  echo "  - On Windows: ensure your key is in %USERPROFILE%\\.ssh\\ (e.g. id_ed25519) and that you can run: ssh $DROPLET_HOST"
+  echo "  - See docs/DEPLOY_DIGITALOCEAN.md → Troubleshooting → SSH auth."
+  exit 1
+fi
+
 if [[ -f .env ]]; then
   echo "Loading .env..."
   set -a

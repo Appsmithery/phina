@@ -125,6 +125,31 @@ See `scripts/deploy-do.sh` for the exact build + rsync steps and required env va
 
 ## Troubleshooting
 
+### SSH auth (“Connection closed” or “Permission denied”)
+
+Deploy uses `ssh`/`scp` to the droplet. If you see **Connection closed by … port 22** or **Permission denied**, the droplet is rejecting your login.
+
+1. **Use the key that’s on the droplet**  
+   When you created the droplet, you chose an SSH key (or added one in DigitalOcean → Account → Security → SSH Keys). Your **local** machine must use that same key.  
+   - In Git Bash, `ssh` uses keys in `~/.ssh/` (e.g. `id_ed25519` or `id_rsa`).  
+   - If the key was created on another computer, copy the **private** key to this machine (e.g. `C:\Users\You\.ssh\id_ed25519`) and use it:  
+     `ssh -i ~/.ssh/id_ed25519 root@159.89.184.205`
+
+2. **Add this machine’s key to the droplet**  
+   If you’d rather use a key from this PC:  
+   - DigitalOcean → your droplet → **Access** → **Reset Root Password**. Check your email for the temporary password.  
+   - Log in once (DO **Console** in the browser, or `ssh root@YOUR_DROPLET_IP` and paste the password).  
+   - Append your **local** public key to the server:  
+     `echo "contents of your local id_ed25519.pub" >> ~/.ssh/authorized_keys`  
+   - After that, `ssh root@YOUR_DROPLET_IP` (and the deploy script) should work without a password.
+
+3. **Verify before deploying**  
+   Run:  
+   `ssh root@159.89.184.205`  
+   If you get a shell, deploy will work. If not, fix SSH first.
+
+### Other
+
 - **502 / no response:** Check `root /var/www/phina` exists and contains `index.html`; run `nginx -t` and `systemctl status nginx`.
 - **Mixed content or API errors:** Ensure `EXPO_PUBLIC_APP_URL` was set to `https://phina.appsmithery.co` when you ran `npm run export:web`.
 - **Auth redirect fails:** In Supabase → Authentication → URL Configuration, add `https://phina.appsmithery.co/**` to Redirect URLs.

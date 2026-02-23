@@ -11,7 +11,9 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "supabase": "supabase",
+    "functions:serve": "supabase functions serve extract-wine-label"
   },
   "dependencies": {
     "@expo-google-fonts/montserrat": "^0.4.2",
@@ -43,6 +45,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",
+    "supabase": "^2.15.0",
     "@testing-library/jest-native": "^5.4.3",
     "@testing-library/react-native": "^12.8.0",
     "@types/jest": "^29.5.14",
