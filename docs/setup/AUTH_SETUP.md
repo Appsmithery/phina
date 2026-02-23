@@ -74,6 +74,16 @@ Signed-in users can change their password from **Profile** (Change password sect
 
 ---
 
+## 8. Password security (leaked password protection)
+
+Supabase Auth can check passwords against [HaveIBeenPwned](https://haveibeenpwned.com/) to block compromised passwords. Enable this in the dashboard:
+
+- **Authentication** → **Providers** (or **Settings**) → enable **Leaked password protection** (or "Password strength / compromised password check").
+
+See [Supabase: Password strength and leaked password protection](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+
+---
+
 ## Summary
 
 | Step | Where | What to do |
@@ -84,3 +94,4 @@ Signed-in users can change their password from **Profile** (Change password sect
 | 401 on Sign Up / Sign In | Auth → Providers / .env | Enable Email provider; check URL and anon key |
 | Set-password redirect | Auth → URL Configuration | Add `https://phina.appsmithery.co/auth/set-password` |
 | Debug | Auth → Logs | Confirm signInWithOtp / signInWithPassword and any errors |
+| Leaked password protection | Auth → Providers / Settings | Enable so compromised passwords are rejected |
