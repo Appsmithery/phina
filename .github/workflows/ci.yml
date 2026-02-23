@@ -48,6 +48,14 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Check deploy secrets
+        run: |
+          if [[ -z "${{ secrets.DROPLET_HOST }}" ]]; then echo "::error::DROPLET_HOST secret is missing or empty"; exit 1; fi
+          if [[ -z "${{ secrets.DROPLET_SSH_KEY }}" ]]; then echo "::error::DROPLET_SSH_KEY secret is missing or empty"; exit 1; fi
+          if [[ -z "${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}" ]]; then echo "::error::EXPO_PUBLIC_SUPABASE_URL secret is missing or empty"; exit 1; fi
+          if [[ -z "${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}" ]]; then echo "::error::EXPO_PUBLIC_SUPABASE_ANON_KEY secret is missing or empty"; exit 1; fi
+          echo "Required secrets are set"
+
       - name: Build web
         run: npm run export:web
         env:
