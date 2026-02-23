@@ -51,6 +51,7 @@ export default function AuthScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
     >
       <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -106,6 +107,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
   scrollContent: {
     flexGrow: 1,
     justifyContent: "center",
@@ -119,6 +123,8 @@ const styles = StyleSheet.create({
   },
   logoWrapper: {
     width: "100%",
+    maxWidth: 280,
+    alignSelf: "center",
     borderRadius: 14,
     padding: 16,
     marginBottom: 16,
@@ -127,8 +133,6 @@ const styles = StyleSheet.create({
     width: "100%",
     aspectRatio: 1,
     alignSelf: "center",
-    left: undefined,
-    top: undefined,
   },
   subtitle: {
     fontFamily: "Montserrat_400Regular",
