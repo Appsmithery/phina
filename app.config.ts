@@ -13,7 +13,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   splash: {
     image: "./phina-logo.png",
     resizeMode: "contain",
-    backgroundColor: "#000000",
+    backgroundColor: "#F2EFE9",
   },
   ios: {
     supportsTablet: false,
