@@ -52,7 +52,7 @@ export default function AuthScreen() {
       <View style={styles.content}>
         <View style={[styles.logoWrapper, { backgroundColor: theme.background }]}>
           <Image
-            source={require("../../Gemini_Generated_Image_nd308snd308snd30.png")}
+            source={require("../../phina-logo.png")}
             style={styles.logo}
             resizeMode="contain"
             accessibilityLabel="Phína logo"
