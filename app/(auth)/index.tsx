@@ -116,6 +116,8 @@ const styles = StyleSheet.create({
     width: "100%",
     aspectRatio: 1,
     alignSelf: "center",
+    left: undefined,
+    top: undefined,
   },
   subtitle: {
     fontFamily: "Montserrat_400Regular",
