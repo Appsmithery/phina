@@ -6,8 +6,11 @@ import type { Database } from "@/types/database";
 
 // Avoid throwing at module load so the Metro bundler doesn't get a 500 when building the bundle.
 // If these are missing, auth calls will fail at runtime and the app still loads (see supabase-context .catch).
+// Env: use EXPO_PUBLIC_* per https://supabase.com/docs/guides/getting-started/quickstarts/expo-react-native
+// Key: anon (EXPO_PUBLIC_SUPABASE_ANON_KEY) or publishable (EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY) from Connect dialog.
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
+const supabaseAnonKey =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
 
 function getAuthStorage() {
   if (Platform.OS === "web" && typeof globalThis !== "undefined" && "localStorage" in globalThis) {
@@ -35,6 +38,7 @@ export const supabase: SupabaseClient<Database> = createClient<Database>(supabas
     storage: getAuthStorage(),
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true,
+    // Only parse session from URL on web (e.g. magic link redirect). Off on native per Expo quickstart.
+    detectSessionInUrl: Platform.OS === "web",
   },
 });

@@ -8,6 +8,8 @@ type SupabaseContextType = {
   member: Member | null;
   sessionLoaded: boolean;
   refreshMember: () => Promise<void>;
+  /** Call after sign-in/sign-up so the app sees the new session before navigation. */
+  setSessionFromAuth: (session: Session | null) => void;
 };
 
 const SupabaseContext = createContext<SupabaseContextType | undefined>(undefined);
@@ -37,6 +39,16 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     if (s?.user?.id) await fetchMember(s.user.id, s.user.email ?? undefined);
   };
 
+  const setSessionFromAuth = (s: Session | null) => {
+    setSession(s);
+    if (s?.user?.id) {
+      fetchMember(s.user.id, s.user.email ?? undefined).finally(() => setSessionLoaded(true));
+    } else {
+      setMember(null);
+      setSessionLoaded(true);
+    }
+  };
+
   useEffect(() => {
     supabase.auth
       .getSession()
@@ -60,7 +72,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <SupabaseContext.Provider value={{ session, member, sessionLoaded, refreshMember }}>
+    <SupabaseContext.Provider value={{ session, member, sessionLoaded, refreshMember, setSessionFromAuth }}>
       {children}
     </SupabaseContext.Provider>
   );

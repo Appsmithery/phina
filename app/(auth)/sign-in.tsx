@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
+import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 
 const UNAUTHORIZED_HINT =
@@ -23,6 +24,7 @@ export default function SignInScreen() {
   const [loading, setLoading] = useState(false);
   const [errorHint, setErrorHint] = useState<string | null>(null);
   const theme = useTheme();
+  const { setSessionFromAuth } = useSupabase();
 
   const handleSignIn = async () => {
     const trimmedEmail = email.trim().toLowerCase();
@@ -33,13 +35,17 @@ export default function SignInScreen() {
     setLoading(true);
     setErrorHint(null);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password,
       });
       if (error) throw error;
-      // Session set; navigate into app so root index can redirect to (tabs)/profile
-      router.replace("/");
+      // Update auth context immediately so root index sees session before we navigate
+      if (data.session) {
+        setSessionFromAuth(data.session);
+        // Defer navigation so React commits the context update before root index reads it
+        setTimeout(() => router.replace("/"), 0);
+      }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
       const is401 = message.includes("401") || message.toLowerCase().includes("unauthorized");
@@ -65,7 +71,12 @@ export default function SignInScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
     >
       <View style={styles.content}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.back}>
+        <TouchableOpacity
+          onPress={() => router.replace("/(auth)")}
+          style={styles.back}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
           <Text style={[styles.backText, { color: theme.textSecondary }]}>Back</Text>
         </TouchableOpacity>
         <Text style={[styles.title, { color: theme.text }]}>Sign In</Text>
