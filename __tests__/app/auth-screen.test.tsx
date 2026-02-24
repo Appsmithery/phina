@@ -30,7 +30,7 @@ describe("AuthScreen", () => {
   it("renders Phína logo and Sign Up / Sign In CTAs", () => {
     render(<AuthScreen />);
     expect(screen.getByLabelText("Phína logo")).toBeTruthy();
-    expect(screen.getByText(/Enter your email/)).toBeTruthy();
+    expect(screen.getByText("Enter your email to get a sign-in link")).toBeTruthy();
     expect(screen.getByText("Sign Up")).toBeTruthy();
     expect(screen.getByText("Sign In")).toBeTruthy();
   });
