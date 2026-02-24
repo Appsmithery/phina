@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { AppState, type AppStateStatus } from "react-native";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { registerPushTokenIfNeeded } from "./push-registration";
@@ -72,6 +73,20 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const handleAppStateChange = (nextState: AppStateStatus) => {
+      if (nextState === "active") {
+        supabase.auth.getSession().then(({ data: { session: s } }) => {
+          setSession(s);
+          if (s?.user?.id) fetchMember(s.user.id, s.user.email ?? undefined);
+          else setMember(null);
+        });
+      }
+    };
+    const sub = AppState.addEventListener("change", handleAppStateChange);
+    return () => sub.remove();
   }, []);
 
   return (

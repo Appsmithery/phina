@@ -14,11 +14,13 @@ type Vote = -1 | 0 | 1;
 export default function RateWineScreen() {
   const params = useLocalSearchParams<{ id: string; wineId: string | string[] }>();
   const wineId = typeof params.wineId === "string" ? params.wineId : params.wineId?.[0];
-  const { member } = useSupabase();
+  const { member, session, sessionLoaded } = useSupabase();
   const theme = useTheme();
   const [, setVote] = useState<Vote | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const queryClient = useQueryClient();
+
+  const isAuthenticated = sessionLoaded && !!session;
 
   const { data: wine } = useQuery({
     queryKey: ["wine", wineId],
@@ -27,7 +29,7 @@ export default function RateWineScreen() {
       if (error) throw error;
       return data as WineWithPricePrivacy;
     },
-    enabled: !!wineId,
+    enabled: !!wineId && isAuthenticated,
   });
 
   const { data: round } = useQuery({
@@ -42,7 +44,7 @@ export default function RateWineScreen() {
       if (error) throw error;
       return data as RatingRound | null;
     },
-    enabled: !!wineId,
+    enabled: !!wineId && isAuthenticated,
     refetchInterval: (query) => (query.state.data == null ? 4_000 : false),
   });
 
@@ -70,11 +72,29 @@ export default function RateWineScreen() {
       queryClient.invalidateQueries({ queryKey: ["ratingRound", wineId] });
       Alert.alert("Vote recorded!", "Thanks for rating.", [{ text: "OK", onPress: () => router.back() }]);
     } catch (e: unknown) {
-      Alert.alert("Error", e instanceof Error ? e.message : "Could not submit vote");
+      const message =
+        e instanceof Error ? e.message : (e && typeof e === "object" && "message" in e) ? String((e as { message: unknown }).message) : "Could not submit vote";
+      Alert.alert("Error", message);
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (!sessionLoaded) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading…</Text>
+      </View>
+    );
+  }
+
+  if (sessionLoaded && !session) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Text style={[styles.hint, { color: theme.textMuted }]}>Sign in to rate.</Text>
+      </View>
+    );
+  }
 
   if (!wine) {
     return (

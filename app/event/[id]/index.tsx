@@ -11,9 +11,11 @@ import type { RatingRound } from "@/types/database";
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { member } = useSupabase();
+  const { member, session, sessionLoaded } = useSupabase();
   const theme = useTheme();
   const queryClient = useQueryClient();
+
+  const isAuthenticated = sessionLoaded && !!session;
 
   const { data: event, isLoading } = useQuery({
     queryKey: ["event", id],
@@ -22,17 +24,17 @@ export default function EventDetailScreen() {
       if (error) throw error;
       return data as Event;
     },
-    enabled: !!id,
+    enabled: !!id && isAuthenticated,
   });
 
   const { data: wines = [] } = useQuery({
-    queryKey: ["wines", id],
+    queryKey: ["wines", id, session?.user?.id],
     queryFn: async () => {
       const { data, error } = await supabase.from("wines_with_price_privacy").select("*").eq("event_id", id!).order("created_at", { ascending: true });
       if (error) throw error;
       return data as WineWithPricePrivacy[];
     },
-    enabled: !!id,
+    enabled: !!id && isAuthenticated,
   });
 
   const { data: rounds = [] } = useQuery({
@@ -42,7 +44,7 @@ export default function EventDetailScreen() {
       if (error) throw error;
       return data as RatingRound[];
     },
-    enabled: !!id && !!event,
+    enabled: !!id && isAuthenticated && !!event,
   });
 
   const { data: ratingSummaries = [] } = useQuery({
@@ -52,7 +54,7 @@ export default function EventDetailScreen() {
       if (error) throw error;
       return (data ?? []) as { wine_id: string; thumbs_up: number; meh: number; thumbs_down: number }[];
     },
-    enabled: !!id && event?.status === "ended",
+    enabled: !!id && isAuthenticated && event?.status === "ended",
   });
 
   const isHost = event?.created_by === member?.id;
@@ -80,7 +82,37 @@ export default function EventDetailScreen() {
     );
   };
 
-  if (!id || isLoading || !event) {
+  if (!id) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading…</Text>
+      </View>
+    );
+  }
+
+  if (!sessionLoaded) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading…</Text>
+      </View>
+    );
+  }
+
+  if (sessionLoaded && !session) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Sign in to view this event.</Text>
+        <TouchableOpacity
+          style={[styles.primaryButton, { backgroundColor: theme.primary }]}
+          onPress={() => router.replace("/(auth)/sign-in")}
+        >
+          <Text style={styles.primaryButtonText}>Sign in</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (isLoading || !event) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading…</Text>

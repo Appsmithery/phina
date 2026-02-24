@@ -19,7 +19,7 @@ const PRICE_RANGE_OPTIONS: { label: string; value: string | null }[] = [
 
 export default function AddWineScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { member } = useSupabase();
+  const { member, session, sessionLoaded } = useSupabase();
   const theme = useTheme();
   const queryClient = useQueryClient();
   const [producer, setProducer] = useState("");
@@ -89,7 +89,9 @@ export default function AddWineScreen() {
       queryClient.invalidateQueries({ queryKey: ["wines", id] });
       router.back();
     } catch (e: unknown) {
-      Alert.alert("Error", e instanceof Error ? e.message : "Could not add wine");
+      const message =
+        e instanceof Error ? e.message : (e && typeof e === "object" && "message" in e) ? String((e as { message: unknown }).message) : "Could not add wine";
+      Alert.alert("Error", message);
     } finally {
       setLoading(false);
     }
@@ -101,6 +103,23 @@ export default function AddWineScreen() {
 
   const isFormBlank =
     !producer.trim() && !varietal.trim() && !region.trim() && !aiSummary.trim();
+
+  if (!sessionLoaded) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Text style={[styles.placeholder, { color: theme.textSecondary }]}>Loading…</Text>
+      </View>
+    );
+  }
+
+  if (sessionLoaded && !session) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Text style={[styles.title, { color: theme.text }]}>Add wine</Text>
+        <Text style={[styles.placeholder, { color: theme.textSecondary }]}>Sign in to add a wine.</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -254,6 +273,7 @@ export default function AddWineScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
+  placeholder: { padding: 16, textAlign: "center" },
   keyboardView: { flex: 1 },
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: 28 },
