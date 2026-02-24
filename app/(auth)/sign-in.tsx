@@ -44,7 +44,8 @@ export default function SignInScreen() {
 
   useEffect(() => {
     if (session && sessionLoaded && emailFromSplash) {
-      router.replace("/");
+      // Navigate directly to tabs so root index doesn't see stale context and redirect to auth/splash
+      router.replace("/(tabs)");
     }
   }, [session, sessionLoaded, emailFromSplash]);
 

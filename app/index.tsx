@@ -14,14 +14,19 @@ export default function Index() {
   const { session, sessionLoaded, member, setSessionFromAuth } = useSupabase();
   const [pendingJoinId, setPendingJoinId] = useState<string | null>(null);
   const [pendingJoinCheckDone, setPendingJoinCheckDone] = useState(false);
+  const [nullSessionRecheckDone, setNullSessionRecheckDone] = useState(false);
   const didRecheckForNullSession = useRef(false);
 
   useEffect(() => {
-    if (!sessionLoaded || session) return;
+    if (!sessionLoaded || session) {
+      if (session) setNullSessionRecheckDone(true);
+      return;
+    }
     if (didRecheckForNullSession.current) return;
     didRecheckForNullSession.current = true;
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       if (s) setSessionFromAuth(s);
+      setNullSessionRecheckDone(true);
     });
   }, [sessionLoaded, session, setSessionFromAuth]);
 
@@ -42,6 +47,17 @@ export default function Index() {
   }, [sessionLoaded, session]);
 
   if (!sessionLoaded) {
+    return (
+      <View style={loadingStyles.container}>
+        <ActivityIndicator size="large" />
+        <Text style={loadingStyles.text}>Loading…</Text>
+      </View>
+    );
+  }
+
+  // When context says no session, recheck with Supabase once before redirecting to auth
+  // (avoids redirecting to auth when we landed here right after sign-in with stale context)
+  if (!session && !nullSessionRecheckDone) {
     return (
       <View style={loadingStyles.container}>
         <ActivityIndicator size="large" />
