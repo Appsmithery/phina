@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Platform } from "react-native";
 import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import * as Notifications from "expo-notifications";
 import { useFonts } from "expo-font";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SupabaseProvider, useSupabase } from "@/lib/supabase-context";
@@ -72,6 +73,17 @@ function SupabaseLayout() {
     Montserrat_400Regular,
     Montserrat_600SemiBold,
   });
+
+  // Deep link: when user taps a push notification, open the URL in data.url (e.g. /event/:id/rate/:wineId)
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const url = response.notification.request.content.data?.url;
+      if (typeof url === "string" && url.startsWith("/")) {
+        router.push(url as any);
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   // On web, fix malformed path (e.g. // from magic link redirect) so router and Supabase can handle /
   useEffect(() => {

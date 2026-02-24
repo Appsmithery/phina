@@ -15,6 +15,11 @@ export function useStartRatingRound(eventId: string, wineId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["rating_rounds", eventId] });
       qc.invalidateQueries({ queryKey: ["ratingRound", wineId] });
+      supabase.functions.invoke("send-rating-round-push", {
+        body: { event_id: eventId, wine_id: wineId },
+      }).then(({ error }) => {
+        if (error) console.warn("Push notification send failed:", error);
+      });
     },
   });
 }

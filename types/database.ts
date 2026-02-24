@@ -81,7 +81,7 @@ export interface Database {
       wines: {
         Row: {
           id: string;
-          event_id: string;
+          event_id: string | null;
           brought_by: string;
           producer: string | null;
           varietal: string | null;
@@ -94,7 +94,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
-          event_id: string;
+          event_id: string | null;
           brought_by: string;
           producer?: string | null;
           varietal?: string | null;

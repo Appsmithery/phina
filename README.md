@@ -25,7 +25,7 @@ A wine club app that digitizes themed tasting events: members snap a photo of th
 | Backend | Supabase (Postgres, Auth, Storage, Edge Functions) |
 | Label AI | Perplexity Sonar API via Supabase Edge Function |
 | Push | Expo Push (native), Web Push (PWA) |
-| Hosting | Vercel (PWA), EAS Build for native |
+| Hosting | Digital Ocean (PWA on droplet), GoDaddy (domain), EAS Build for native |
 
 ---
 
@@ -48,7 +48,9 @@ A wine club app that digitizes themed tasting events: members snap a photo of th
    ```bash
    npx expo start
    ```
-   Then press `w` for web, or scan with Expo Go for native.
+   Then press `w` for web, or use **Expo Go** on your phone for native:
+   - **iPhone:** Install [Expo Go](https://apps.apple.com/app/expo-go/id982107779) from the App Store. Ensure your phone and computer are on the same Wi‑Fi, then scan the QR code from the terminal (or from the in-browser dev tools). If they're on different networks, run `npx expo start --tunnel` and scan the tunnel QR.
+   - **Android:** Install Expo Go from the Play Store and scan the QR code the same way.
 
 **Edge Functions (label extraction)**
 

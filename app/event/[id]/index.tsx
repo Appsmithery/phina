@@ -206,6 +206,20 @@ function WineHostActions({
   const startRound = useStartRatingRound(eventId, wine.id);
   const endRound = useEndRatingRound(round?.id ?? "", eventId, wine.id);
 
+  const handleStartRound = () => {
+    startRound.mutate(undefined, {
+      onError: (err) =>
+        Alert.alert("Could not start round", err instanceof Error ? err.message : "Something went wrong. Try again."),
+    });
+  };
+
+  const handleEndRound = () => {
+    endRound.mutate(undefined, {
+      onError: (err) =>
+        Alert.alert("Could not end round", err instanceof Error ? err.message : "Something went wrong. Try again."),
+    });
+  };
+
   if (round?.is_active) {
     return (
       <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
@@ -217,7 +231,7 @@ function WineHostActions({
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.rateButton, { backgroundColor: t.textMuted }]}
-          onPress={() => endRound.mutate()}
+          onPress={handleEndRound}
           disabled={endRound.isPending}
         >
           <Text style={styles.rateButtonText}>End round</Text>
@@ -228,7 +242,7 @@ function WineHostActions({
   return (
     <TouchableOpacity
       style={[styles.rateButton, { backgroundColor: t.primary, marginTop: 12 }]}
-      onPress={() => startRound.mutate()}
+      onPress={handleStartRound}
       disabled={startRound.isPending}
     >
       <Text style={styles.rateButtonText}>{startRound.isPending ? "Starting…" : "Start rating round"}</Text>

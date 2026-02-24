@@ -12,7 +12,8 @@ import type { RatingRound } from "@/types/database";
 type Vote = -1 | 0 | 1;
 
 export default function RateWineScreen() {
-  const { wineId } = useLocalSearchParams<{ id: string; wineId: string }>();
+  const params = useLocalSearchParams<{ id: string; wineId: string | string[] }>();
+  const wineId = typeof params.wineId === "string" ? params.wineId : params.wineId?.[0];
   const { member } = useSupabase();
   const theme = useTheme();
   const [, setVote] = useState<Vote | null>(null);
@@ -42,10 +43,21 @@ export default function RateWineScreen() {
       return data as RatingRound | null;
     },
     enabled: !!wineId,
+    refetchInterval: (query) => (query.state.data == null ? 4_000 : false),
   });
 
   const submit = async (value: Vote) => {
-    if (!member?.id || !wineId || !round) return;
+    if (!member?.id) {
+      Alert.alert("Sign in to vote", "You need to be signed in to rate this wine.");
+      return;
+    }
+    if (!wineId || !round) {
+      Alert.alert(
+        "Can't submit",
+        round ? "Something went wrong — try going back and opening Rate again." : "This round is no longer active."
+      );
+      return;
+    }
     setVote(value);
     setSubmitting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -72,15 +84,17 @@ export default function RateWineScreen() {
     );
   }
 
-  const canVote = round?.is_active && !submitting;
+  const canVote = !!member && round?.is_active && !submitting;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Text style={[styles.title, { color: theme.text }]}>
         {wine.producer ?? "Unknown"} {wine.varietal ?? ""} {wine.vintage ?? ""}
       </Text>
-      {!round ? (
-        <Text style={[styles.hint, { color: theme.textMuted }]}>No active rating round. Wait for the host to start one.</Text>
+      {!member ? (
+        <Text style={[styles.hint, { color: theme.textMuted }]}>Sign in to rate.</Text>
+      ) : !round ? (
+        <Text style={[styles.hint, { color: theme.textMuted }]}>Ask the host to start a rating round for this wine.</Text>
       ) : round.ended_at ? (
         <Text style={[styles.hint, { color: theme.textMuted }]}>This round has ended.</Text>
       ) : (

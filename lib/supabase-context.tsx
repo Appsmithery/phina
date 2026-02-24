@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { registerPushTokenIfNeeded } from "./push-registration";
 import type { Member } from "@/types/database";
 
 type SupabaseContextType = {
@@ -23,12 +24,14 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     const { data } = await supabase.from("members").select("*").eq("id", userId).single();
     if (data) {
       setMember(data);
+      registerPushTokenIfNeeded(userId).catch(() => {});
       return;
     }
     if (email) {
       await supabase.from("members").upsert({ id: userId, email }, { onConflict: "id" });
       const { data: created } = await supabase.from("members").select("*").eq("id", userId).single();
       setMember(created ?? null);
+      registerPushTokenIfNeeded(userId).catch(() => {});
     } else {
       setMember(null);
     }

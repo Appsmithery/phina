@@ -219,7 +219,7 @@ Three distribution channels from one codebase:
 
 | Channel | How | Push notifications |
 |---------|-----|--------------------|
-| **PWA (web)** | Host on Vercel/Netlify, members visit URL in browser | Web Push API (works on Android Chrome; iOS Safari 16.4+ supports it but requires user opt-in) |
+| **PWA (web)** | Host on your own server (e.g. Digital Ocean droplet), domain via GoDaddy; members visit URL in browser | Web Push API (works on Android Chrome; iOS Safari 16.4+ supports it but requires user opt-in) |
 | **Android (Play Store)** | EAS Build → Google Play internal testing → production | Expo Push (via FCM) — full support |
 | **iOS (App Store)** | EAS Build → TestFlight → App Store | Expo Push (via APNs) — full support |
 
@@ -227,7 +227,7 @@ Three distribution channels from one codebase:
 
 **Phased rollout plan:**
 
-1. **Phase 1 (immediate):** Build and deploy as a PWA. Host the web build on Vercel (free tier). Members scan the QR code at the event, it opens in their browser, and they get the full experience — camera, ratings, wine info. Push notifications work on Android; on iOS web, fall back to in-app polling (the rating screen auto-refreshes when a round starts).
+1. **Phase 1 (immediate):** Build and deploy as a PWA. Host the web build on your own infrastructure (e.g. Digital Ocean droplet); domain via GoDaddy. Members scan the QR code at the event, it opens in their browser, and they get the full experience — camera, ratings, wine info. Push notifications work on Android; on iOS web, fall back to in-app polling (the rating screen auto-refreshes when a round starts).
 2. **Phase 2 (when ready):** Ship to Google Play ($25). Android users get native push and a home screen icon. PWA continues to work as a fallback.
 3. **Phase 3 (when you have Apple Developer account):** Ship to App Store. iOS users get native push. PWA still works for anyone who hasn't installed.
 
@@ -334,7 +334,7 @@ GROUP BY wine_id;
 | Wine label AI | Perplexity Sonar API (vision) via Supabase Edge Function |
 | Push (native) | Expo Push Notifications |
 | Push (web) | Web Push API via Supabase Edge Function |
-| PWA hosting | Vercel (free tier) |
+| PWA hosting | Digital Ocean (droplet), GoDaddy (domain) |
 | Native builds | EAS Build + EAS Submit |
 
 ---
@@ -474,12 +474,12 @@ This replaces the narrower "Members can update own profile" policy by also grant
 
 No code changes needed — infrastructure setup documented for reference:
 
-- **Vercel:** Import the Git repo, set framework to "Other", build command `npx expo export:web`, output dir `dist`
-- **GoDaddy:** Add a CNAME record:
+- **Digital Ocean:** Deploy the PWA to a droplet (e.g. build with `npx expo export --platform web`, serve the `dist/` output with nginx or another static host). CI can build and deploy on push (e.g. GitHub Actions → SSH/rsync or DO App Platform).
+- **GoDaddy:** Add a CNAME record pointing the app subdomain to your droplet (or to your DO load balancer / App Platform URL):
   - **Name:** phina (or subdomain as desired)
-  - **Value:** cname.vercel-dns.com
+  - **Value:** your droplet’s public hostname or DO-provided URL
   - **TTL:** 600
-- **Vercel domain settings:** Add `phina.appsmithery.co` as a custom domain — Vercel auto-provisions SSL
+- **SSL:** Use Let’s Encrypt (e.g. Certbot on the droplet) or Digital Ocean’s SSL options so the site is served over HTTPS.
 - **Deep links:** The QR codes will encode `https://phina.appsmithery.co/join/{event_id}`
 
 ### Change 4: Secrets Management Strategy
@@ -488,12 +488,12 @@ No code changes needed — infrastructure setup documented for reference:
 
 | Secret | Where it lives | Who can see it |
 |--------|----------------|----------------|
-| `EXPO_PUBLIC_SUPABASE_URL` | .env (local), Vercel env vars (prod) | Client-side — intentionally public, RLS is the security layer |
-| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | .env (local), Vercel env vars (prod) | Client-side — intentionally public, same as above |
-| `EXPO_PUBLIC_APP_URL` | .env (local), Vercel env vars (prod) | Client-side — just the domain, not secret |
+| `EXPO_PUBLIC_SUPABASE_URL` | .env (local), droplet/CI env (prod) | Client-side — intentionally public, RLS is the security layer |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | .env (local), droplet/CI env (prod) | Client-side — intentionally public, same as above |
+| `EXPO_PUBLIC_APP_URL` | .env (local), droplet/CI env (prod) | Client-side — just the domain, not secret |
 | `SUPABASE_SERVICE_ROLE_KEY` | supabase secrets set (prod), .env (local dev only) | Server-side only — Edge Functions. Full DB bypass, NEVER in client code |
 | `PERPLEXITY_API_KEY` | supabase secrets set (prod), .env (local dev only) | Server-side only — Edge Functions (label extraction). Billed API key |
-| `VERCEL_TOKEN` | GitHub Actions secrets only | CI only — used for automated deployments |
+| Deployment key / SSH / DO token | GitHub Actions secrets (or local) | CI only — used for deploying PWA to Digital Ocean |
 | `EXPO_TOKEN` | GitHub Actions secrets only | CI only — used for EAS Build |
 
 ### Implementation (Secrets & Config)
@@ -529,10 +529,9 @@ supabase secrets set PERPLEXITY_API_KEY=pplx-...
 supabase secrets set SUPABASE_SERVICE_ROLE_KEY=eyJ...
 supabase secrets set PERPLEXITY_API_KEY=pplx-...
 
-# Vercel (set in dashboard or CLI):
-vercel env add EXPO_PUBLIC_SUPABASE_URL production
-vercel env add EXPO_PUBLIC_SUPABASE_ANON_KEY production
-vercel env add EXPO_PUBLIC_APP_URL production
+# PWA build: set EXPO_PUBLIC_* in your deployment environment (e.g. on the Digital Ocean
+# droplet or in CI that builds and deploys the web bundle). No separate "env add" CLI —
+# configure in your server env, CI secrets, or build script.
 ```
 
 ### Verification
