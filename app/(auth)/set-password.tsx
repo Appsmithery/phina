@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
@@ -24,6 +25,8 @@ export default function SetPasswordScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorHint, setErrorHint] = useState<string | null>(null);
+  const [passwordsVisible, setPasswordsVisible] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     if (!sessionLoaded) return;
@@ -50,7 +53,8 @@ export default function SetPasswordScreen() {
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
-      router.replace("/(tabs)");
+      setSuccess(true);
+      setTimeout(() => router.replace("/(tabs)"), 1000);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
       setErrorHint(message);
@@ -88,41 +92,77 @@ export default function SetPasswordScreen() {
         <Text style={[styles.subtitle, { color: theme.text }]}>
           Choose a password to sign in next time without email
         </Text>
-        <TextInput
-          style={inputStyle}
-          placeholder="Password"
-          placeholderTextColor={theme.textMuted}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!loading}
-        />
+        <View style={styles.passwordRow}>
+          <TextInput
+            style={[inputStyle, styles.passwordInput]}
+            placeholder="Password"
+            placeholderTextColor={theme.textMuted}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!passwordsVisible}
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!loading}
+          />
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={() => setPasswordsVisible((v) => !v)}
+            accessibilityRole="button"
+            accessibilityLabel={passwordsVisible ? "Hide passwords" : "Show passwords"}
+          >
+            <Ionicons
+              name={passwordsVisible ? "eye-off-outline" : "eye-outline"}
+              size={22}
+              color={theme.textMuted}
+            />
+          </TouchableOpacity>
+        </View>
         <TextInput
           style={inputStyle}
           placeholder="Confirm password"
           placeholderTextColor={theme.textMuted}
           value={confirmPassword}
           onChangeText={setConfirmPassword}
-          secureTextEntry
+          secureTextEntry={!passwordsVisible}
           autoCapitalize="none"
           autoCorrect={false}
           editable={!loading}
         />
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: theme.primary }]}
-          onPress={handleSetPassword}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Set password</Text>
-          )}
-        </TouchableOpacity>
+        {success ? (
+          <Text
+            style={[styles.successHint, { color: theme.textSecondary }]}
+            accessibilityRole="text"
+            accessibilityLiveRegion="polite"
+          >
+            Password set. Signing you in…
+          </Text>
+        ) : (
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: theme.primary }]}
+            onPress={handleSetPassword}
+            disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel={loading ? "Setting password" : "Set password"}
+            accessibilityState={{ disabled: loading }}
+          >
+            {loading ? (
+              <View style={styles.buttonRow}>
+                <ActivityIndicator color="#fff" />
+                <Text style={styles.buttonText}>Setting…</Text>
+              </View>
+            ) : (
+              <Text style={styles.buttonText}>Set password</Text>
+            )}
+          </TouchableOpacity>
+        )}
         {errorHint ? (
-          <Text style={[styles.errorHint, { color: theme.textMuted }]}>{errorHint}</Text>
+          <Text
+            style={[styles.errorHint, { color: theme.textMuted }]}
+            accessibilityRole="text"
+            accessibilityLiveRegion="polite"
+          >
+            {errorHint}
+          </Text>
         ) : null}
       </View>
     </KeyboardAvoidingView>
@@ -156,7 +196,28 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_400Regular",
     marginBottom: 12,
   },
+  passwordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  passwordInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  eyeButton: {
+    position: "absolute",
+    right: 12,
+    padding: 8,
+  },
+  successHint: {
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 14,
+    textAlign: "center",
+    marginTop: 8,
+  },
   button: { borderRadius: 14, padding: 16, alignItems: "center" },
+  buttonRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   buttonText: {
     fontFamily: "Montserrat_600SemiBold",
     color: "#fff",

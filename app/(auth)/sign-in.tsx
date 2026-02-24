@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
@@ -23,6 +24,7 @@ export default function SignInScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorHint, setErrorHint] = useState<string | null>(null);
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const theme = useTheme();
   const { setSessionFromAuth } = useSupabase();
 
@@ -43,19 +45,35 @@ export default function SignInScreen() {
       // Update auth context immediately so root index sees session before we navigate
       if (data.session) {
         setSessionFromAuth(data.session);
-        // Defer navigation so React commits the context update before root index reads it
-        setTimeout(() => router.replace("/"), 0);
+        // Defer navigation so root index sees updated session (avoids race on web)
+        const go = () => router.replace("/");
+        if (typeof requestAnimationFrame !== "undefined") {
+          requestAnimationFrame(() => requestAnimationFrame(go));
+        } else {
+          setTimeout(go, 0);
+        }
       }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
+      const code = e && typeof e === "object" && "code" in e ? String((e as { code: string }).code) : "";
       const is401 = message.includes("401") || message.toLowerCase().includes("unauthorized");
-      setErrorHint(is401 ? UNAUTHORIZED_HINT : "Invalid email or password.");
-      Alert.alert("Sign in failed", is401 ? UNAUTHORIZED_HINT : "Invalid email or password.");
+      const isInvalidCreds =
+        message.toLowerCase().includes("invalid login credentials") ||
+        message.toLowerCase().includes("invalid_credentials") ||
+        code === "invalid_credentials";
+      const userMessage = is401
+        ? UNAUTHORIZED_HINT
+        : isInvalidCreds
+          ? "Incorrect password or email. Please try again."
+          : message;
+      setErrorHint(userMessage);
+      Alert.alert("Sign in failed", userMessage);
     } finally {
       setLoading(false);
     }
   };
 
+  const canSubmit = Boolean(email.trim() && password);
   const inputStyle = [
     styles.input,
     {
@@ -94,35 +112,63 @@ export default function SignInScreen() {
           autoCorrect={false}
           editable={!loading}
         />
-        <TextInput
-          style={inputStyle}
-          placeholder="Password"
-          placeholderTextColor={theme.textMuted}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!loading}
-          onSubmitEditing={handleSignIn}
-          returnKeyType="go"
-        />
+        <View style={styles.passwordRow}>
+          <TextInput
+            style={[inputStyle, styles.passwordInput]}
+            placeholder="Password"
+            placeholderTextColor={theme.textMuted}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!passwordVisible}
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!loading}
+            onSubmitEditing={handleSignIn}
+            returnKeyType="go"
+          />
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={() => setPasswordVisible((v) => !v)}
+            accessibilityRole="button"
+            accessibilityLabel={passwordVisible ? "Hide password" : "Show password"}
+          >
+            <Ionicons
+              name={passwordVisible ? "eye-off-outline" : "eye-outline"}
+              size={22}
+              color={theme.textMuted}
+            />
+          </TouchableOpacity>
+        </View>
         <TouchableOpacity
-          style={[styles.button, { backgroundColor: theme.primary }]}
+          style={[
+            styles.button,
+            { backgroundColor: theme.primary, opacity: canSubmit ? 1 : 0.5 },
+          ]}
           onPress={handleSignIn}
-          disabled={loading}
+          disabled={loading || !canSubmit}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="Sign In"
+          accessibilityLabel={loading ? "Signing in" : "Sign In"}
+          accessibilityState={{ disabled: loading || !canSubmit }}
+          accessibilityHint={!canSubmit ? "Enter email and password to enable" : undefined}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <View style={styles.buttonRow}>
+              <ActivityIndicator color="#fff" />
+              <Text style={styles.buttonText}>Signing in…</Text>
+            </View>
           ) : (
             <Text style={styles.buttonText}>Sign In</Text>
           )}
         </TouchableOpacity>
         {errorHint ? (
-          <Text style={[styles.errorHint, { color: theme.textMuted }]}>{errorHint}</Text>
+          <Text
+            style={[styles.errorHint, { color: theme.textMuted }]}
+            accessibilityRole="text"
+            accessibilityLiveRegion="polite"
+          >
+            {errorHint}
+          </Text>
         ) : null}
       </View>
     </KeyboardAvoidingView>
@@ -156,7 +202,22 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_400Regular",
     marginBottom: 12,
   },
+  passwordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  passwordInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  eyeButton: {
+    position: "absolute",
+    right: 12,
+    padding: 8,
+  },
   button: { borderRadius: 14, padding: 16, alignItems: "center" },
+  buttonRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   buttonText: {
     fontFamily: "Montserrat_600SemiBold",
     color: "#fff",

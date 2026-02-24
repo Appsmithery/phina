@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -19,21 +19,78 @@ import { useTheme } from "@/lib/theme";
 const UNAUTHORIZED_HINT =
   "In Supabase: Authentication → Providers → turn Email ON. Check Project Settings → API: use the anon public key and project URL in .env, then restart the app.";
 
+const RESEND_COOLDOWN_SECONDS = 60;
 const LOGO_MAX_SIDE = 560;
 const LOGO_MIN_SIDE = 320;
 const LOGO_WIDTH_RATIO = 0.9;
+
+function getRedirectUrl(): string | undefined {
+  if (Platform.OS !== "web") return undefined;
+  const baseUrl = (process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co").replace(
+    /\/+$/,
+    ""
+  );
+  return `${baseUrl}/set-password`;
+}
 
 export default function AuthScreen() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorHint, setErrorHint] = useState<string | null>(null);
+  const [magicLinkSentTo, setMagicLinkSentTo] = useState<string | null>(null);
+  const [resendCooldownSeconds, setResendCooldownSeconds] = useState(0);
+  const cooldownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const theme = useTheme();
 
   const logoSize = Math.max(
     LOGO_MIN_SIDE,
     Math.min(LOGO_MAX_SIDE, screenWidth * LOGO_WIDTH_RATIO, screenHeight * 0.5)
   );
+
+  const startCooldown = () => {
+    if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current);
+    setResendCooldownSeconds(RESEND_COOLDOWN_SECONDS);
+    cooldownIntervalRef.current = setInterval(() => {
+      setResendCooldownSeconds((s) => {
+        if (s <= 1) {
+          if (cooldownIntervalRef.current) {
+            clearInterval(cooldownIntervalRef.current);
+            cooldownIntervalRef.current = null;
+          }
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!magicLinkSentTo && cooldownIntervalRef.current) {
+      clearInterval(cooldownIntervalRef.current);
+      cooldownIntervalRef.current = null;
+      setResendCooldownSeconds(0);
+    }
+  }, [magicLinkSentTo]);
+
+  const sendMagicLink = async (trimmedEmail: string): Promise<boolean> => {
+    const redirectUrl = getRedirectUrl();
+    const { error } = await supabase.auth.signInWithOtp({
+      email: trimmedEmail,
+      options: { emailRedirectTo: redirectUrl },
+    });
+    if (error) throw error;
+    setMagicLinkSentTo(trimmedEmail);
+    setErrorHint(null);
+    startCooldown();
+    return true;
+  };
 
   const handleSignUp = async () => {
     const trimmedEmail = email.trim().toLowerCase();
@@ -43,17 +100,8 @@ export default function AuthScreen() {
     }
     setLoading(true);
     setErrorHint(null);
-    const baseUrl = (process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co").replace(
-      /\/+$/,
-      ""
-    );
-    const redirectUrl = Platform.OS === "web" ? `${baseUrl}/auth/set-password` : undefined;
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: trimmedEmail,
-        options: { emailRedirectTo: redirectUrl },
-      });
-      if (error) throw error;
+      await sendMagicLink(trimmedEmail);
       Alert.alert(
         "Check your email",
         "We sent you a magic link. Tap it to set your password and sign in.",
@@ -64,6 +112,21 @@ export default function AuthScreen() {
       const is401 = message.includes("401") || message.toLowerCase().includes("unauthorized");
       setErrorHint(is401 ? UNAUTHORIZED_HINT : message);
       Alert.alert("Error", is401 ? UNAUTHORIZED_HINT : message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (!magicLinkSentTo || resendCooldownSeconds > 0) return;
+    setLoading(true);
+    setErrorHint(null);
+    try {
+      await sendMagicLink(magicLinkSentTo);
+      Alert.alert("Link sent again", "Check your inbox for the magic link.", [{ text: "OK" }]);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      setErrorHint(message);
     } finally {
       setLoading(false);
     }
@@ -97,30 +160,85 @@ export default function AuthScreen() {
           />
         </View>
         <Text style={[styles.subtitle, { color: theme.text }]}>
-          Enter your email to get a sign-in link
+          {magicLinkSentTo
+            ? "Check your email"
+            : "Enter your email to get a sign-in link"}
         </Text>
-        <TextInput
-          style={inputStyle}
-          placeholder="you@example.com"
-          placeholderTextColor={theme.textMuted}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!loading}
-        />
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: theme.primary }]}
-          onPress={handleSignUp}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Sign Up</Text>
-          )}
-        </TouchableOpacity>
+        {magicLinkSentTo ? (
+          <>
+            <Text
+              style={[styles.successHint, { color: theme.textSecondary }]}
+              accessibilityRole="text"
+              accessibilityLiveRegion="polite"
+            >
+              We sent a magic link to {magicLinkSentTo}. Check your inbox and tap the link to set
+              your password.
+            </Text>
+            <TouchableOpacity
+              style={[styles.linkButton, { borderColor: theme.border }]}
+              onPress={() => setMagicLinkSentTo(null)}
+              disabled={loading}
+              accessibilityRole="button"
+              accessibilityLabel="Use a different email"
+            >
+              <Text style={[styles.linkButtonText, { color: theme.textSecondary }]}>
+                Use a different email
+              </Text>
+            </TouchableOpacity>
+            {resendCooldownSeconds > 0 ? (
+              <Text
+                style={[styles.cooldownHint, { color: theme.textMuted }]}
+                accessibilityRole="text"
+                accessibilityLiveRegion="polite"
+              >
+                You can resend in {resendCooldownSeconds} seconds
+              </Text>
+            ) : (
+              <TouchableOpacity
+                style={[styles.linkButton, { borderColor: theme.border }]}
+                onPress={handleResend}
+                disabled={loading}
+                accessibilityRole="button"
+                accessibilityLabel="Resend magic link"
+              >
+                <Text style={[styles.linkButtonText, { color: theme.textSecondary }]}>
+                  Resend link
+                </Text>
+              </TouchableOpacity>
+            )}
+          </>
+        ) : (
+          <>
+            <TextInput
+              style={inputStyle}
+              placeholder="you@example.com"
+              placeholderTextColor={theme.textMuted}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!loading}
+            />
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: theme.primary }]}
+              onPress={handleSignUp}
+              disabled={loading}
+              accessibilityRole="button"
+              accessibilityLabel={loading ? "Sending magic link" : "Sign Up"}
+              accessibilityState={{ disabled: loading }}
+            >
+              {loading ? (
+                <View style={styles.buttonRow}>
+                  <ActivityIndicator color="#fff" />
+                  <Text style={styles.buttonText}>Sending…</Text>
+                </View>
+              ) : (
+                <Text style={styles.buttonText}>Sign Up</Text>
+              )}
+            </TouchableOpacity>
+          </>
+        )}
         <TouchableOpacity
           style={[styles.buttonSecondary, { borderColor: theme.border }]}
           onPress={handleSignIn}
@@ -131,7 +249,13 @@ export default function AuthScreen() {
           </Text>
         </TouchableOpacity>
         {errorHint ? (
-          <Text style={[styles.errorHint, { color: theme.textMuted }]}>{errorHint}</Text>
+          <Text
+            style={[styles.errorHint, { color: theme.textMuted }]}
+            accessibilityRole="text"
+            accessibilityLiveRegion="polite"
+          >
+            {errorHint}
+          </Text>
         ) : null}
       </View>
     </KeyboardAvoidingView>
@@ -180,10 +304,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
   },
+  buttonRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   buttonText: {
     fontFamily: "Montserrat_600SemiBold",
     color: "#fff",
     fontSize: 16,
+  },
+  cooldownHint: {
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 12,
+    textAlign: "center",
+    marginBottom: 12,
   },
   buttonSecondary: {
     borderRadius: 14,
@@ -194,6 +325,25 @@ const styles = StyleSheet.create({
   buttonSecondaryText: {
     fontFamily: "Montserrat_600SemiBold",
     fontSize: 16,
+  },
+  successHint: {
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 14,
+    textAlign: "center",
+    marginBottom: 16,
+    paddingHorizontal: 8,
+  },
+  linkButton: {
+    alignSelf: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderRadius: 14,
+  },
+  linkButtonText: {
+    fontFamily: "Montserrat_600SemiBold",
+    fontSize: 14,
   },
   errorHint: {
     fontFamily: "Montserrat_400Regular",
