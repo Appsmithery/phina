@@ -12,13 +12,13 @@ type WineWithEvent = WineWithPricePrivacy & {
   event: { title: string; date: string; status: string } | null;
 };
 
-export default function LibraryScreen() {
+export default function CellarScreen() {
   const theme = useTheme();
   const { member } = useSupabase();
   const [search, setSearch] = useState("");
 
   const { data: wines = [] } = useQuery({
-    queryKey: ["library", "my-wines", member?.id],
+    queryKey: ["cellar", "my-wines", member?.id],
     queryFn: async () => {
       if (!member?.id) return [];
       const { data: winesData, error: winesError } = await supabase
@@ -70,7 +70,7 @@ export default function LibraryScreen() {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>
-          Sign in to see your library.
+          Sign in to see your cellar.
         </Text>
       </View>
     );
@@ -123,7 +123,7 @@ export default function LibraryScreen() {
                   </Text>
                 )}
                 <Text style={[styles.cardEvent, { color: theme.textMuted }]}>
-                  {eventTitle != null ? `${eventTitle}${eventDate ? ` · ${eventDate}` : ""}` : "Personal library"}
+                  {eventTitle != null ? `${eventTitle}${eventDate ? ` · ${eventDate}` : ""}` : "Personal cellar"}
                 </Text>
               </>
             );

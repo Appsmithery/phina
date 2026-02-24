@@ -105,7 +105,7 @@ export default function EditWineScreen() {
       if (wine?.event_id) {
         queryClient.invalidateQueries({ queryKey: ["wines", wine.event_id] });
       }
-      queryClient.invalidateQueries({ queryKey: ["library", "my-wines", member.id] });
+      queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", member.id] });
     } catch (e) {
       Alert.alert("Error", e instanceof Error ? e.message : "Could not update photo");
     } finally {
@@ -145,7 +145,7 @@ export default function EditWineScreen() {
       if (wine?.event_id) {
         queryClient.invalidateQueries({ queryKey: ["wines", wine.event_id] });
       }
-      queryClient.invalidateQueries({ queryKey: ["library", "my-wines", member.id] });
+      queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", member.id] });
       router.back();
     } catch (e: unknown) {
       Alert.alert("Error", e instanceof Error ? e.message : "Could not save changes");

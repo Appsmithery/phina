@@ -7,7 +7,7 @@ This is the canonical roadmap for this repo. PRDs, implementation plans (Cursor/
 - **Vision:** Digitize wine club tasting events — photo-based wine entry (AI label extraction), live rating rounds (push-triggered, anonymous), and searchable history — so hosts and members get a smooth, persistent experience instead of sign-in sheets and verbal spiels.
 - **Target users:** Wine club hosts and members attending in-person themed tastings.
 - **North-star metric:** Events completed with full photo → rate → reveal flow; member re-engagement (return visits).
-- **Non-goals (v1):** Social features, e-commerce, price lookups, separate web-only product. *Later phases:* personal libraries (user-owned collections), optional payments (donations + subscription for library users), user preference graph and discovery (shop picker, recipe pairing).
+- **Non-goals (v1):** Social features, e-commerce, price lookups, separate web-only product. *Later phases:* personal cellars (user-owned collections), optional payments (donations + subscription for cellar users), user preference graph and discovery (shop picker, recipe pairing).
 
 ## How to use this roadmap
 
@@ -28,15 +28,16 @@ This is the canonical roadmap for this repo. PRDs, implementation plans (Cursor/
 ### Next (queued)
 
 - **Sign in / sign up with Google** — Add Google OAuth alongside magic-link email. Reduces friction for new and returning members. Status: 🧠 — Target: TBD — No PRD yet.
-- **Personal libraries** — Wine collections not tied to events: users can build, search, and manage their own library (bottles they’ve had or want to try). Enables use outside event-only flow. Status: 🧠 — Target: TBD — No PRD yet. **Foundation:** Quantity (1–12) is implemented first for Events per [PRD-2026-002](./PRDs/PRD-2026-002__quantity-events-library.md); the same quantity semantics will be reused for Library when built.
-- **Quantity (1–12) for Events** — Add quantity input to the scan/add-wine flow and persist in DB for event wines; prepares reuse for Library. Status: 🧠 — Target: TBD — [PRD-2026-002](./PRDs/PRD-2026-002__quantity-events-library.md).
-- **Payments** — Two streams: (1) **Donations** — optional one-time donate-to-project when joining events; (2) **Subscription** — $2.99/month for personal library users (unlocks/library features). Subscription tier depends on Personal libraries. Status: 🧠 — Target: TBD — No PRD yet.
+- **Personal cellars** — Wine collections not tied to events: users can build, search, and manage their own cellar (bottles they’ve had or want to try). Enables use outside event-only flow. Status: 🧠 — Target: TBD — No PRD yet. **Foundation:** Quantity (1–12) is implemented first for Events per [PRD-2026-002](./PRDs/PRD-2026-002__quantity-events-cellar.md); the same quantity semantics will be reused for Cellar when built.
+- **Quantity (1–12) for Events** — Add quantity input to the scan/add-wine flow and persist in DB for event wines; prepares reuse for Cellar. Status: 🧠 — Target: TBD — [PRD-2026-002](./PRDs/PRD-2026-002__quantity-events-cellar.md).
+- **Payments** — Two streams: (1) **Donations** — optional one-time donate-to-project when joining events; (2) **Subscription** — $2.99/month for personal cellar users (unlocks/cellar features). Subscription tier depends on Personal cellars. Status: 🧠 — Target: TBD — No PRD yet.
 
 ### Later (ideas)
 
 - **User preferences and social data for wines** — Users add additional metadata to their rankings (e.g. tags, tasting notes, preferred contexts) to build a per-user preferences graph. This graph informs personalized discovery in later phases (shop picker, recipe pairing). Status: 🧠 — [PRD-2026-003](./PRDs/PRD-2026-003__user-preferences-social-data-wines.md).
 - **Shop wine picker (photo)** — Help a user pick a wine in a shop: user photographs a bottle/shelf, app uses preferences graph + label recognition to recommend or explain fit. Depends on user preferences phase. Status: 🧠 — No PRD yet.
-- **Recipe/meal pairing** — Recommend a wine pairing from the user's preferences and library: user uploads a recipe doc or pastes a link; app suggests pairings. Depends on user preferences phase. Status: 🧠 — No PRD yet.
+- **Recipe/meal pairing** — Recommend a wine pairing from the user's preferences and cellar: user uploads a recipe doc or pastes a link; app suggests pairings. Depends on user preferences phase. Status: 🧠 — No PRD yet.
+- **Dining out** — So that a user can add a bottle while they are out to dinner at a restaurant: capture pairing data (what was eaten, how it paired) on top of preferences. Later phases may use location or reservation data via integration with OpenTable/Resy and Google Maps. Depends on user preferences phase. Status: 🧠 — No PRD yet.
 - **Brand application** — Apply [Brand Guidelines](../brand-guidelines.md) consistently across app (typography, palette, imagery). No PRD yet.
 - **Observability** — Error tracking, basic analytics. No PRD yet.
 - **Native store builds** — Google Play / App Store when accounts are ready. No PRD yet.
@@ -58,10 +59,10 @@ This is the canonical roadmap for this repo. PRDs, implementation plans (Cursor/
 - **Goal:** Fix label extraction; add Google sign-in for lower friction.
 - **Includes:** Label photo extraction troubleshooting and finalization; Sign in/up with Google (OAuth).
 
-### v0.4 (personal libraries & monetization)
+### v0.4 (personal cellars & monetization)
 
-- **Goal:** Personal wine libraries (not event-tied); optional donations and subscription for library users.
-- **Includes:** Personal libraries (user-owned wine collections); Payments (donate on event join; $2.99/mo for library users).
+- **Goal:** Personal wine cellars (not event-tied); optional donations and subscription for cellar users.
+- **Includes:** Personal cellars (user-owned wine collections); Payments (donate on event join; $2.99/mo for cellar users).
 
 ### v0.5 (user preferences & discovery foundation)
 
@@ -70,15 +71,16 @@ This is the canonical roadmap for this repo. PRDs, implementation plans (Cursor/
 
 ### v0.6+ (discovery)
 
-- **Goal:** Use the preferences graph for in-the-wild discovery: shop wine picker (photo), recipe/meal pairing (doc or link).
-- **Includes:** Shop wine picker (photo); Recipe/meal pairing (upload doc or link to recipe).
+- **Goal:** Use the preferences graph for in-the-wild discovery: shop wine picker (photo), recipe/meal pairing (doc or link), dining out (add bottle at restaurant with pairing data; optional OpenTable/Resy/Maps).
+- **Includes:** Shop wine picker (photo); Recipe/meal pairing (upload doc or link to recipe); Dining out (restaurant add-bottle, pairing data; later: location/reservation integrations).
 
 ## User preferences and discovery (later)
 
 The **preferences graph** is built from ranking metadata: today's thumbs up/meh/down, plus any new structured metadata (e.g. tags, tasting notes, preferred contexts) added in the user preferences phase. That phase is the **foundation** for:
 
 - **Shop wine picker** — User photographs a bottle or shelf in a shop → app matches to known wines and the user's preference profile → "this fits your taste" or "you liked similar at event X."
-- **Recipe/meal pairing** — User uploads a recipe doc or pastes a link → app derives a meal profile → recommends wines from the user's library or taste profile.
+- **Recipe/meal pairing** — User uploads a recipe doc or pastes a link → app derives a meal profile → recommends wines from the user's cellar or taste profile.
+- **Dining out** — User adds a bottle while at a restaurant → capture pairing data (dish/meal, how it paired) to enrich the preferences graph; eventually integrate location or reservation context (OpenTable/Resy, Google Maps) for richer context and discovery.
 
 Future PRDs for preferences, shop picker, and recipe pairing should reference this section and the releases above. The user preferences phase is specified in [PRD-2026-003](./PRDs/PRD-2026-003__user-preferences-social-data-wines.md).
 
@@ -87,13 +89,14 @@ Future PRDs for preferences, shop picker, and recipe pairing should reference th
 | Area        | PRD ID | Title | Status |
 |-------------|--------|--------|--------|
 | *Planned*   | — | Label photo extraction (troubleshoot & finalize) | 🛠 Now |
-| Events      | PRD-2026-002 | Quantity (1–12) for Events and Library | 🧠 Draft |
+| Events      | PRD-2026-002 | Quantity (1–12) for Events and Cellar | 🧠 Draft |
 | Auth        | — | Sign in/up with Google | 🧠 Next |
-| Product     | — | Personal libraries | 🧠 Next |
-| Monetization| — | Payments (donations + $2.99/mo library) | 🧠 Next |
+| Product     | — | Personal cellars | 🧠 Next |
+| Monetization| — | Payments (donations + $2.99/mo cellar) | 🧠 Next |
 | Preferences | PRD-2026-003 | [User preferences and social data for wines](./PRDs/PRD-2026-003__user-preferences-social-data-wines.md) | 🧠 Later |
 | Discovery   | — | Shop wine picker (photo) | 🧠 Later |
 | Discovery   | — | Recipe/meal pairing | 🧠 Later |
+| Discovery   | — | Dining out (restaurant add-bottle, pairing data, OpenTable/Resy/Maps) | 🧠 Later |
 | *Add new*   | — | Use [PRD_Template](./PRDs/PRD_Template.md); assign ID and add here | — |
 
 ---

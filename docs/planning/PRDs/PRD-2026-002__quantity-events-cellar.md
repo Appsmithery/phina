@@ -1,17 +1,17 @@
 ---
 prd_id: PRD-2026-002
-title: "Quantity field (1-12) for Events and Library"
+title: "Quantity field (1-12) for Events and Cellar"
 status: Draft
 owner: "[name/agent]"
 area: "Events"
 target_release: "v0.x"
 roadmap: "../ROADMAP.md"
 plans:
-  cursor: "Quantity field Events and Library (in Cursor plan store; see Related Plan File below)"
+  cursor: "Quantity field Events and Cellar (in Cursor plan store; see Related Plan File below)"
   claude: "../Plans/PRD-2026-002__claude-plan.md"
 ---
 
-# PRD-2026-002: Quantity field (1-12) for Events and Library
+# PRD-2026-002: Quantity field (1-12) for Events and Cellar
 
 > **Status:** 🧠 Draft  
 > **Priority:** P2 (Medium)  
@@ -23,7 +23,7 @@ plans:
 
 ## Problem Statement
 
-Members adding wines to an event (via the scan-label / add-wine flow) cannot indicate how many bottles they are contributing. The app currently treats each submission as a single bottle. Event hosts and members need to record quantity (e.g. 2 bottles of the same wine) for accurate event inventory and, in the future, for personal library cataloguing where quantity is also relevant (e.g. "3 bottles in cellar").
+Members adding wines to an event (via the scan-label / add-wine flow) cannot indicate how many bottles they are contributing. The app currently treats each submission as a single bottle. Event hosts and members need to record quantity (e.g. 2 bottles of the same wine) for accurate event inventory and, in the future, for personal cellar cataloguing where quantity is also relevant (e.g. "3 bottles in cellar").
 
 ## Success Metrics
 
@@ -31,19 +31,19 @@ Members adding wines to an event (via the scan-label / add-wine flow) cannot ind
 |--------|---------|--------|-------------------|
 | Quantity captured per event wine | Not captured | Stored for all new/updated wines | DB and UI show quantity |
 | Event wine list clarity | Single-bottle assumption | Quantity visible when > 1 | Manual check of event wine list |
-| Reuse for Library | N/A | Same 1-12 semantics designed for Library | Library PRD/design references this field |
+| Reuse for Cellar | N/A | Same 1-12 semantics designed for Cellar | Cellar PRD/design references this field |
 
 ---
 
 ## Solution Overview
 
-Add a **Quantity** integer field with allowed range **1–12** to the wine entry flow. **Phase 1** implements it for the **Event**-linked workflow only: add-wine form captures quantity, it is stored in the `wines` table, and displayed in the event wine list (and wine detail) where relevant. **Phase 2** (later) is the **Library** object type (see [ROADMAP.md](../ROADMAP.md) — Personal libraries): the same quantity concept (1–12) will be used when building user-owned wine collections; this PRD does not implement Library, only establishes the field and semantics for Events so Library can reuse them.
+Add a **Quantity** integer field with allowed range **1–12** to the wine entry flow. **Phase 1** implements it for the **Event**-linked workflow only: add-wine form captures quantity, it is stored in the `wines` table, and displayed in the event wine list (and wine detail) where relevant. **Phase 2** (later) is the **Cellar** object type (see [ROADMAP.md](../ROADMAP.md) — Personal cellars): the same quantity concept (1–12) will be used when building user-owned wine collections; this PRD does not implement Cellar, only establishes the field and semantics for Events so Cellar can reuse them.
 
 ### User Stories
 
-- **As a** member adding wine to an event, **I want** to enter how many bottles (1–12) I’m adding, **so that** the event reflects the correct number of bottles.
-- **As a** host or member viewing an event’s wines, **I want** to see quantity when more than one bottle of the same wine is added, **so that** I can see inventory at a glance.
-- **As a** product owner, **I want** quantity to be designed once (1–12) for Events, **so that** the same semantics can be reused for the future Library (personal collection) feature without re-specifying.
+- **As a** member adding wine to an event, **I want** to enter how many bottles (1–12) I'm adding, **so that** the event reflects the correct number of bottles.
+- **As a** host or member viewing an event's wines, **I want** to see quantity when more than one bottle of the same wine is added, **so that** I can see inventory at a glance.
+- **As a** product owner, **I want** quantity to be designed once (1–12) for Events, **so that** the same semantics can be reused for the future Cellar (personal collection) feature without re-specifying.
 
 ---
 
@@ -107,7 +107,7 @@ None. Supabase client continues to read/insert/update `wines`; new column is inc
 
 ### Architecture Notes
 
-- Quantity is stored on the wine record (event wines today; same concept for Library later). Do not create an event-only or Library-only quantity table; keep one semantics (1–12) for reuse.
+- Quantity is stored on the wine record (event wines today; same concept for Cellar later). Do not create an event-only or Cellar-only quantity table; keep one semantics (1–12) for reuse.
 - Label extraction (`last-label-extraction`) does not provide quantity; add-wine form owns quantity state and does not overwrite it when applying extraction.
 
 ---
@@ -128,13 +128,13 @@ None. Supabase client continues to read/insert/update `wines`; new column is inc
 
 **Current behavior:** Each wine entry is implicitly one bottle; no quantity field.  
 **Expected behavior:** User can enter 1–12 bottles; value stored and displayed.  
-**Root cause:** Quantity was not in the original event/wine scope; added as enhancement for inventory and future Library reuse.
+**Root cause:** Quantity was not in the original event/wine scope; added as enhancement for inventory and future Cellar reuse.
 
 ### Implementation Constraints
 
 - DO NOT remove or change existing wines columns (producer, varietal, vintage, region, label_photo_url, ai_summary, etc.).
 - MUST preserve backward compatibility: existing wines get quantity = 1; API and types allow optional quantity with default 1 where appropriate.
-- DO NOT implement Library in this PRD; only Events workflow and DB + types.
+- DO NOT implement Cellar in this PRD; only Events workflow and DB + types.
 
 ### Verification Commands
 
@@ -154,12 +154,12 @@ npx tsc --noEmit
 - [x] **Quantity on add-wine form (not on scan-label):** Quantity is user input, not from AI; add-wine is the single place for wine metadata before submit.
 - [x] **Range 1–12:** Covers event and cellar use cases without unbounded input; can be extended later if needed.
 - [x] **Default 1:** Existing rows and omitted input behave as one bottle; no breaking change.
-- [x] **Phase 1 = Events only; Library referenced but not built:** Aligns with roadmap (Quantity built first for Events; Library will reuse semantics).
+- [x] **Phase 1 = Events only; Cellar referenced but not built:** Aligns with roadmap (Quantity built first for Events; Cellar will reuse semantics).
 - [x] **Quantity control = drop-down selector (single choice):** UI uses a picker/drop-down with options 1–12; no free number input or stepper, to keep input constrained and consistent.
 
 ### Related Plan File
 
-[Cursor plan: Quantity field Events and Library](.cursor/plans/quantity_field_events_and_library_39da5d12.plan.md) — implementation plan (links to this PRD). Implement the steps in that plan for a complete solution; quantity UI is a drop-down selector (single choice, 1–12) per this PRD.
+[Cursor plan: Quantity field Events and Cellar](.cursor/plans/quantity_field_events_and_library_39da5d12.plan.md) — implementation plan (links to this PRD). Implement the steps in that plan for a complete solution; quantity UI is a drop-down selector (single choice, 1–12) per this PRD.
 
 ---
 
@@ -181,7 +181,7 @@ npx tsc --noEmit
 
 ### Out of Scope
 
-- Library object type or Library-specific UI/API.
+- Cellar object type or Cellar-specific UI/API.
 - Changes to scan-label or extract-wine-label beyond add-wine form (no quantity in extraction).
 - Quantity outside 1–12 (e.g. 0 or > 12) in this PRD.
 
@@ -205,7 +205,7 @@ npx tsc --noEmit
 | Phase | Description | Audience | Success Gate |
 |-------|-------------|----------|--------------|
 | 1 | Quantity in Events (add-wine, DB, list, detail) | All event users | Quantity saved and displayed; no regressions. |
-| 2 | (Later) Library reuses quantity 1–12 | Library users | See Personal libraries PRD when it exists. |
+| 2 | (Later) Cellar reuses quantity 1–12 | Cellar users | See Personal cellars PRD when it exists. |
 
 ### Feature Flags
 
@@ -221,15 +221,15 @@ No feature flag for Phase 1; quantity is always available on add-wine and displa
 
 ## References
 
-- [ROADMAP.md](../ROADMAP.md) — Personal libraries (Phase 2); Quantity built first for Events.
-- Cursor plan (Quantity field Events and Library) — implementation plan linking to this PRD; see Related Plan File above.
+- [ROADMAP.md](../ROADMAP.md) — Personal cellars (Phase 2); Quantity built first for Events.
+- Cursor plan (Quantity field Events and Cellar) — implementation plan linking to this PRD; see Related Plan File above.
 
 ---
 
 ## PRD creation & updating (good practices)
 
-- **ID & filename:** PRD-2026-002; filename `PRD-2026-002__quantity-events-library.md`.
-- **Roadmap:** Listed in ROADMAP.md under Next (Quantity / Events) and referenced in Personal libraries section; PRD index updated.
+- **ID & filename:** PRD-2026-002; filename `PRD-2026-002__quantity-events-cellar.md`.
+- **Roadmap:** Listed in ROADMAP.md under Next (Quantity / Events) and referenced in Personal cellars section; PRD index updated.
 - **Plans:** Cursor/Claude plan in `docs/planning/Plans/PRD-2026-002__cursor-plan.md` when created.
 
 ---
@@ -240,3 +240,4 @@ No feature flag for Phase 1; quantity is always available on add-wine and displa
 |------------|----------|---------------|
 | 2026-02-23 | [Author] | Initial draft |
 | 2026-02-23 | [Author] | UI: quantity input = drop-down selector (single choice, 1–12). Plan references PRD; PRD references plan. |
+| 2026-02-24 | [Author] | Renamed Library → Cellar (title, filename, references). |

@@ -29,9 +29,9 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="library"
+        name="cellar"
         options={{
-          tabBarIcon: ({ color, size }) => <Ionicons name="library-outline" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <Ionicons name="wine-outline" size={size} color={color} />,
         }}
       />
       <Tabs.Screen

@@ -81,7 +81,7 @@ Let users add **additional metadata to their rankings** (e.g. tags, tasting note
 
 ```
 app/event/[id]/rate/[wineId].tsx
-app/(tabs)/library.tsx
+app/(tabs)/cellar.tsx
 types/database.ts
 supabase/migrations/
 docs/planning/ROADMAP.md  (User preferences and discovery section)
@@ -117,7 +117,7 @@ docs/planning/ROADMAP.md  (User preferences and discovery section)
 | `supabase/migrations/0XX_rating_preference_metadata.sql` | Schema | Add columns or table for rating-level preference metadata; RLS for member-only access. |
 | `types/database.ts` | Types | Add types for rating metadata (tags, note, context). |
 | `app/event/[id]/rate/[wineId].tsx` | Rating screen | Optional UI to add tags/note/context when submitting vote; persist with rating. |
-| (TBD) History / library | Optional | Allow adding or editing preference metadata for past ratings. |
+| (TBD) History / cellar | Optional | Allow adding or editing preference metadata for past ratings. |
 
 ### Root Cause Analysis
 
@@ -159,7 +159,7 @@ Plan files: see YAML `plans` (e.g. `../Plans/PRD-2026-003__cursor-plan.md`). Cre
 1. Design and add migration for rating preference metadata (columns or table; RLS).
 2. Update TypeScript types for ratings and any new views.
 3. Add optional metadata UI to the rating screen; submit with rating.
-4. (Optional) Add or edit metadata from history/library for past ratings.
+4. (Optional) Add or edit metadata from history/cellar for past ratings.
 5. Document or implement minimal "preferences graph" query path for v0.6+ consumption.
 
 ### Testing Requirements
@@ -178,7 +178,7 @@ Plan files: see YAML `plans` (e.g. `../Plans/PRD-2026-003__cursor-plan.md`). Cre
 ## Design & UX
 
 - **Rating screen:** After or alongside thumbs up/meh/down, optional field(s) for tags (e.g. chips or free text), short tasting note (text), and/or context (e.g. "with food"). Submit with vote.
-- **History / library:** If in scope, allow user to open a wine they rated and add or edit preference metadata (no change to vote value or aggregate results).
+- **History / cellar:** If in scope, allow user to open a wine they rated and add or edit preference metadata (no change to vote value or aggregate results).
 
 **Key Interactions:**
 - User rates wine → optionally adds tags/note/context → submits → rating and metadata saved.
@@ -203,7 +203,7 @@ TBD; optional feature flag to enable metadata UI if rolling out gradually.
 
 - [ ] Exact schema: new columns on `ratings` vs. separate `rating_metadata` table?
 - [ ] Tag model: free-text only, or controlled vocabulary (and who maintains it)?
-- [ ] Where can users edit metadata after the event: only from Library, or also from event history?
+- [ ] Where can users edit metadata after the event: only from Cellar, or also from event history?
 
 ---
 
