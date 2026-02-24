@@ -38,7 +38,8 @@ export default function SignInScreen() {
         password,
       });
       if (error) throw error;
-      // Session set; app/index will redirect to (tabs)
+      // Session set; navigate into app so root index can redirect to (tabs)/profile
+      router.replace("/");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
       const is401 = message.includes("401") || message.toLowerCase().includes("unauthorized");
@@ -92,11 +93,16 @@ export default function SignInScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           editable={!loading}
+          onSubmitEditing={handleSignIn}
+          returnKeyType="go"
         />
         <TouchableOpacity
           style={[styles.button, { backgroundColor: theme.primary }]}
           onPress={handleSignIn}
           disabled={loading}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Sign In"
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
