@@ -11,6 +11,7 @@ import {
   Alert,
   Image,
   useWindowDimensions,
+  ScrollView,
 } from "react-native";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
@@ -148,6 +149,12 @@ export default function AuthScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={[styles.container, { backgroundColor: theme.background }]}
     >
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.content}>
         <View style={[styles.logoWrapper, { backgroundColor: theme.background }]}>
           <Image
@@ -277,6 +284,7 @@ export default function AuthScreen() {
           </Text>
         ) : null}
       </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -284,12 +292,18 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+    width: "100%",
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: "center",
+    paddingVertical: 24,
     alignItems: "center",
   },
   content: {
-    flex: 1,
-    justifyContent: "center",
     paddingHorizontal: 24,
     paddingVertical: 16,
     maxWidth: 400,

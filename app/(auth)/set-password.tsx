@@ -9,6 +9,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -82,11 +83,29 @@ export default function SetPasswordScreen() {
     );
   }
 
+  const handleSignInInstead = () => {
+    const email = session?.user?.email?.trim();
+    if (email) {
+      router.replace({
+        pathname: "/(auth)/sign-in",
+        params: { email },
+      });
+    } else {
+      router.replace("/(auth)");
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={[styles.container, { backgroundColor: theme.background }]}
     >
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.content}>
         <Text style={[styles.title, { color: theme.text }]}>Set your password</Text>
         <Text style={[styles.subtitle, { color: theme.text }]}>
@@ -164,7 +183,30 @@ export default function SetPasswordScreen() {
             {errorHint}
           </Text>
         ) : null}
+        <TouchableOpacity
+          style={[styles.linkButton, { borderColor: theme.border }]}
+          onPress={handleSignInInstead}
+          disabled={loading}
+          accessibilityRole="button"
+          accessibilityLabel="Already have an account? Sign in with password"
+        >
+          <Text style={[styles.linkButtonText, { color: theme.textSecondary }]}>
+            Already have an account? Sign in with password
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.linkButtonSecondary, { borderColor: theme.border }]}
+          onPress={() => router.replace("/")}
+          disabled={loading}
+          accessibilityRole="button"
+          accessibilityLabel="Go to app without changing password"
+        >
+          <Text style={[styles.linkButtonText, { color: theme.textSecondary }]}>
+            Go to app
+          </Text>
+        </TouchableOpacity>
       </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -172,9 +214,14 @@ export default function SetPasswordScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centered: { justifyContent: "center", alignItems: "center" },
-  content: {
-    flex: 1,
+  scrollView: { flex: 1, width: "100%" },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: "center",
+    paddingVertical: 24,
+    alignItems: "center",
+  },
+  content: {
     paddingHorizontal: 24,
     paddingVertical: 16,
     maxWidth: 400,
@@ -229,5 +276,25 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 16,
     paddingHorizontal: 8,
+  },
+  linkButton: {
+    alignSelf: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 20,
+    borderWidth: 1,
+    borderRadius: 14,
+  },
+  linkButtonSecondary: {
+    alignSelf: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 8,
+    borderWidth: 1,
+    borderRadius: 14,
+  },
+  linkButtonText: {
+    fontFamily: "Montserrat_600SemiBold",
+    fontSize: 14,
   },
 });
