@@ -19,6 +19,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supportsTablet: false,
     bundleIdentifier: "co.appsmithery.phina",
     associatedDomains: ["applinks:phina.appsmithery.co"],
+    infoPlist: {
+      ITSAppUsesNonExemptEncryption: false,
+    },
   },
   android: {
     adaptiveIcon: {
