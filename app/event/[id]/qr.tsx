@@ -1,6 +1,5 @@
-import { useLocalSearchParams, router } from "expo-router";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams } from "expo-router";
+import { View, Text, StyleSheet } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import { useTheme } from "@/lib/theme";
 
@@ -14,15 +13,6 @@ export default function EventQRScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <TouchableOpacity
-        style={[styles.backRow, { marginBottom: 8 }]}
-        onPress={() => router.back()}
-        accessibilityRole="button"
-        accessibilityLabel="Go back"
-      >
-        <Ionicons name="chevron-back" size={24} color={theme.primary} />
-        <Text style={[styles.backText, { color: theme.primary }]}>Back</Text>
-      </TouchableOpacity>
       <View style={styles.content}>
         <Text style={[styles.title, { color: theme.text }]}>Scan to join</Text>
         <Text style={[styles.url, { color: theme.textSecondary }]}>{joinUrl}</Text>
@@ -41,8 +31,6 @@ export default function EventQRScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24 },
-  backRow: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start" },
-  backText: { fontSize: 16, fontWeight: "600", marginLeft: 4 },
   content: { flex: 1, alignItems: "center", justifyContent: "center" },
   title: { fontSize: 22, fontWeight: "700", marginBottom: 8 },
   url: { fontSize: 12, marginBottom: 24, textAlign: "center" },

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, ScrollView, Platform } from "react-native";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
@@ -42,9 +42,13 @@ export default function CreateEventScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <TouchableOpacity onPress={() => router.back()} style={styles.back}>
-        <Text style={[styles.backText, { color: theme.primary }]}>← Back</Text>
-      </TouchableOpacity>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardView}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
       <Text style={[styles.title, { color: theme.text }]}>New event</Text>
       <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.label, { color: theme.textSecondary }]}>Title</Text>
@@ -76,14 +80,17 @@ export default function CreateEventScreen() {
           <Text style={styles.buttonText}>{loading ? "Creating…" : "Create"}</Text>
         </TouchableOpacity>
       </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
-  back: { marginBottom: 8 },
-  backText: { fontSize: 16 },
+  keyboardView: { flex: 1 },
+  scrollView: { flex: 1 },
+  scrollContent: { paddingBottom: 28 },
   title: { fontSize: 24, fontWeight: "700", marginBottom: 16 },
   card: { borderWidth: 1, borderRadius: 14, padding: 16 },
   label: { fontSize: 12, marginBottom: 4 },

@@ -1,6 +1,5 @@
 import { useState, useCallback } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Modal, Pressable } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Modal, Pressable, KeyboardAvoidingView, ScrollView, Platform } from "react-native";
 import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
@@ -39,6 +38,18 @@ export default function AddWineScreen() {
 
   const add = async () => {
     if (!member?.id || !id) return;
+    if (
+      !producer.trim() &&
+      !varietal.trim() &&
+      !region.trim() &&
+      !aiSummary.trim()
+    ) {
+      Alert.alert(
+        "Add at least one detail",
+        "Enter producer, varietal, region, or background so the wine can be identified."
+      );
+      return;
+    }
     setLoading(true);
     try {
       const { error } = await supabase.from("wines").insert({
@@ -65,17 +76,18 @@ export default function AddWineScreen() {
     if (id) router.push(`/event/${id}/scan-label`);
   };
 
+  const isFormBlank =
+    !producer.trim() && !varietal.trim() && !region.trim() && !aiSummary.trim();
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <TouchableOpacity
-        style={[styles.backRow, { marginBottom: 8 }]}
-        onPress={() => router.back()}
-        accessibilityRole="button"
-        accessibilityLabel="Go back"
-      >
-        <Ionicons name="chevron-back" size={24} color={theme.primary} />
-        <Text style={[styles.backText, { color: theme.primary }]}>Back</Text>
-      </TouchableOpacity>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.keyboardView}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
       <Text style={[styles.title, { color: theme.text }]}>Add wine</Text>
       <TouchableOpacity style={[styles.scanButton, { backgroundColor: theme.surface, borderColor: theme.border }]} onPress={openScan}>
         <Text style={[styles.scanButtonText, { color: theme.primary }]}>Scan label</Text>
@@ -155,21 +167,32 @@ export default function AddWineScreen() {
           </>
         ) : null}
         <TouchableOpacity
-          style={[styles.button, { backgroundColor: theme.primary }]}
+          style={[
+            styles.button,
+            { backgroundColor: theme.primary, opacity: isFormBlank ? 0.5 : 1 },
+          ]}
           onPress={add}
-          disabled={loading}
+          disabled={loading || isFormBlank}
         >
           <Text style={styles.buttonText}>{loading ? "Adding…" : "Add wine"}</Text>
         </TouchableOpacity>
+        {isFormBlank ? (
+          <Text style={[styles.hintBlank, { color: theme.textSecondary }]}>
+            Enter at least producer, varietal, region, or background.
+          </Text>
+        ) : null}
       </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
-  backRow: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start" },
-  backText: { fontSize: 16, fontWeight: "600", marginLeft: 4 },
+  keyboardView: { flex: 1 },
+  scrollView: { flex: 1 },
+  scrollContent: { paddingBottom: 28 },
   title: { fontSize: 24, fontWeight: "700", marginBottom: 16 },
   scanButton: { borderWidth: 1, borderRadius: 14, padding: 16, marginBottom: 16 },
   scanButtonText: { fontSize: 16, fontWeight: "600" },
@@ -192,4 +215,5 @@ const styles = StyleSheet.create({
   quantityOptionText: { fontSize: 16 },
   button: { borderRadius: 12, padding: 14, alignItems: "center" },
   buttonText: { color: "#fff", fontWeight: "600" },
+  hintBlank: { fontSize: 12, marginTop: 8, textAlign: "center" },
 });

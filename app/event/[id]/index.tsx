@@ -1,5 +1,5 @@
 import { useLocalSearchParams, router } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
@@ -13,6 +13,7 @@ export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { member } = useSupabase();
   const theme = useTheme();
+  const queryClient = useQueryClient();
 
   const { data: event, isLoading } = useQuery({
     queryKey: ["event", id],
@@ -57,6 +58,28 @@ export default function EventDetailScreen() {
   const isHost = event?.created_by === member?.id;
   const endEventMutation = useEndEvent(id!);
 
+  const handleRemoveWine = (wine: Wine) => {
+    Alert.alert(
+      "Remove wine",
+      "Remove this wine from the event?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            const { error } = await supabase.from("wines").delete().eq("id", wine.id);
+            if (error) {
+              Alert.alert("Error", error.message ?? "Could not remove wine.");
+              return;
+            }
+            queryClient.invalidateQueries({ queryKey: ["wines", id] });
+          },
+        },
+      ]
+    );
+  };
+
   if (!id || isLoading || !event) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -67,11 +90,6 @@ export default function EventDetailScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={[styles.back, { color: theme.primary }]}>← Back</Text>
-        </TouchableOpacity>
-      </View>
       <Text style={[styles.title, { color: theme.text }]}>{event.title}</Text>
       <Text style={[styles.meta, { color: theme.textSecondary }]}>
         {event.theme} · {new Date(event.date).toLocaleDateString()} · {event.status}
@@ -118,6 +136,7 @@ export default function EventDetailScreen() {
           renderItem={({ item }) => {
             const round = rounds.find((r) => r.wine_id === item.id);
             const summary = ratingSummaries.find((s) => s.wine_id === item.id);
+            const canRemove = isHost || item.brought_by === member?.id;
             return (
               <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                 <TouchableOpacity onPress={() => router.push(`/event/${id}/wine/${item.id}`)}>
@@ -153,6 +172,14 @@ export default function EventDetailScreen() {
                     <Text style={styles.rateButtonText}>Rate</Text>
                   </TouchableOpacity>
                 )}
+                {canRemove && (
+                  <TouchableOpacity
+                    style={[styles.removeButton, { borderColor: theme.textMuted }]}
+                    onPress={() => handleRemoveWine(item)}
+                  >
+                    <Text style={[styles.removeButtonText, { color: theme.textMuted }]}>Remove</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             );
           }}
@@ -164,8 +191,6 @@ export default function EventDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
-  header: { marginBottom: 8 },
-  back: { fontSize: 16 },
   title: { fontSize: 24, fontWeight: "700", marginBottom: 4 },
   meta: { fontSize: 14, marginBottom: 16 },
   primaryButton: { borderRadius: 14, padding: 16, alignItems: "center", marginBottom: 24 },
@@ -186,6 +211,8 @@ const styles = StyleSheet.create({
   endEventText: { fontSize: 16 },
   rateButton: { borderRadius: 12, padding: 10, alignItems: "center", marginTop: 12 },
   rateButtonText: { color: "#fff", fontWeight: "600" },
+  removeButton: { borderWidth: 1, borderRadius: 10, padding: 8, alignItems: "center", marginTop: 8, alignSelf: "flex-start" },
+  removeButtonText: { fontSize: 14, fontWeight: "500" },
   resultRow: { marginTop: 12 },
   resultText: { fontSize: 15 },
 });

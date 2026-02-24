@@ -148,14 +148,6 @@ export default function SignInScreen() {
         showsVerticalScrollIndicator={false}
       >
       <View style={styles.content}>
-        <TouchableOpacity
-          onPress={() => router.replace("/(auth)")}
-          style={styles.back}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <Text style={[styles.backText, { color: theme.textSecondary }]}>Back</Text>
-        </TouchableOpacity>
         <Text style={[styles.title, { color: theme.text }]}>Sign In</Text>
         <Text style={[styles.subtitle, { color: theme.text }]}>
           Enter your password for {emailFromSplash}
@@ -261,8 +253,6 @@ const styles = StyleSheet.create({
     width: "100%",
     alignSelf: "center",
   },
-  back: { alignSelf: "flex-start", marginBottom: 16 },
-  backText: { fontSize: 16 },
   title: { fontFamily: "Montserrat_600SemiBold", fontSize: 24, marginBottom: 8 },
   subtitle: {
     fontFamily: "Montserrat_400Regular",

@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Platform } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
@@ -166,15 +165,6 @@ export default function ScanLabelScreen() {
           setCameraReady(true);
         }}
       />
-      <TouchableOpacity
-        style={[styles.backButton, { backgroundColor: "rgba(0,0,0,0.4)" }]}
-        onPress={() => router.back()}
-        accessibilityRole="button"
-        accessibilityLabel="Go back"
-      >
-        <Ionicons name="chevron-back" size={28} color="#fff" />
-        <Text style={styles.backButtonText}>Back</Text>
-      </TouchableOpacity>
       <View
         style={[
           styles.footer,
@@ -214,18 +204,6 @@ const styles = StyleSheet.create({
   msg: { fontSize: 16, marginBottom: 16, textAlign: "center" },
   button: { borderRadius: 12, padding: 14, paddingHorizontal: 24 },
   buttonText: { color: "#fff", fontWeight: "600" },
-  backButton: {
-    position: "absolute",
-    top: 16,
-    left: 16,
-    zIndex: 11,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-  },
-  backButtonText: { color: "#fff", fontSize: 16, fontWeight: "600", marginLeft: 4 },
   footer: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 24, paddingBottom: 40, alignItems: "center" },
   hint: { fontSize: 14, marginBottom: 16 },
   captureBtn: { borderRadius: 12, padding: 16, paddingHorizontal: 32, minWidth: 160, alignItems: "center" },
