@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,34 +11,46 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
+import { getRedirectUrl } from "@/lib/auth-redirect";
+import { setLastUsedEmail } from "@/lib/last-email";
 
 const UNAUTHORIZED_HINT =
   "In Supabase: Authentication → Providers → turn Email ON. Check Project Settings → API: use the anon public key and project URL in .env, then restart the app.";
 
 export default function SignInScreen() {
-  const [email, setEmail] = useState("");
+  const params = useLocalSearchParams<{ email?: string }>();
+  const emailFromSplash = (params.email ?? "").trim().toLowerCase();
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorHint, setErrorHint] = useState<string | null>(null);
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [magicLinkSending, setMagicLinkSending] = useState(false);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
   const theme = useTheme();
   const { setSessionFromAuth } = useSupabase();
 
+  useEffect(() => {
+    if (!emailFromSplash) router.replace("/(auth)");
+  }, [emailFromSplash]);
+
+  useEffect(() => {
+    if (emailFromSplash) setLastUsedEmail(emailFromSplash);
+  }, [emailFromSplash]);
+
   const handleSignIn = async () => {
-    const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail || !password) {
-      setErrorHint("Please enter your email and password.");
+    if (!emailFromSplash || !password) {
+      setErrorHint("Please enter your password.");
       return;
     }
     setLoading(true);
     setErrorHint(null);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: trimmedEmail,
+        email: emailFromSplash,
         password,
       });
       if (error) throw error;
@@ -73,7 +85,34 @@ export default function SignInScreen() {
     }
   };
 
-  const canSubmit = Boolean(email.trim() && password);
+  const handleGetMagicLink = async () => {
+    if (!emailFromSplash || magicLinkSending || magicLinkSent) return;
+    setMagicLinkSending(true);
+    setErrorHint(null);
+    try {
+      const redirectUrl = getRedirectUrl();
+      const { error } = await supabase.auth.signInWithOtp({
+        email: emailFromSplash,
+        options: { emailRedirectTo: redirectUrl },
+      });
+      if (error) throw error;
+      setMagicLinkSent(true);
+      Alert.alert(
+        "Check your email",
+        `We sent a magic link to ${emailFromSplash}. Tap it to set your password and sign in.`,
+        [{ text: "OK" }]
+      );
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      const is401 = message.includes("401") || message.toLowerCase().includes("unauthorized");
+      setErrorHint(is401 ? UNAUTHORIZED_HINT : message);
+      Alert.alert("Error", is401 ? UNAUTHORIZED_HINT : message);
+    } finally {
+      setMagicLinkSending(false);
+    }
+  };
+
+  const canSubmit = Boolean(password);
   const inputStyle = [
     styles.input,
     {
@@ -99,19 +138,8 @@ export default function SignInScreen() {
         </TouchableOpacity>
         <Text style={[styles.title, { color: theme.text }]}>Sign In</Text>
         <Text style={[styles.subtitle, { color: theme.text }]}>
-          Enter your email and password
+          Enter your password for {emailFromSplash}
         </Text>
-        <TextInput
-          style={inputStyle}
-          placeholder="you@example.com"
-          placeholderTextColor={theme.textMuted}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!loading}
-        />
         <View style={styles.passwordRow}>
           <TextInput
             style={[inputStyle, styles.passwordInput]}
@@ -150,7 +178,7 @@ export default function SignInScreen() {
           accessibilityRole="button"
           accessibilityLabel={loading ? "Signing in" : "Sign In"}
           accessibilityState={{ disabled: loading || !canSubmit }}
-          accessibilityHint={!canSubmit ? "Enter email and password to enable" : undefined}
+          accessibilityHint={!canSubmit ? "Enter password to enable" : undefined}
         >
           {loading ? (
             <View style={styles.buttonRow}>
@@ -160,6 +188,27 @@ export default function SignInScreen() {
           ) : (
             <Text style={styles.buttonText}>Sign In</Text>
           )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.linkButton, { borderColor: theme.border }]}
+          onPress={handleGetMagicLink}
+          disabled={loading || magicLinkSending || magicLinkSent}
+          accessibilityRole="button"
+          accessibilityLabel={
+            magicLinkSent
+              ? "Magic link sent"
+              : magicLinkSending
+                ? "Sending magic link"
+                : "New user? Get a magic link to set your password"
+          }
+        >
+          <Text style={[styles.linkButtonText, { color: theme.textSecondary }]}>
+            {magicLinkSent
+              ? `We sent a link to ${emailFromSplash}`
+              : magicLinkSending
+                ? "Sending…"
+                : "New user? Get a magic link to set your password"}
+          </Text>
         </TouchableOpacity>
         {errorHint ? (
           <Text
@@ -229,5 +278,17 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 16,
     paddingHorizontal: 8,
+  },
+  linkButton: {
+    alignSelf: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderRadius: 14,
+  },
+  linkButtonText: {
+    fontFamily: "Montserrat_600SemiBold",
+    fontSize: 14,
   },
 });

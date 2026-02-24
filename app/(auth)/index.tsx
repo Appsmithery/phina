@@ -15,23 +15,15 @@ import {
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
+import { getRedirectUrl } from "@/lib/auth-redirect";
 
 const UNAUTHORIZED_HINT =
   "In Supabase: Authentication → Providers → turn Email ON. Check Project Settings → API: use the anon public key and project URL in .env, then restart the app.";
 
 const RESEND_COOLDOWN_SECONDS = 60;
-const LOGO_MAX_SIDE = 560;
-const LOGO_MIN_SIDE = 320;
+const LOGO_MAX_SIDE = 672;
+const LOGO_MIN_SIDE = 384;
 const LOGO_WIDTH_RATIO = 0.9;
-
-function getRedirectUrl(): string | undefined {
-  if (Platform.OS !== "web") return undefined;
-  const baseUrl = (process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co").replace(
-    /\/+$/,
-    ""
-  );
-  return `${baseUrl}/set-password`;
-}
 
 export default function AuthScreen() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -45,7 +37,7 @@ export default function AuthScreen() {
 
   const logoSize = Math.max(
     LOGO_MIN_SIDE,
-    Math.min(LOGO_MAX_SIDE, screenWidth * LOGO_WIDTH_RATIO, screenHeight * 0.5)
+    Math.min(LOGO_MAX_SIDE, screenWidth * LOGO_WIDTH_RATIO, screenHeight * 0.6)
   );
 
   const startCooldown = () => {
@@ -132,8 +124,14 @@ export default function AuthScreen() {
     }
   };
 
+  const canSignIn = Boolean(email.trim());
   const handleSignIn = () => {
-    router.push("/(auth)/sign-in");
+    if (!canSignIn) return;
+    const trimmedEmail = email.trim().toLowerCase();
+    router.push({
+      pathname: "/(auth)/sign-in",
+      params: { email: trimmedEmail },
+    });
   };
 
   const inputStyle = [
@@ -221,12 +219,16 @@ export default function AuthScreen() {
               editable={!loading}
             />
             <TouchableOpacity
-              style={[styles.button, { backgroundColor: theme.primary }]}
+              style={[
+                styles.button,
+                { backgroundColor: theme.primary, opacity: canSignIn ? 1 : 0.5 },
+              ]}
               onPress={handleSignUp}
-              disabled={loading}
+              disabled={loading || !canSignIn}
               accessibilityRole="button"
               accessibilityLabel={loading ? "Sending magic link" : "Sign Up"}
-              accessibilityState={{ disabled: loading }}
+              accessibilityState={{ disabled: loading || !canSignIn }}
+              accessibilityHint={!canSignIn ? "Enter your email above to sign up" : undefined}
             >
               {loading ? (
                 <View style={styles.buttonRow}>
@@ -240,14 +242,31 @@ export default function AuthScreen() {
           </>
         )}
         <TouchableOpacity
-          style={[styles.buttonSecondary, { borderColor: theme.border }]}
+          style={[
+            styles.buttonSecondary,
+            { borderColor: theme.border, opacity: canSignIn ? 1 : 0.5 },
+          ]}
           onPress={handleSignIn}
-          disabled={loading}
+          disabled={loading || !canSignIn}
+          accessibilityRole="button"
+          accessibilityLabel="Sign In"
+          accessibilityState={{ disabled: loading || !canSignIn }}
+          accessibilityHint={!canSignIn ? "Enter your email above to sign in" : undefined}
         >
           <Text style={[styles.buttonSecondaryText, { color: theme.textSecondary }]}>
             Sign In
           </Text>
         </TouchableOpacity>
+        {!magicLinkSentTo ? (
+          <Text
+            style={[styles.nudgeHint, { color: theme.textMuted }]}
+            accessibilityRole="text"
+          >
+            {canSignIn
+              ? "Already have an account? Sign in."
+              : "Enter your email above to sign in with password"}
+          </Text>
+        ) : null}
         {errorHint ? (
           <Text
             style={[styles.errorHint, { color: theme.textMuted }]}
@@ -325,6 +344,13 @@ const styles = StyleSheet.create({
   buttonSecondaryText: {
     fontFamily: "Montserrat_600SemiBold",
     fontSize: 16,
+  },
+  nudgeHint: {
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 8,
+    paddingHorizontal: 8,
   },
   successHint: {
     fontFamily: "Montserrat_400Regular",
