@@ -36,7 +36,6 @@ export default function HistoryScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Text style={[styles.title, { color: theme.text }]}>Library</Text>
       <TextInput
         style={[styles.search, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
         placeholder="Search by title, theme, or date…"
@@ -74,13 +73,13 @@ export default function HistoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  title: { fontSize: 24, fontWeight: "700", padding: 16 },
   search: {
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
     fontSize: 16,
     marginHorizontal: 16,
+    marginTop: 16,
     marginBottom: 16,
   },
   list: { padding: 16, paddingTop: 0 },

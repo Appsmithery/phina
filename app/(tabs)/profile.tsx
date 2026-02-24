@@ -81,7 +81,6 @@ export default function ProfileScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: 32 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.title, { color: theme.text }]}>Profile</Text>
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.label, { color: theme.textSecondary }]}>Email</Text>
           <Text style={[styles.value, { color: theme.text }]}>{session?.user?.email ?? "—"}</Text>
@@ -139,7 +138,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { flex: 1 },
   scrollContent: { padding: 16 },
-  title: { fontSize: 24, fontWeight: "700", marginBottom: 16 },
   card: {
     borderWidth: 1,
     borderRadius: 14,
