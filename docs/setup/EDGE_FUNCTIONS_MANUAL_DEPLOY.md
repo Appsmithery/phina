@@ -27,6 +27,13 @@ The app shows: *"Label extraction failed. Check that the Edge Function is deploy
 5. Add secret **PERPLEXITY_API_KEY** (see Option A).
 6. Click **Deploy function**.
 
+### If you see "Label extraction failed" with "Invalid JWT" (401)
+
+The app sends the user's session JWT when calling the function. If the Supabase project uses **JWT Signing Keys** (new auth), the Edge Function gateway can sometimes return 401 even for valid tokens. Two approaches:
+
+- **Ensure the app and function use the same project:** In the app's `.env`, `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` must point at the same Supabase project that hosts the function. If they differ, the gateway will reject the JWT.
+- **Deploy with JWT verification skipped at the gateway:** Deploy the function with "Verify JWT" disabled (e.g. CLI: `supabase functions deploy extract-wine-label --no-verify-jwt`). The function code in this repo **verifies the JWT inside the function** using the project's JWKS, so the endpoint stays protected. If you deploy via the dashboard, check the function or project settings for a "Verify JWT" / "Skip JWT verification" option; when it is off, the function must validate the JWT itself (already implemented in `extract-wine-label/index.ts`).
+
 ---
 
 ## 2. Deploy the Notifications function (send-rating-round-push) manually

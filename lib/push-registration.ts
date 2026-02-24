@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
 import { supabase } from "./supabase";
 
 /**
@@ -81,9 +82,18 @@ export async function registerPushTokenIfNeeded(userId: string): Promise<void> {
       finalStatus = status;
     }
     if (finalStatus !== "granted") return;
-    const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID ?? undefined,
-    });
+    const projectId =
+      typeof Constants.expoConfig?.extra?.eas?.projectId === "string" &&
+      Constants.expoConfig.extra.eas.projectId.trim() !== ""
+        ? Constants.expoConfig.extra.eas.projectId.trim()
+        : undefined;
+    if (!projectId) {
+      console.warn(
+        "Expo push: no projectId (extra.eas.projectId). Set EXPO_PUBLIC_EAS_PROJECT_ID or fallback in app.config.ts."
+      );
+      return;
+    }
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
     const token = tokenData.data;
     if (!token) return;
     const { error } = await supabase.from("members").update({ push_token: token }).eq("id", userId);

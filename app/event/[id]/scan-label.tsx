@@ -14,8 +14,16 @@ async function getEdgeFunctionErrorMessage(error: unknown, data: unknown): Promi
 
   const err = error as {
     message?: string;
-    context?: { body?: string; json?: () => Promise<{ error?: string; message?: string }> };
+    context?: {
+      status?: number;
+      body?: string;
+      json?: () => Promise<{ error?: string; message?: string }>;
+    };
   } | null;
+  const status = err?.context?.status;
+  if (status === 401) {
+    return "Sign-in or project configuration issue. Check that you're signed in and that the app's Supabase URL and key match the project that hosts the Edge Function.";
+  }
   if (err?.context) {
     try {
       let parsed: { error?: string; message?: string } | null = null;

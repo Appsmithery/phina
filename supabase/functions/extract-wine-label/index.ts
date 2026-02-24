@@ -1,6 +1,12 @@
 // Supabase Edge Function: extract wine label data using Perplexity Sonar (vision + structured output)
 // Sonar provides: (1) OCR / vision over the label image, (2) web-grounded search for tasting notes and basic wine info in ai_summary.
 // See https://docs.perplexity.ai/docs/sonar/quickstart and https://docs.perplexity.ai/docs/sonar/media
+//
+// Auth: When deployed with --no-verify-jwt (e.g. to work around gateway JWT verification issues),
+// this function verifies the JWT itself using the project JWKS. When the gateway verifies JWT,
+// the header is still present and this check passes.
+
+import * as jose from "jose";
 
 const PERPLEXITY_URL = "https://api.perplexity.ai/chat/completions";
 const MODEL = "sonar-pro";
@@ -64,10 +70,38 @@ function buildContent(body: ReqBody): { type: string; text?: string; image_url?:
   return parts;
 }
 
+async function verifyAuth(req: Request): Promise<Response | null> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return jsonResponse({ error: "Missing or invalid Authorization header" }, 401);
+  }
+  const token = authHeader.slice(7).trim();
+  if (!token) return jsonResponse({ error: "Invalid JWT" }, 401);
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  if (!supabaseUrl) {
+    console.error("extract-wine-label: SUPABASE_URL not set");
+    return jsonResponse({ error: "Server configuration error" }, 500);
+  }
+  const issuer = Deno.env.get("SB_JWT_ISSUER") ?? `${supabaseUrl}/auth/v1`;
+  const jwksUrl = new URL(`${supabaseUrl}/auth/v1/.well-known/jwks.json`);
+  try {
+    const JWKS = jose.createRemoteJWKSet(jwksUrl);
+    await jose.jwtVerify(token, JWKS, { issuer });
+    return null;
+  } catch (e) {
+    console.warn("extract-wine-label: JWT verification failed", e);
+    return jsonResponse({ error: "Invalid JWT" }, 401);
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders() });
   }
+
+  const authError = await verifyAuth(req);
+  if (authError) return authError;
 
   const apiKey = Deno.env.get("PERPLEXITY_API_KEY");
   console.log("extract-wine-label: request received, PERPLEXITY_API_KEY:", apiKey ? "present" : "missing");

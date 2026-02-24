@@ -7,7 +7,11 @@
     "noEmit": true,
     "skipLibCheck": true,
     "types": [],
-    "typeRoots": [".", "../../node_modules/@supabase/functions-js/src"]
+    "typeRoots": [".", "../../node_modules/@supabase/functions-js/src"],
+    "baseUrl": ".",
+    "paths": {
+      "jose": ["../../node_modules/jose"]
+    }
   },
   "include": ["**/*.ts", "deno-global.d.ts"],
   "exclude": ["node_modules"]
