@@ -74,7 +74,7 @@ export default function AddWineScreen() {
       <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.label, { color: theme.textSecondary }]}>Quantity</Text>
         <TouchableOpacity
-          style={[styles.input, styles.quantityTouchable, { color: theme.text, borderColor: theme.border }]}
+          style={[styles.input, styles.quantityTouchable, { borderColor: theme.border }]}
           onPress={() => setQuantityModalVisible(true)}
         >
           <Text style={{ color: theme.text, fontSize: 16 }}>{quantity}</Text>
