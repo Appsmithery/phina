@@ -7,7 +7,6 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
   Alert,
   Image,
   useWindowDimensions,
@@ -17,6 +16,7 @@ import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 import { getRedirectUrl } from "@/lib/auth-redirect";
+import { setLastUsedEmail } from "@/lib/last-email";
 
 const UNAUTHORIZED_HINT =
   "In Supabase: Authentication → Providers → turn Email ON. Check Project Settings → API: use the anon public key and project URL in .env, then restart the app.";
@@ -126,9 +126,10 @@ export default function AuthScreen() {
   };
 
   const canSignIn = Boolean(email.trim());
-  const handleSignIn = () => {
+  const handleSignIn = async () => {
     if (!canSignIn) return;
     const trimmedEmail = email.trim().toLowerCase();
+    await setLastUsedEmail(trimmedEmail);
     router.push({
       pathname: "/(auth)/sign-in",
       params: { email: trimmedEmail },
@@ -227,52 +228,57 @@ export default function AuthScreen() {
             />
             <TouchableOpacity
               style={[
-                styles.button,
-                { backgroundColor: theme.primary, opacity: canSignIn ? 1 : 0.5 },
+                styles.primaryButton,
+                {
+                  backgroundColor: theme.primary,
+                  opacity: canSignIn && !loading ? 1 : 0.6,
+                },
               ]}
-              onPress={handleSignUp}
-              disabled={loading || !canSignIn}
+              onPress={canSignIn && !loading ? handleSignUp : undefined}
+              disabled={!canSignIn || loading}
               accessibilityRole="button"
-              accessibilityLabel={loading ? "Sending magic link" : "Sign Up"}
-              accessibilityState={{ disabled: loading || !canSignIn }}
-              accessibilityHint={!canSignIn ? "Enter your email above to sign up" : undefined}
+              accessibilityLabel="Send magic link"
             >
-              {loading ? (
-                <View style={styles.buttonRow}>
-                  <ActivityIndicator color="#fff" />
-                  <Text style={styles.buttonText}>Sending…</Text>
-                </View>
-              ) : (
-                <Text style={styles.buttonText}>Sign Up</Text>
-              )}
+              <Text style={[styles.primaryButtonText, { color: "#FFFFFF" }]}>
+                Send magic link
+              </Text>
             </TouchableOpacity>
           </>
         )}
-        <TouchableOpacity
-          style={[
-            styles.buttonSecondary,
-            { borderColor: theme.border, opacity: canSignIn ? 1 : 0.5 },
-          ]}
-          onPress={handleSignIn}
-          disabled={loading || !canSignIn}
-          accessibilityRole="button"
-          accessibilityLabel="Sign In"
-          accessibilityState={{ disabled: loading || !canSignIn }}
-          accessibilityHint={!canSignIn ? "Enter your email above to sign in" : undefined}
-        >
-          <Text style={[styles.buttonSecondaryText, { color: theme.textSecondary }]}>
-            Sign In
-          </Text>
-        </TouchableOpacity>
         {!magicLinkSentTo ? (
-          <Text
-            style={[styles.nudgeHint, { color: theme.textMuted }]}
-            accessibilityRole="text"
-          >
-            {canSignIn
-              ? "Already have an account? Sign in."
-              : "Enter your email above to sign in with password"}
-          </Text>
+          <View style={styles.nudgeRow}>
+            <Text
+              style={[styles.nudgeHint, { color: theme.textMuted }]}
+              accessibilityRole="text"
+            >
+              Enter your email above to{" "}
+            </Text>
+            <TouchableOpacity
+              onPress={canSignIn && !loading ? handleSignIn : undefined}
+              disabled={!canSignIn || loading}
+              accessibilityRole="link"
+              accessibilityLabel="Sign in with password"
+              accessibilityState={{ disabled: !canSignIn || loading }}
+            >
+              <Text
+                style={[
+                  styles.nudgeLink,
+                  {
+                    color: theme.primary,
+                    opacity: canSignIn && !loading ? 1 : 0.6,
+                  },
+                ]}
+              >
+                sign in with password
+              </Text>
+            </TouchableOpacity>
+            <Text
+              style={[styles.nudgeHint, { color: theme.textMuted }]}
+              accessibilityRole="text"
+            >
+              .
+            </Text>
+          </View>
         ) : null}
         {errorHint ? (
           <Text
@@ -331,16 +337,15 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_400Regular",
     marginBottom: 12,
   },
-  button: {
+  primaryButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 24,
     borderRadius: 14,
-    padding: 16,
     alignItems: "center",
     marginBottom: 12,
   },
-  buttonRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  buttonText: {
+  primaryButtonText: {
     fontFamily: "Montserrat_600SemiBold",
-    color: "#fff",
     fontSize: 16,
   },
   cooldownHint: {
@@ -349,22 +354,23 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 12,
   },
-  buttonSecondary: {
-    borderRadius: 14,
-    padding: 16,
+  nudgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-  },
-  buttonSecondaryText: {
-    fontFamily: "Montserrat_600SemiBold",
-    fontSize: 16,
+    marginTop: 8,
+    paddingHorizontal: 8,
   },
   nudgeHint: {
     fontFamily: "Montserrat_400Regular",
     fontSize: 12,
     textAlign: "center",
-    marginTop: 8,
-    paddingHorizontal: 8,
+  },
+  nudgeLink: {
+    fontFamily: "Montserrat_600SemiBold",
+    fontSize: 12,
+    textDecorationLine: "underline",
   },
   successHint: {
     fontFamily: "Montserrat_400Regular",
