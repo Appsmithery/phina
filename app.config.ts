@@ -9,9 +9,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   scheme: "phina",
   userInterfaceStyle: "automatic",
   newArchEnabled: true,
-  icon: "./assets/icon.png",
+  icon: "./phina_favicon.png",
   splash: {
-    image: "./phina-logo.png",
+    image: "./phina_logo.png",
     resizeMode: "contain",
     backgroundColor: "#F2EFE9",
   },
@@ -22,7 +22,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     adaptiveIcon: {
-      foregroundImage: "./assets/adaptive-icon.png",
+      foregroundImage: "./phina_favicon.png",
       backgroundColor: "#ffffff",
     },
     package: "co.appsmithery.phina",

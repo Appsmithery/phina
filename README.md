@@ -51,6 +51,7 @@ A wine club app that digitizes themed tasting events: members snap a photo of th
    Then press `w` for web, or use **Expo Go** on your phone for native:
    - **iPhone:** Install [Expo Go](https://apps.apple.com/app/expo-go/id982107779) from the App Store. Ensure your phone and computer are on the same Wi‑Fi, then scan the QR code from the terminal (or from the in-browser dev tools). If they're on different networks, run `npx expo start --tunnel` and scan the tunnel QR.
    - **Android:** Install Expo Go from the Play Store and scan the QR code the same way.
+   - **“Expo user account required” / HTTP 500 with username/password assertion:** Log in **before** starting the dev server: run `npx expo login` in a separate terminal and sign in with your Expo account (email or username + password). On Windows, type the password manually (don’t paste) so the CLI receives it. Alternatively, create an **Expo** access token at [expo.dev](https://expo.dev) → your account → Access tokens (not a GitHub token), then set `EXPO_TOKEN` in your environment so the CLI doesn’t prompt. You do **not** need EAS build credentials to use Expo Go—only a normal Expo account.
 
 **Edge Functions (label extraction)**
 

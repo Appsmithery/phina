@@ -159,7 +159,7 @@ export default function AuthScreen() {
       <View style={styles.content}>
         <View style={[styles.logoWrapper, { backgroundColor: theme.background }]}>
           <Image
-            source={require("../../phina_logo_transparent.png")}
+            source={require("../../phina_logo.png")}
             style={[styles.logo, { width: logoSize, height: logoSize }]}
             resizeMode="contain"
             accessibilityLabel="Phína logo"
