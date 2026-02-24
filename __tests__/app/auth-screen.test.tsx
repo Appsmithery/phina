@@ -27,12 +27,12 @@ jest.mock("@/lib/theme", () => ({
 }));
 
 describe("AuthScreen", () => {
-  it("renders Phína logo, Sign Up, and sign in link", () => {
+  it("renders Phína logo, Send magic link button, and sign in with password link", () => {
     render(<AuthScreen />);
     expect(screen.getByLabelText("Phína logo")).toBeTruthy();
     expect(screen.getByText("Enter your email to get a sign-in link")).toBeTruthy();
-    expect(screen.getByText("Sign Up")).toBeTruthy();
-    expect(screen.getByText("sign in")).toBeTruthy();
+    expect(screen.getByText("Send magic link")).toBeTruthy();
+    expect(screen.getByText("sign in with password")).toBeTruthy();
   });
 
   it("has email input only", () => {
