@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
 import { Redirect } from "expo-router";
 import { useSupabase } from "@/lib/supabase-context";
+import { supabase } from "@/lib/supabase";
 import { getPendingJoinEventId, clearPendingJoinEventId } from "@/lib/pending-join";
 
 const loadingStyles = StyleSheet.create({
@@ -10,9 +11,19 @@ const loadingStyles = StyleSheet.create({
 });
 
 export default function Index() {
-  const { session, sessionLoaded, member } = useSupabase();
+  const { session, sessionLoaded, member, setSessionFromAuth } = useSupabase();
   const [pendingJoinId, setPendingJoinId] = useState<string | null>(null);
   const [pendingJoinCheckDone, setPendingJoinCheckDone] = useState(false);
+  const didRecheckForNullSession = useRef(false);
+
+  useEffect(() => {
+    if (!sessionLoaded || session) return;
+    if (didRecheckForNullSession.current) return;
+    didRecheckForNullSession.current = true;
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      if (s) setSessionFromAuth(s);
+    });
+  }, [sessionLoaded, session, setSessionFromAuth]);
 
   useEffect(() => {
     if (!sessionLoaded || !session) {

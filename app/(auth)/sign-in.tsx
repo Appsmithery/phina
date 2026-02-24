@@ -32,7 +32,7 @@ export default function SignInScreen() {
   const [magicLinkSending, setMagicLinkSending] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const theme = useTheme();
-  const { setSessionFromAuth } = useSupabase();
+  const { session, sessionLoaded, setSessionFromAuth } = useSupabase();
 
   useEffect(() => {
     if (!emailFromSplash) router.replace("/(auth)");
@@ -41,6 +41,12 @@ export default function SignInScreen() {
   useEffect(() => {
     if (emailFromSplash) setLastUsedEmail(emailFromSplash);
   }, [emailFromSplash]);
+
+  useEffect(() => {
+    if (session && sessionLoaded && emailFromSplash) {
+      router.replace("/");
+    }
+  }, [session, sessionLoaded, emailFromSplash]);
 
   const handleSignIn = async () => {
     if (!emailFromSplash || !password) {
@@ -58,8 +64,6 @@ export default function SignInScreen() {
       // Update auth context immediately so root index sees session before we navigate
       if (data.session) {
         setSessionFromAuth(data.session);
-        // Defer navigation so root index sees updated session (avoids race where root renders before context commits)
-        setTimeout(() => router.replace("/"), 100);
       }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
