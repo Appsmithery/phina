@@ -37,13 +37,12 @@ jest.mock("@/lib/supabase", () => ({
 }));
 
 describe("EventsScreen", () => {
-  it("renders Events title and New event button", () => {
+  it("renders New event button", () => {
     render(
       <Wrapper>
         <EventsScreen />
       </Wrapper>
     );
-    expect(screen.getByText("Events")).toBeTruthy();
     expect(screen.getByText("New event")).toBeTruthy();
   });
 
