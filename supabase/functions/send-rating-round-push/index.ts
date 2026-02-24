@@ -21,6 +21,15 @@ interface WebPushSubscription {
   expirationTime?: number | null;
 }
 
+interface EventMemberRow {
+  member_id: string;
+}
+
+interface MemberRow {
+  id: string;
+  push_token: string | null;
+}
+
 function corsHeaders(): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": "*",
@@ -68,9 +77,10 @@ Deno.serve(async (req: Request) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SupabaseClient from npm: is typed in Deno at runtime
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: authHeader } },
-  });
+  }) as any;
 
   let body: ReqBody;
   try {
@@ -110,7 +120,7 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "Failed to load event members" }, 500);
     }
 
-    const memberIds = (eventMembers ?? []).map((r) => r.member_id);
+    const memberIds = (eventMembers ?? []).map((r: EventMemberRow) => r.member_id);
     if (memberIds.length === 0) {
       return jsonResponse({ sent: 0, message: "No checked-in members" });
     }
@@ -126,7 +136,7 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "Failed to load members" }, 500);
     }
 
-    const tokens = (members ?? []).map((m) => m.push_token).filter((t): t is string => typeof t === "string" && t.length > 0);
+    const tokens = (members ?? []).map((m: MemberRow) => m.push_token).filter((t: string | null): t is string => typeof t === "string" && t.length > 0);
     const webPushSubs: WebPushSubscription[] = [];
     const expoTokens: string[] = [];
     for (const t of tokens) {

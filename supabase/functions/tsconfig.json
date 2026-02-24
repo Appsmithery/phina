@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": [],
+    "typeRoots": [".", "../../node_modules/@supabase/functions-js/src"]
+  },
+  "include": ["**/*.ts", "deno-global.d.ts"],
+  "exclude": ["node_modules"]
+}
