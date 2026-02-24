@@ -28,7 +28,8 @@ This is the canonical roadmap for this repo. PRDs, implementation plans (Cursor/
 ### Next (queued)
 
 - **Sign in / sign up with Google** — Add Google OAuth alongside magic-link email. Reduces friction for new and returning members. Status: 🧠 — Target: TBD — No PRD yet.
-- **Personal libraries** — Wine collections not tied to events: users can build, search, and manage their own library (bottles they’ve had or want to try). Enables use outside event-only flow. Status: 🧠 — Target: TBD — No PRD yet.
+- **Personal libraries** — Wine collections not tied to events: users can build, search, and manage their own library (bottles they’ve had or want to try). Enables use outside event-only flow. Status: 🧠 — Target: TBD — No PRD yet. **Foundation:** Quantity (1–12) is implemented first for Events per [PRD-2026-002](./PRDs/PRD-2026-002__quantity-events-library.md); the same quantity semantics will be reused for Library when built.
+- **Quantity (1–12) for Events** — Add quantity input to the scan/add-wine flow and persist in DB for event wines; prepares reuse for Library. Status: 🧠 — Target: TBD — [PRD-2026-002](./PRDs/PRD-2026-002__quantity-events-library.md).
 - **Payments** — Two streams: (1) **Donations** — optional one-time donate-to-project when joining events; (2) **Subscription** — $2.99/month for personal library users (unlocks/library features). Subscription tier depends on Personal libraries. Status: 🧠 — Target: TBD — No PRD yet.
 
 ### Later (ideas)
@@ -68,6 +69,7 @@ This is the canonical roadmap for this repo. PRDs, implementation plans (Cursor/
 | Area        | PRD ID | Title | Status |
 |-------------|--------|--------|--------|
 | *Planned*   | — | Label photo extraction (troubleshoot & finalize) | 🛠 Now |
+| Events      | PRD-2026-002 | Quantity (1–12) for Events and Library | 🧠 Draft |
 | Auth        | — | Sign in/up with Google | 🧠 Next |
 | Product     | — | Personal libraries | 🧠 Next |
 | Monetization| — | Payments (donations + $2.99/mo library) | 🧠 Next |

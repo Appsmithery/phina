@@ -1,7 +1,9 @@
-import { Tabs } from "expo-router";
+import { Tabs, router } from "expo-router";
+import { Pressable, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
+import { supabase } from "@/lib/supabase";
 
 export default function TabsLayout() {
   const { member } = useSupabase();
@@ -48,6 +50,17 @@ export default function TabsLayout() {
           title: "Profile",
           tabBarLabel: "Profile",
           tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" size={size} color={color} />,
+          headerRight: () => (
+            <Pressable
+              onPress={async () => {
+                await supabase.auth.signOut();
+                router.replace("/(auth)");
+              }}
+              style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, paddingHorizontal: 12, paddingVertical: 8 })}
+            >
+              <Text style={{ color: theme.text, fontSize: 16 }}>Sign out</Text>
+            </Pressable>
+          ),
         }}
       />
     </Tabs>

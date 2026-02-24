@@ -1,4 +1,4 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from "react-native";
 import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import { useSupabase } from "@/lib/supabase-context";
@@ -76,61 +76,69 @@ export default function ProfileScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Text style={[styles.title, { color: theme.text }]}>Profile</Text>
-      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <Text style={[styles.label, { color: theme.textSecondary }]}>Email</Text>
-        <Text style={[styles.value, { color: theme.text }]}>{session?.user?.email ?? "—"}</Text>
-        <Text style={[styles.label, { color: theme.textSecondary }]}>Name</Text>
-        <TextInput
-          style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-          value={name}
-          onChangeText={setName}
-          placeholder="Your name"
-          placeholderTextColor={theme.textMuted}
-        />
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: theme.primary }]}
-          onPress={saveProfile}
-          disabled={saving}
-        >
-          <Text style={styles.buttonText}>{saving ? "Saving…" : "Save"}</Text>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 32 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={[styles.title, { color: theme.text }]}>Profile</Text>
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Email</Text>
+          <Text style={[styles.value, { color: theme.text }]}>{session?.user?.email ?? "—"}</Text>
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Name</Text>
+          <TextInput
+            style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+            value={name}
+            onChangeText={setName}
+            placeholder="Your name"
+            placeholderTextColor={theme.textMuted}
+          />
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: theme.primary }]}
+            onPress={saveProfile}
+            disabled={saving}
+          >
+            <Text style={styles.buttonText}>{saving ? "Saving…" : "Save"}</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.label, { color: theme.textSecondary }]}>Change password</Text>
+          <TextInput
+            style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+            value={newPassword}
+            onChangeText={setNewPassword}
+            placeholder="New password"
+            placeholderTextColor={theme.textMuted}
+            secureTextEntry
+          />
+          <TextInput
+            style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+            value={confirmNewPassword}
+            onChangeText={setConfirmNewPassword}
+            placeholder="Confirm new password"
+            placeholderTextColor={theme.textMuted}
+            secureTextEntry
+          />
+          <TouchableOpacity
+            style={[styles.button, { backgroundColor: theme.primary }]}
+            onPress={changePassword}
+            disabled={changingPassword}
+          >
+            <Text style={styles.buttonText}>{changingPassword ? "Updating…" : "Change password"}</Text>
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity style={[styles.signOut, { borderColor: theme.border }]} onPress={signOut}>
+          <Text style={[styles.signOutText, { color: theme.textSecondary }]}>Sign out</Text>
         </TouchableOpacity>
-      </View>
-      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <Text style={[styles.label, { color: theme.textSecondary }]}>Change password</Text>
-        <TextInput
-          style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-          value={newPassword}
-          onChangeText={setNewPassword}
-          placeholder="New password"
-          placeholderTextColor={theme.textMuted}
-          secureTextEntry
-        />
-        <TextInput
-          style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-          value={confirmNewPassword}
-          onChangeText={setConfirmNewPassword}
-          placeholder="Confirm new password"
-          placeholderTextColor={theme.textMuted}
-          secureTextEntry
-        />
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: theme.primary }]}
-          onPress={changePassword}
-          disabled={changingPassword}
-        >
-          <Text style={styles.buttonText}>{changingPassword ? "Updating…" : "Change password"}</Text>
-        </TouchableOpacity>
-      </View>
-      <TouchableOpacity style={[styles.signOut, { borderColor: theme.border }]} onPress={signOut}>
-        <Text style={[styles.signOutText, { color: theme.textSecondary }]}>Sign out</Text>
-      </TouchableOpacity>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
+  container: { flex: 1 },
+  scroll: { flex: 1 },
+  scrollContent: { padding: 16 },
   title: { fontSize: 24, fontWeight: "700", marginBottom: 16 },
   card: {
     borderWidth: 1,

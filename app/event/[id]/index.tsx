@@ -122,6 +122,7 @@ export default function EventDetailScreen() {
               <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                 <TouchableOpacity onPress={() => router.push(`/event/${id}/wine/${item.id}`)}>
                   <Text style={[styles.wineName, { color: theme.text }]}>
+                    {item.quantity != null && item.quantity > 1 ? `${item.quantity}× ` : ""}
                     {item.producer ?? "Unknown"} {item.varietal ?? ""} {item.vintage ?? ""}
                   </Text>
                   {item.region && (

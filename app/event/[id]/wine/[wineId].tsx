@@ -42,6 +42,9 @@ export default function WineDetailScreen() {
       <Text style={[styles.meta, { color: theme.textSecondary }]}>
         {[wine.varietal, wine.vintage?.toString(), wine.region].filter(Boolean).join(" · ")}
       </Text>
+      {(wine.quantity != null && wine.quantity >= 1) && (
+        <Text style={[styles.quantityText, { color: theme.textSecondary }]}>Quantity: {wine.quantity}</Text>
+      )}
       {wine.ai_summary ? (
         <Text style={[styles.summary, { color: theme.text }]}>{wine.ai_summary}</Text>
       ) : null}
@@ -53,7 +56,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   photo: { width: "100%", height: 200, borderRadius: 14, marginBottom: 16 },
   producer: { fontSize: 22, fontWeight: "700", marginBottom: 4 },
-  meta: { fontSize: 16, marginBottom: 16 },
+  meta: { fontSize: 16, marginBottom: 8 },
+  quantityText: { fontSize: 14, marginBottom: 16 },
   summary: { fontSize: 15, lineHeight: 22 },
   placeholder: { padding: 24 },
 });

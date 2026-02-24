@@ -89,6 +89,7 @@ export interface Database {
           region: string | null;
           label_photo_url: string | null;
           ai_summary: string | null;
+          quantity: number;
           created_at: string;
         };
         Insert: {
@@ -101,6 +102,7 @@ export interface Database {
           region?: string | null;
           label_photo_url?: string | null;
           ai_summary?: string | null;
+          quantity?: number;
           created_at?: string;
         };
         Update: {
@@ -113,6 +115,7 @@ export interface Database {
           region?: string | null;
           label_photo_url?: string | null;
           ai_summary?: string | null;
+          quantity?: number;
           created_at?: string;
         };
         Relationships: [];
