@@ -7,16 +7,27 @@ import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 import { setLastLabelExtraction } from "@/lib/last-label-extraction";
 
-function getEdgeFunctionErrorMessage(error: unknown, data: unknown): string {
+async function getEdgeFunctionErrorMessage(error: unknown, data: unknown): Promise<string> {
   const dataObj = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
   const errMsg = dataObj?.error;
   if (typeof errMsg === "string" && errMsg.trim()) return errMsg;
-  const err = error as { message?: string; context?: { body?: string } } | null;
-  if (err?.context?.body) {
+
+  const err = error as {
+    message?: string;
+    context?: { body?: string; json?: () => Promise<{ error?: string; message?: string }> };
+  } | null;
+  if (err?.context) {
     try {
-      const parsed = JSON.parse(err.context.body) as { error?: string; message?: string };
-      if (typeof parsed?.error === "string") return parsed.error;
-      if (typeof parsed?.message === "string") return parsed.message;
+      let parsed: { error?: string; message?: string } | null = null;
+      if (typeof (err.context as { json?: () => Promise<unknown> }).json === "function") {
+        parsed = (await (err.context as { json: () => Promise<{ error?: string; message?: string }> }).json()) ?? null;
+      } else if (typeof (err.context as { body?: string }).body === "string") {
+        parsed = JSON.parse((err.context as { body: string }).body) as { error?: string; message?: string };
+      }
+      if (parsed) {
+        if (typeof parsed.error === "string" && parsed.error.trim()) return parsed.error;
+        if (typeof parsed.message === "string" && parsed.message.trim()) return parsed.message;
+      }
     } catch {
       // ignore parse failure
     }
@@ -79,13 +90,16 @@ export default function ScanLabelScreen() {
       const { data, error } = await supabase.functions.invoke("extract-wine-label", {
         body: { image: imagePayload },
       });
+      if (__DEV__) {
+        console.log("[scan-label] extract-wine-label invoke result", { data, error, context: (error as { context?: unknown })?.context });
+      }
       const err = (data as { error?: string })?.error;
       if (err) {
         Alert.alert("Extraction failed", err);
         return;
       }
       if (error) {
-        const message = getEdgeFunctionErrorMessage(error, data);
+        const message = await getEdgeFunctionErrorMessage(error, data);
         Alert.alert("Label extraction failed", message);
         return;
       }

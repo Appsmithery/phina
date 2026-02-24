@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Alert } from "react-native";
 import { supabase } from "@/lib/supabase";
 
 export function useStartRatingRound(eventId: string, wineId: string) {
@@ -17,8 +18,17 @@ export function useStartRatingRound(eventId: string, wineId: string) {
       qc.invalidateQueries({ queryKey: ["ratingRound", wineId] });
       supabase.functions.invoke("send-rating-round-push", {
         body: { event_id: eventId, wine_id: wineId },
-      }).then(({ error }) => {
-        if (error) console.warn("Push notification send failed:", error);
+      }).then(({ data, error }) => {
+        if (__DEV__) {
+          console.log("[send-rating-round-push] invoke result", { data, error });
+        }
+        if (error) {
+          console.warn("Push notification send failed:", error);
+          Alert.alert(
+            "Push notifications",
+            "Round started, but we couldn't send push notifications. You can still share the link."
+          );
+        }
       });
     },
   });

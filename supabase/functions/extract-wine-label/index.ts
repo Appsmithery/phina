@@ -70,6 +70,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const apiKey = Deno.env.get("PERPLEXITY_API_KEY");
+  console.log("extract-wine-label: request received, PERPLEXITY_API_KEY:", apiKey ? "present" : "missing");
   if (!apiKey) {
     return jsonResponse({ error: "PERPLEXITY_API_KEY not configured" }, 500);
   }
@@ -114,18 +115,20 @@ Deno.serve(async (req: Request) => {
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error("Perplexity API error", res.status, errText);
+      console.error("extract-wine-label: Perplexity API error", res.status, errText.slice(0, 300));
       return jsonResponse(
         { error: "Label extraction failed", details: res.status === 401 ? "Invalid API key" : errText.slice(0, 200) },
         res.status >= 500 ? 502 : 400
       );
     }
 
+    console.log("extract-wine-label: Perplexity OK");
     const data = (await res.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
     };
     const raw = data?.choices?.[0]?.message?.content;
     if (!raw) {
+      console.error("extract-wine-label: empty content from Perplexity");
       return jsonResponse({ error: "Empty response from AI" }, 502);
     }
 
