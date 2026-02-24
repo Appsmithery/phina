@@ -6,7 +6,7 @@ import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { useStartRatingRound, useEndRatingRound, useEndEvent } from "@/hooks/use-event-actions";
 import type { Event } from "@/types/database";
-import type { Wine } from "@/types/database";
+import type { WineWithPricePrivacy } from "@/types/database";
 import type { RatingRound } from "@/types/database";
 
 export default function EventDetailScreen() {
@@ -28,9 +28,9 @@ export default function EventDetailScreen() {
   const { data: wines = [] } = useQuery({
     queryKey: ["wines", id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("wines").select("*").eq("event_id", id!).order("created_at", { ascending: true });
+      const { data, error } = await supabase.from("wines_with_price_privacy").select("*").eq("event_id", id!).order("created_at", { ascending: true });
       if (error) throw error;
-      return data as Wine[];
+      return data as WineWithPricePrivacy[];
     },
     enabled: !!id,
   });
@@ -58,7 +58,7 @@ export default function EventDetailScreen() {
   const isHost = event?.created_by === member?.id;
   const endEventMutation = useEndEvent(id!);
 
-  const handleRemoveWine = (wine: Wine) => {
+  const handleRemoveWine = (wine: WineWithPricePrivacy) => {
     Alert.alert(
       "Remove wine",
       "Remove this wine from the event?",
@@ -147,6 +147,11 @@ export default function EventDetailScreen() {
                   {item.region && (
                     <Text style={[styles.wineMeta, { color: theme.textSecondary }]}>{item.region}</Text>
                   )}
+                  {(item.price_cents != null || item.price_range != null) && (
+                    <Text style={[styles.wineMeta, { color: theme.textSecondary }]}>
+                      {item.price_cents != null ? `$${item.price_cents / 100}` : item.price_range ?? ""}
+                    </Text>
+                  )}
                 </TouchableOpacity>
                 {event.status === "ended" && summary && (
                   <View style={styles.resultRow}>
@@ -225,7 +230,7 @@ function WineHostActions({
   onRate,
 }: {
   eventId: string;
-  wine: Wine;
+  wine: WineWithPricePrivacy;
   round: RatingRound | undefined;
   theme: ReturnType<typeof useTheme>;
   onRate: () => void;

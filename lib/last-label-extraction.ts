@@ -7,6 +7,7 @@ export interface WineExtraction {
   vintage: number | null;
   region: string | null;
   ai_summary: string | null;
+  label_photo_url: string | null;
 }
 
 let last: WineExtraction | null = null;

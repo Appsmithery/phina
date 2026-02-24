@@ -5,10 +5,10 @@ import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
-import type { Wine } from "@/types/database";
+import type { WineWithPricePrivacy } from "@/types/database";
 import type { Event } from "@/types/database";
 
-type WineWithEvent = Wine & {
+type WineWithEvent = WineWithPricePrivacy & {
   event: { title: string; date: string; status: string } | null;
 };
 
@@ -22,12 +22,12 @@ export default function LibraryScreen() {
     queryFn: async () => {
       if (!member?.id) return [];
       const { data: winesData, error: winesError } = await supabase
-        .from("wines")
+        .from("wines_with_price_privacy")
         .select("*")
         .eq("brought_by", member.id)
         .order("created_at", { ascending: false });
       if (winesError) throw winesError;
-      const list = (winesData ?? []) as Wine[];
+      const list = (winesData ?? []) as WineWithPricePrivacy[];
       if (list.length === 0) return [];
       const eventIds = [...new Set(list.map((w) => w.event_id).filter((id): id is string => id != null))];
       const eventsMap = new Map<string, Pick<Event, "id" | "title" | "date" | "status">>();
@@ -117,6 +117,11 @@ export default function LibraryScreen() {
                 {item.region ? (
                   <Text style={[styles.cardMeta, { color: theme.textSecondary }]}>{item.region}</Text>
                 ) : null}
+                {(item.price_cents != null || item.price_range != null) && (
+                  <Text style={[styles.cardMeta, { color: theme.textSecondary }]}>
+                    {item.price_cents != null ? `$${item.price_cents / 100}` : item.price_range ?? ""}
+                  </Text>
+                )}
                 <Text style={[styles.cardEvent, { color: theme.textMuted }]}>
                   {eventTitle != null ? `${eventTitle}${eventDate ? ` · ${eventDate}` : ""}` : "Personal library"}
                 </Text>
@@ -133,9 +138,12 @@ export default function LibraryScreen() {
               );
             }
             return (
-              <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <TouchableOpacity
+                style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                onPress={() => router.push(`/wine/${item.id}/edit`)}
+              >
                 {cardContent}
-              </View>
+              </TouchableOpacity>
             );
           }}
         />

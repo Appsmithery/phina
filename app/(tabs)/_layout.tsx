@@ -38,6 +38,7 @@ export default function TabsLayout() {
         name="admin"
         options={{
           tabBarLabel: "Admin",
+          tabBarIcon: ({ color, size }) => <Ionicons name="lock-closed-outline" size={size} color={color} />,
           tabBarButton: showAdmin ? undefined : () => null,
         }}
       />

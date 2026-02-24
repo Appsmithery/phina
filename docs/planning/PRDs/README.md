@@ -23,4 +23,5 @@ See the [planning guide](../planning%20guide.md) for full conventions and migrat
 
 | PRD ID | Title | Status | Area |
 |--------|--------|--------|------|
-| *None yet* | — | — | Use template to create first PRD |
+| PRD-2026-002 | [Quantity (1–12) for Events and Library](./PRD-2026-002__quantity-events-library.md) | 🧠 Draft | Events |
+| PRD-2026-003 | [User preferences and social data for wines](./PRD-2026-003__user-preferences-social-data-wines.md) | 🧠 Draft | Preferences |

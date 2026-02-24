@@ -116,6 +116,7 @@ export default function ScanLabelScreen() {
         vintage?: number | null;
         region?: string | null;
         ai_summary?: string | null;
+        label_photo_url?: string | null;
       };
       setLastLabelExtraction({
         producer: extracted.producer ?? null,
@@ -123,6 +124,7 @@ export default function ScanLabelScreen() {
         vintage: extracted.vintage ?? null,
         region: extracted.region ?? null,
         ai_summary: extracted.ai_summary ?? null,
+        label_photo_url: extracted.label_photo_url ?? null,
       });
       router.replace(`/event/${id}/add-wine`);
     } catch (e) {

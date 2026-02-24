@@ -90,6 +90,8 @@ export interface Database {
           label_photo_url: string | null;
           ai_summary: string | null;
           quantity: number;
+          price_range: string | null;
+          price_cents: number | null;
           created_at: string;
         };
         Insert: {
@@ -103,6 +105,8 @@ export interface Database {
           label_photo_url?: string | null;
           ai_summary?: string | null;
           quantity?: number;
+          price_range?: string | null;
+          price_cents?: number | null;
           created_at?: string;
         };
         Update: {
@@ -116,6 +120,8 @@ export interface Database {
           label_photo_url?: string | null;
           ai_summary?: string | null;
           quantity?: number;
+          price_range?: string | null;
+          price_cents?: number | null;
           created_at?: string;
         };
         Relationships: [];
@@ -183,6 +189,24 @@ export interface Database {
         };
         Relationships: [];
       };
+      wines_with_price_privacy: {
+        Row: {
+          id: string;
+          event_id: string | null;
+          brought_by: string;
+          producer: string | null;
+          varietal: string | null;
+          vintage: number | null;
+          region: string | null;
+          label_photo_url: string | null;
+          ai_summary: string | null;
+          quantity: number;
+          created_at: string;
+          price_range: string | null;
+          price_cents: number | null;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       get_event_wine_ratings: {
@@ -201,3 +225,4 @@ export type Wine = Database["public"]["Tables"]["wines"]["Row"];
 export type Rating = Database["public"]["Tables"]["ratings"]["Row"];
 export type RatingRound = Database["public"]["Tables"]["rating_rounds"]["Row"];
 export type WineRatingSummary = Database["public"]["Views"]["wine_rating_summary"]["Row"];
+export type WineWithPricePrivacy = Database["public"]["Views"]["wines_with_price_privacy"]["Row"];

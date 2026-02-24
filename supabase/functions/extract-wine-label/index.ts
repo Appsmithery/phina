@@ -7,6 +7,17 @@
 // the header is still present and this check passes.
 
 import * as jose from "jose";
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+/** Minimal type for createClient result (deno-global.d.ts declares it as unknown). */
+interface SupabaseStorageClient {
+  storage: {
+    from(bucket: string): {
+      upload(path: string, body: Uint8Array, opts: { contentType: string; upsert: boolean }): Promise<{ data: { path: string }; error: { message: string } | null }>;
+      getPublicUrl(path: string): { data: { publicUrl: string } };
+    };
+  };
+}
 
 const PERPLEXITY_URL = "https://api.perplexity.ai/chat/completions";
 const MODEL = "sonar-pro";
@@ -44,9 +55,10 @@ interface WineExtraction {
   vintage: number | null;
   region: string | null;
   ai_summary: string | null;
+  label_photo_url: string | null;
 }
 
-function normalizeWineExtraction(obj: unknown): WineExtraction {
+function normalizeWineExtraction(obj: unknown): Omit<WineExtraction, "label_photo_url"> {
   const o = obj && typeof obj === "object" ? obj as Record<string, unknown> : {};
   return {
     producer: typeof o.producer === "string" ? o.producer : null,
@@ -55,6 +67,43 @@ function normalizeWineExtraction(obj: unknown): WineExtraction {
     region: typeof o.region === "string" ? o.region : null,
     ai_summary: typeof o.ai_summary === "string" ? o.ai_summary : null,
   };
+}
+
+const LABEL_PHOTOS_BUCKET = "label-photos";
+
+/** Decode base64 (optionally data URI) to Uint8Array. */
+function decodeBase64Image(image: string): Uint8Array | null {
+  const base64 = image.includes(",") ? image.split(",")[1]?.trim() : image;
+  if (!base64) return null;
+  try {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  } catch {
+    return null;
+  }
+}
+
+/** Upload image bytes to label-photos bucket; return public URL or null on failure. */
+async function uploadLabelPhoto(imageBytes: Uint8Array): Promise<string | null> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.warn("extract-wine-label: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set, skipping upload");
+    return null;
+  }
+  const supabase = createClient(supabaseUrl, serviceRoleKey) as SupabaseStorageClient;
+  const path = `${crypto.randomUUID()}.jpg`;
+  const { data, error } = await supabase.storage
+    .from(LABEL_PHOTOS_BUCKET)
+    .upload(path, imageBytes, { contentType: "image/jpeg", upsert: false });
+  if (error) {
+    console.error("extract-wine-label: storage upload failed", error.message);
+    return null;
+  }
+  const { data: urlData } = supabase.storage.from(LABEL_PHOTOS_BUCKET).getPublicUrl(data.path);
+  return urlData.publicUrl;
 }
 
 function buildContent(body: ReqBody): { type: string; text?: string; image_url?: { url: string } }[] {
@@ -177,7 +226,13 @@ Deno.serve(async (req: Request) => {
     }
 
     const extracted = normalizeWineExtraction(parsed);
-    return jsonResponse(extracted);
+    let label_photo_url: string | null = null;
+    if (body.image) {
+      const imageBytes = decodeBase64Image(body.image);
+      if (imageBytes) label_photo_url = await uploadLabelPhoto(imageBytes);
+    }
+    const response: WineExtraction = { ...extracted, label_photo_url };
+    return jsonResponse(response);
   } catch (e) {
     console.error("extract-wine-label error", e);
     return jsonResponse({ error: e instanceof Error ? e.message : "Extraction failed" }, 500);

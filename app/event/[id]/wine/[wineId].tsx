@@ -4,7 +4,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Image, Alert } from "react-na
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
-import type { Wine } from "@/types/database";
+import type { WineWithPricePrivacy } from "@/types/database";
 import type { Event } from "@/types/database";
 
 export default function WineDetailScreen() {
@@ -16,9 +16,9 @@ export default function WineDetailScreen() {
   const { data: wine, isLoading } = useQuery({
     queryKey: ["wine", wineId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("wines").select("*").eq("id", wineId!).single();
+      const { data, error } = await supabase.from("wines_with_price_privacy").select("*").eq("id", wineId!).single();
       if (error) throw error;
-      return data as Wine;
+      return data as WineWithPricePrivacy;
     },
     enabled: !!wineId,
   });
@@ -90,16 +90,29 @@ export default function WineDetailScreen() {
       {(wine.quantity != null && wine.quantity >= 1) && (
         <Text style={[styles.quantityText, { color: theme.textSecondary }]}>Quantity: {wine.quantity}</Text>
       )}
+      {(wine.price_cents != null || wine.price_range != null) && (
+        <Text style={[styles.quantityText, { color: theme.textSecondary }]}>
+          Price: {wine.price_cents != null ? `$${wine.price_cents / 100}` : wine.price_range ?? ""}
+        </Text>
+      )}
       {wine.ai_summary ? (
         <Text style={[styles.summary, { color: theme.text }]}>{wine.ai_summary}</Text>
       ) : null}
       {canRemove && (
-        <TouchableOpacity
-          style={[styles.removeButton, { borderColor: theme.textMuted }]}
-          onPress={handleRemove}
-        >
-          <Text style={[styles.removeButtonText, { color: theme.textMuted }]}>Remove from event</Text>
-        </TouchableOpacity>
+        <>
+          <TouchableOpacity
+            style={[styles.editButton, { backgroundColor: theme.primary }]}
+            onPress={() => router.push(`/wine/${wine.id}/edit`)}
+          >
+            <Text style={styles.editButtonText}>Edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.removeButton, { borderColor: theme.textMuted }]}
+            onPress={handleRemove}
+          >
+            <Text style={[styles.removeButtonText, { color: theme.textMuted }]}>Remove from event</Text>
+          </TouchableOpacity>
+        </>
       )}
     </View>
   );
@@ -112,7 +125,9 @@ const styles = StyleSheet.create({
   meta: { fontSize: 16, marginBottom: 8 },
   quantityText: { fontSize: 14, marginBottom: 16 },
   summary: { fontSize: 15, lineHeight: 22 },
-  removeButton: { borderWidth: 1, borderRadius: 12, padding: 12, alignItems: "center", marginTop: 24 },
+  editButton: { borderRadius: 12, padding: 12, alignItems: "center", marginTop: 24 },
+  editButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  removeButton: { borderWidth: 1, borderRadius: 12, padding: 12, alignItems: "center", marginTop: 12 },
   removeButtonText: { fontSize: 16, fontWeight: "500" },
   placeholder: { padding: 24 },
 });

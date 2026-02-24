@@ -7,7 +7,7 @@ This is the canonical roadmap for this repo. PRDs, implementation plans (Cursor/
 - **Vision:** Digitize wine club tasting events — photo-based wine entry (AI label extraction), live rating rounds (push-triggered, anonymous), and searchable history — so hosts and members get a smooth, persistent experience instead of sign-in sheets and verbal spiels.
 - **Target users:** Wine club hosts and members attending in-person themed tastings.
 - **North-star metric:** Events completed with full photo → rate → reveal flow; member re-engagement (return visits).
-- **Non-goals (v1):** Social features, e-commerce, price lookups, separate web-only product. *Later phases:* personal libraries (user-owned collections), optional payments (donations + subscription for library users).
+- **Non-goals (v1):** Social features, e-commerce, price lookups, separate web-only product. *Later phases:* personal libraries (user-owned collections), optional payments (donations + subscription for library users), user preference graph and discovery (shop picker, recipe pairing).
 
 ## How to use this roadmap
 
@@ -34,6 +34,9 @@ This is the canonical roadmap for this repo. PRDs, implementation plans (Cursor/
 
 ### Later (ideas)
 
+- **User preferences and social data for wines** — Users add additional metadata to their rankings (e.g. tags, tasting notes, preferred contexts) to build a per-user preferences graph. This graph informs personalized discovery in later phases (shop picker, recipe pairing). Status: 🧠 — [PRD-2026-003](./PRDs/PRD-2026-003__user-preferences-social-data-wines.md).
+- **Shop wine picker (photo)** — Help a user pick a wine in a shop: user photographs a bottle/shelf, app uses preferences graph + label recognition to recommend or explain fit. Depends on user preferences phase. Status: 🧠 — No PRD yet.
+- **Recipe/meal pairing** — Recommend a wine pairing from the user's preferences and library: user uploads a recipe doc or pastes a link; app suggests pairings. Depends on user preferences phase. Status: 🧠 — No PRD yet.
 - **Brand application** — Apply [Brand Guidelines](../brand-guidelines.md) consistently across app (typography, palette, imagery). No PRD yet.
 - **Observability** — Error tracking, basic analytics. No PRD yet.
 - **Native store builds** — Google Play / App Store when accounts are ready. No PRD yet.
@@ -60,9 +63,24 @@ This is the canonical roadmap for this repo. PRDs, implementation plans (Cursor/
 - **Goal:** Personal wine libraries (not event-tied); optional donations and subscription for library users.
 - **Includes:** Personal libraries (user-owned wine collections); Payments (donate on event join; $2.99/mo for library users).
 
-### v0.5+
+### v0.5 (user preferences & discovery foundation)
 
-- **Goal:** TBD (e.g. brand application, observability, native store builds).
+- **Goal:** Let users add metadata to their rankings and build a per-user preferences graph.
+- **Includes:** User preferences and social data for wines (ranking metadata, preference graph) — [PRD-2026-003](./PRDs/PRD-2026-003__user-preferences-social-data-wines.md).
+
+### v0.6+ (discovery)
+
+- **Goal:** Use the preferences graph for in-the-wild discovery: shop wine picker (photo), recipe/meal pairing (doc or link).
+- **Includes:** Shop wine picker (photo); Recipe/meal pairing (upload doc or link to recipe).
+
+## User preferences and discovery (later)
+
+The **preferences graph** is built from ranking metadata: today's thumbs up/meh/down, plus any new structured metadata (e.g. tags, tasting notes, preferred contexts) added in the user preferences phase. That phase is the **foundation** for:
+
+- **Shop wine picker** — User photographs a bottle or shelf in a shop → app matches to known wines and the user's preference profile → "this fits your taste" or "you liked similar at event X."
+- **Recipe/meal pairing** — User uploads a recipe doc or pastes a link → app derives a meal profile → recommends wines from the user's library or taste profile.
+
+Future PRDs for preferences, shop picker, and recipe pairing should reference this section and the releases above. The user preferences phase is specified in [PRD-2026-003](./PRDs/PRD-2026-003__user-preferences-social-data-wines.md).
 
 ## PRD index (by area)
 
@@ -73,6 +91,9 @@ This is the canonical roadmap for this repo. PRDs, implementation plans (Cursor/
 | Auth        | — | Sign in/up with Google | 🧠 Next |
 | Product     | — | Personal libraries | 🧠 Next |
 | Monetization| — | Payments (donations + $2.99/mo library) | 🧠 Next |
+| Preferences | PRD-2026-003 | [User preferences and social data for wines](./PRDs/PRD-2026-003__user-preferences-social-data-wines.md) | 🧠 Later |
+| Discovery   | — | Shop wine picker (photo) | 🧠 Later |
+| Discovery   | — | Recipe/meal pairing | 🧠 Later |
 | *Add new*   | — | Use [PRD_Template](./PRDs/PRD_Template.md); assign ID and add here | — |
 
 ---
@@ -95,151 +116,42 @@ A wine club holds themed tasting events where members bring bottles, share backg
 
 ---
 
-## Key Architecture Decisions
+## Architecture Overview
 
-### 1. Cross-Platform Framework
+### App layer
 
-| Option | Pros | Cons |
-|--------|------|------|
-| **React Native (Expo)** | JS/TS ecosystem, OTA updates, Expo handles camera/push/builds, huge community | Performance ceiling for heavy animation (not relevant here) |
-| **Flutter** | Fast rendering, single codebase compiles to native | Dart is a smaller talent pool, less native-feeling on iOS |
-| **Capacitor/Ionic** | Web devs can contribute easily | Feels like a wrapped website, camera integration is weaker |
+- **Framework:** Expo React Native (managed workflow) with TypeScript, using Expo Router for file-based navigation.
+- **Platforms:** Single codebase targeting iOS, Android, and web (PWA) via `expo export:web`.
+- **State & data:** Supabase client + TanStack Query for data fetching, caching, and real-time updates where needed.
 
-**Recommendation:** React Native with Expo (SDK 52+). The app is form-driven with camera and push notifications — Expo's managed workflow handles both out of the box. OTA updates via EAS mean you can ship fixes without app store review cycles. TypeScript throughout.
+### Backend & data platform
 
-Expo also supports web export (`npx expo export:web`), so the same codebase produces a PWA alongside native iOS/Android builds — no separate web project needed.
+- **Backend:** Supabase Postgres as the primary backend, with row-level security (RLS) for multi-tenant and per-member access control.
+- **Auth:** Supabase Auth with passwordless email (magic link). Admin capability is modeled as a flag (`members.is_admin`).
+- **Realtime:** Supabase real-time subscriptions (where used) for live updates, e.g. rating counts.
+- **Storage:** Supabase Storage bucket(s) for label photos (and related assets).
 
-### 2. Backend & Database
+### Label extraction & wine info
 
-| Option | Pros | Cons |
-|--------|------|------|
-| **Supabase** | Postgres under the hood, row-level security, real-time subscriptions, auth built-in, generous free tier | Less mature than Firebase for push notifications |
-| **Firebase** | Mature push (FCM), Firestore real-time | NoSQL (Firestore) makes relational queries harder — events-to-wines-to-ratings is inherently relational |
-| **Custom (Node + Postgres on Railway/Fly)** | Full control | More to build and maintain for a club-scale app |
+- **Edge Function:** A Supabase Edge Function (`extract-wine-label`) receives a label photo (base64), calls Perplexity Sonar Pro (vision) to extract structured fields (producer, varietal, vintage, region, etc.) and an optional AI summary.
+- **Label photos:** The same Edge Function uploads the label image to a `label-photos` bucket and returns a public URL stored alongside the wine.
+- **Client flow:** The client captures a photo, sends it to the Edge Function, then pre-fills the add-wine form with the extracted fields and AI summary.
 
-**Recommendation:** Supabase. The data model is relational (events have many wines, wines have many ratings, members attend many events). Postgres handles this naturally. Supabase gives you:
+### Ratings, anonymity, and rounds
 
-- Auth (email/magic link — no password friction for club members)
-- Row-level security (hosts can manage events, members can only rate)
-- Real-time subscriptions (vote count updates live for the host; full results revealed on event close)
-- Edge Functions for server-side logic (calling Perplexity Sonar API, sending push notifications)
-- Storage bucket for wine label photos
+- **Ratings:** Stored per wine and member, with values -1/0/1 (thumbs down/meh/up); a Postgres view (`wine_rating_summary`) exposes only aggregate counts.
+- **Anonymity:** RLS prevents any client from reading other members' raw ratings; only aggregate summaries are exposed after an event ends.
+- **Rounds:** `rating_rounds` records control whether a rating round is active; inserts are blocked when a round is closed, enforcing the live-rounds-only model.
 
-### 3. Wine Label Recognition (the "magic" feature)
+### Notifications & event join
 
-| Option | Pros | Cons |
-|--------|------|------|
-| **Perplexity Sonar API** | Vision + web-grounded; reads labels with artistic/non-standard fonts, extracts structured data in one call, can return wine background info; OpenAI-compatible API | API cost per call |
-| **Google Cloud Vision OCR** | Raw text extraction is reliable | Returns raw text — you still need an LLM to parse "producer" vs "varietal" vs "vintage" from unstructured label text |
-| **Pre-trained wine label models** | Purpose-built | Hard to find, not maintained, limited |
+- **Push:** Expo Push Notifications on native platforms, with Web Push planned for PWA. Tokens are stored on the member record (`push_token`) and used by Edge Functions to fan out notifications (e.g. \"Start rating round\").
+- **Deep links & QR:** Events expose a QR code that encodes a universal HTTPS link (e.g. `https://phina.appsmithery.co/join/{event_id}`), which deep-links into the native app when installed or falls back to the PWA in the browser.
 
-**Recommendation:** Perplexity Sonar API (sonar-pro). A single API call can:
+### Distribution
 
-- Extract structured fields: `{ producer, varietal, vintage, region, appellation }`
-- Optionally return background info about the wine (saves a second lookup call)
-
-This is the right tool because wine labels are notoriously varied in layout — some are minimal, some are ornate, some are in foreign languages. An LLM with vision handles this variance far better than rigid OCR + regex parsing.
-
-The call would be made from a Supabase Edge Function (server-side), so the API key never touches the client.
-
-### 4. Wine Lookup / Background Info
-
-Two approaches, not mutually exclusive:
-
-- **Sonar-generated summary** — When extracting label info, also ask the model: "Provide a 2–3 sentence summary of this wine's region, typical flavor profile, and any notable facts a dinner guest would find interesting." This is in the same API call and conversational.
-- **External wine API** — Wine-Searcher or similar for price/rating data. These APIs tend to be expensive or unreliable. Not worth it for v1.
-
-**Recommendation:** Sonar-generated summary in the same vision call. One API call, two outputs. If a member wants to give a spiel, they have a cheat sheet right on their phone.
-
-### 5. Push Notifications & Live Rating (Live Rounds Only)
-
-| Option | Pros | Cons |
-|--------|------|------|
-| **Expo Push Notifications** | Works on both platforms, simple token management, free | Expo's servers as intermediary |
-| **Firebase Cloud Messaging directly** | Industry standard | More setup, need to handle APNs certificates separately |
-
-**Recommendation:** Expo Push Notifications (native) + Web Push API (PWA). Flow:
-
-1. On app open, register for push and store the Expo push token in Supabase (`members.push_token`)
-2. Host taps "Start rating round" for a specific wine
-3. Supabase Edge Function sends push to all members checked into that event
-4. Notification deep-links to rating screen for that wine
-5. Member taps thumbs-up / meh / thumbs-down → confirmation shown ("Vote recorded!")
-6. Host sees only a count of how many members have voted (e.g. "8 of 12 voted") — not the results
-7. Host taps "End round" — round is locked, no more votes accepted
-8. Repeat for each wine…
-9. Host taps "End Event" — all results revealed as anonymous aggregates for every wine
-
-This keeps ratings blind and unbiased. The big reveal at the end adds a fun moment to the evening.
-
-### 6. Event Joining via QR Code
-
-Members scan a QR code displayed by the host at the venue. The QR encodes a universal link like `https://wineclub.app/join/{event_id}`. This:
-
-- Ensures physical presence (no remote vote-bombing)
-- Is dead simple — no codes to type, no links to fish out of a group text
-- Works for both native and PWA users — the URL opens the native app if installed, or falls back to the PWA in the browser
-- Works naturally with Expo's deep linking / Expo Router
-
-The host's event detail screen shows a full-screen QR code they can display on a phone or cast to a screen.
-
-### 7. Auth Strategy (Repeat Guest Friendly)
-
-Wine club members aren't power users — minimize friction, but recognize returning members.
-
-**Recommendation:** Magic link (passwordless email auth) via Supabase Auth.
-
-- **First visit:** Scan QR → prompted for email → magic link sent → tap link → enter name → joined the event
-- **Returning guest:** Scan QR → prompted for email → magic link sent → tap link → recognized automatically (name, profile already populated) → joined the event instantly
-- Supabase Auth handles session persistence, so if the member is still logged in on their phone from last time, scanning the QR just adds them to the new event with zero friction
-- The host/admin role is a flag on the member's profile row (`is_admin`)
-
-### 8. Anonymized Ratings & Post-Event Reveal
-
-Ratings are blind and anonymous to prevent groupthink and social pressure:
-
-- **During the event:** No one (including the host) can see individual ratings or aggregate results while a round is active or after it closes — until the host explicitly ends the entire event
-- **After event closes:** The host taps "End Event", which:
-  - Locks all remaining open rounds
-  - Reveals aggregate results for every wine: "12 thumbs up, 3 meh, 1 thumbs down"
-  - Results are anonymous — no names attached to individual votes, ever
-  - Everyone in the event sees the same aggregate view
-- **In history:** Past events show the same anonymous aggregate results
-
-**Implementation via Row-Level Security (RLS):**
-
-- The `ratings` table stores `member_id` (needed to enforce one-vote-per-member), but RLS policies prevent any client query from reading `member_id` on other people's ratings
-- A Postgres view (`wine_rating_summary`) exposes only aggregate counts: `thumbs_up_count`, `meh_count`, `thumbs_down_count`
-- This view is only accessible when `events.status = 'ended'` (enforced by RLS)
-- Even the host cannot see who voted what — the raw ratings table is never exposed to any client
-
-### 9. Distribution Strategy: Native + PWA
-
-Three distribution channels from one codebase:
-
-| Channel | How | Push notifications |
-|---------|-----|--------------------|
-| **PWA (web)** | Host on your own server (e.g. Digital Ocean droplet), domain via GoDaddy; members visit URL in browser | Web Push API (works on Android Chrome; iOS Safari 16.4+ supports it but requires user opt-in) |
-| **Android (Play Store)** | EAS Build → Google Play internal testing → production | Expo Push (via FCM) — full support |
-| **iOS (App Store)** | EAS Build → TestFlight → App Store | Expo Push (via APNs) — full support |
-
-**When:** Day 1 — PWA, no app store accounts needed. Android when ready ($25 one-time). iOS when you have Apple Developer account ($99/yr).
-
-**Phased rollout plan:**
-
-1. **Phase 1 (immediate):** Build and deploy as a PWA. Host the web build on your own infrastructure (e.g. Digital Ocean droplet); domain via GoDaddy. Members scan the QR code at the event, it opens in their browser, and they get the full experience — camera, ratings, wine info. Push notifications work on Android; on iOS web, fall back to in-app polling (the rating screen auto-refreshes when a round starts).
-2. **Phase 2 (when ready):** Ship to Google Play ($25). Android users get native push and a home screen icon. PWA continues to work as a fallback.
-3. **Phase 3 (when you have Apple Developer account):** Ship to App Store. iOS users get native push. PWA still works for anyone who hasn't installed.
-
-**QR code is the glue:** The QR encodes a universal HTTPS link (`https://wineclub.app/join/{event_id}`). If the native app is installed, the OS opens it (via Associated Domains on iOS / App Links on Android). If not, the browser opens the PWA. Zero friction either way.
-
-**Platform-aware code:** Use `Platform.OS` checks (or `Platform.select`) for the few spots where behavior differs:
-
-- **Camera:** expo-camera on native, `<input type="file" accept="image/*" capture="environment">` on web (opens the phone's camera the same way)
-- **Push registration:** Expo Push on native, Web Push API on web
-- **QR scanning:** expo-camera barcode scanner on native, web QR scanner library on web (or just handle the URL directly since the QR opens a link)
-
-Everything else — Supabase client, auth, forms, real-time subscriptions, TanStack Query — is 100% cross-platform with no branching.
+- **Web:** PWA hosted on a server (currently a Digital Ocean droplet) behind a custom domain.
+- **Native:** EAS Build/Submit for Android (Play Store) and iOS (App Store) when accounts are ready.
 
 ---
 

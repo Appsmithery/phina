@@ -9,6 +9,14 @@ import { takeLastLabelExtraction } from "@/lib/last-label-extraction";
 
 const QUANTITY_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
 
+const PRICE_RANGE_OPTIONS: { label: string; value: string | null }[] = [
+  { label: "No range", value: null },
+  { label: "<$20", value: "<$20" },
+  { label: "20–35", value: "20-35" },
+  { label: "35–50", value: "35-50" },
+  { label: ">50", value: ">50" },
+];
+
 export default function AddWineScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { member } = useSupabase();
@@ -22,6 +30,11 @@ export default function AddWineScreen() {
   const [quantity, setQuantity] = useState(1);
   const [quantityModalVisible, setQuantityModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [priceCents, setPriceCents] = useState("");
+  const [priceRange, setPriceRange] = useState<string | null>(null);
+  const [priceRangeModalVisible, setPriceRangeModalVisible] = useState(false);
+
+  const [pendingLabelPhotoUrl, setPendingLabelPhotoUrl] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -32,6 +45,7 @@ export default function AddWineScreen() {
         setVintage(extracted.vintage != null ? String(extracted.vintage) : "");
         setRegion(extracted.region ?? "");
         setAiSummary(extracted.ai_summary ?? "");
+        setPendingLabelPhotoUrl(extracted.label_photo_url ?? null);
       }
     }, [])
   );
@@ -50,6 +64,12 @@ export default function AddWineScreen() {
       );
       return;
     }
+    const parsedDollars = priceCents.trim() ? parseInt(priceCents.trim(), 10) : null;
+    const priceCentsValue =
+      parsedDollars != null && !Number.isNaN(parsedDollars) && parsedDollars >= 0
+        ? Math.min(parsedDollars * 100, 9999900)
+        : null;
+
     setLoading(true);
     try {
       const { error } = await supabase.from("wines").insert({
@@ -61,6 +81,9 @@ export default function AddWineScreen() {
         region: region.trim() || null,
         ai_summary: aiSummary.trim() || null,
         quantity: quantity,
+        label_photo_url: pendingLabelPhotoUrl || null,
+        price_range: priceRange || null,
+        price_cents: priceCentsValue,
       });
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["wines", id] });
@@ -125,6 +148,47 @@ export default function AddWineScreen() {
             </View>
           </Pressable>
         </Modal>
+        <Text style={[styles.label, { color: theme.textSecondary }]}>Price range</Text>
+        <TouchableOpacity
+          style={[styles.input, styles.quantityTouchable, { borderColor: theme.border }]}
+          onPress={() => setPriceRangeModalVisible(true)}
+        >
+          <Text style={{ color: theme.text, fontSize: 16 }}>
+            {PRICE_RANGE_OPTIONS.find((o) => o.value === priceRange)?.label ?? "No range"}
+          </Text>
+        </TouchableOpacity>
+        <Modal
+          visible={priceRangeModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPriceRangeModalVisible(false)}
+        >
+          <Pressable style={styles.modalOverlay} onPress={() => setPriceRangeModalVisible(false)}>
+            <View style={[styles.modalContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Price range</Text>
+              {PRICE_RANGE_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt.label}
+                  style={[styles.quantityOption, priceRange === opt.value && { backgroundColor: theme.primary + "20" }]}
+                  onPress={() => {
+                    setPriceRange(opt.value);
+                    setPriceRangeModalVisible(false);
+                  }}
+                >
+                  <Text style={[styles.quantityOptionText, { color: theme.text }]}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Pressable>
+        </Modal>
+        <Text style={[styles.label, { color: theme.textSecondary }]}>Exact price (optional)</Text>
+        <TextInput
+          style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+          value={priceCents}
+          onChangeText={setPriceCents}
+          placeholder="e.g. 63 for $63"
+          keyboardType="number-pad"
+        />
         <Text style={[styles.label, { color: theme.textSecondary }]}>Producer</Text>
         <TextInput
           style={[styles.input, { color: theme.text, borderColor: theme.border }]}

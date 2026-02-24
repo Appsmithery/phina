@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
-import type { Wine } from "@/types/database";
+import type { WineWithPricePrivacy } from "@/types/database";
 import type { RatingRound } from "@/types/database";
 
 type Vote = -1 | 0 | 1;
@@ -23,9 +23,9 @@ export default function RateWineScreen() {
   const { data: wine } = useQuery({
     queryKey: ["wine", wineId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("wines").select("*").eq("id", wineId!).single();
+      const { data, error } = await supabase.from("wines_with_price_privacy").select("*").eq("id", wineId!).single();
       if (error) throw error;
-      return data as Wine;
+      return data as WineWithPricePrivacy;
     },
     enabled: !!wineId,
   });
