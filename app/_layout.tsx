@@ -108,8 +108,18 @@ function SupabaseLayout() {
     }
   }, [sessionLoaded, fontsLoaded, fontError, splashTimedOut]);
 
+  // Blank headers matching page body so content isn't cut off; indistinguishable from body.
+  const headerOptions = {
+    headerShown: true,
+    headerTitle: "",
+    headerStyle: { backgroundColor: "#F2EFE9" },
+    headerShadowVisible: false,
+    headerTintColor: "#B58271",
+    headerBackTitleVisible: false,
+  };
+
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={headerOptions}>
       <Stack.Screen name="index" />
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />

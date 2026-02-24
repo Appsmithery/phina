@@ -51,7 +51,7 @@ async function registerWebPush(userId: string): Promise<void> {
   }
   const subscription = await pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey,
+    applicationServerKey: applicationServerKey as BufferSource,
   });
   const subscriptionJson = JSON.stringify(subscription.toJSON());
   const { error } = await supabase.from("members").update({ push_token: subscriptionJson }).eq("id", userId);

@@ -1,10 +1,29 @@
 import { useRef, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Platform } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 import { setLastLabelExtraction } from "@/lib/last-label-extraction";
+
+function getEdgeFunctionErrorMessage(error: unknown, data: unknown): string {
+  const dataObj = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+  const errMsg = dataObj?.error;
+  if (typeof errMsg === "string" && errMsg.trim()) return errMsg;
+  const err = error as { message?: string; context?: { body?: string } } | null;
+  if (err?.context?.body) {
+    try {
+      const parsed = JSON.parse(err.context.body) as { error?: string; message?: string };
+      if (typeof parsed?.error === "string") return parsed.error;
+      if (typeof parsed?.message === "string") return parsed.message;
+    } catch {
+      // ignore parse failure
+    }
+  }
+  if (err?.message && !err.message.includes("non-2xx")) return err.message;
+  return "Label extraction failed. Check that the Edge Function is deployed and PERPLEXITY_API_KEY is set.";
+}
 
 export default function ScanLabelScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -60,10 +79,14 @@ export default function ScanLabelScreen() {
       const { data, error } = await supabase.functions.invoke("extract-wine-label", {
         body: { image: imagePayload },
       });
-      if (error) throw error;
       const err = (data as { error?: string })?.error;
       if (err) {
         Alert.alert("Extraction failed", err);
+        return;
+      }
+      if (error) {
+        const message = getEdgeFunctionErrorMessage(error, data);
+        Alert.alert("Label extraction failed", message);
         return;
       }
       const extracted = data as {
@@ -121,6 +144,15 @@ export default function ScanLabelScreen() {
           setCameraReady(true);
         }}
       />
+      <TouchableOpacity
+        style={[styles.backButton, { backgroundColor: "rgba(0,0,0,0.4)" }]}
+        onPress={() => router.back()}
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+      >
+        <Ionicons name="chevron-back" size={28} color="#fff" />
+        <Text style={styles.backButtonText}>Back</Text>
+      </TouchableOpacity>
       <View
         style={[
           styles.footer,
@@ -160,6 +192,18 @@ const styles = StyleSheet.create({
   msg: { fontSize: 16, marginBottom: 16, textAlign: "center" },
   button: { borderRadius: 12, padding: 14, paddingHorizontal: 24 },
   buttonText: { color: "#fff", fontWeight: "600" },
+  backButton: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    zIndex: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  backButtonText: { color: "#fff", fontSize: 16, fontWeight: "600", marginLeft: 4 },
   footer: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 24, paddingBottom: 40, alignItems: "center" },
   hint: { fontSize: 14, marginBottom: 16 },
   captureBtn: { borderRadius: 12, padding: 16, paddingHorizontal: 32, minWidth: 160, alignItems: "center" },
