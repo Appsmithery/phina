@@ -13,23 +13,36 @@ export function useStartRatingRound(eventId: string, wineId: string) {
       });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       qc.invalidateQueries({ queryKey: ["rating_rounds", eventId] });
       qc.invalidateQueries({ queryKey: ["ratingRound", wineId] });
-      supabase.functions.invoke("send-rating-round-push", {
-        body: { event_id: eventId, wine_id: wineId },
-      }).then(({ data, error }) => {
-        if (__DEV__) {
-          console.log("[send-rating-round-push] invoke result", { data, error });
-        }
-        if (error) {
-          console.warn("Push notification send failed:", error);
+      await qc.refetchQueries({ queryKey: ["rating_rounds", eventId] });
+      await qc.refetchQueries({ queryKey: ["ratingRound", wineId] });
+      supabase.functions
+        .invoke("send-rating-round-push", {
+          body: { event_id: eventId, wine_id: wineId },
+        })
+        .then(({ data, error }) => {
+          if (__DEV__) {
+            console.log("[send-rating-round-push] invoke result", { data, error });
+          }
+          if (error) {
+            console.warn("Push notification send failed:", error);
+            Alert.alert(
+              "Push notifications",
+              "Round started, but we couldn't send push notifications. You can still share the link."
+            );
+          }
+        })
+        .catch((err) => {
+          if (__DEV__) {
+            console.warn("Push notification send failed:", err);
+          }
           Alert.alert(
             "Push notifications",
             "Round started, but we couldn't send push notifications. You can still share the link."
           );
-        }
-      });
+        });
     },
   });
 }
