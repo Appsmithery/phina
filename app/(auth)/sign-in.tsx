@@ -44,6 +44,9 @@ export default function SignInScreen() {
 
   useEffect(() => {
     if (session && sessionLoaded && emailFromSplash) {
+      if (__DEV__) {
+        console.log("[auth] sign-in useEffect session→tabs", { hasSession: !!session });
+      }
       // Navigate directly to tabs so root index doesn't see stale context and redirect to auth/splash
       router.replace("/(tabs)");
     }
@@ -64,7 +67,17 @@ export default function SignInScreen() {
       if (error) throw error;
       // Update auth context immediately so root index sees session before we navigate
       if (data.session) {
+        if (__DEV__) {
+          console.log("[auth] sign-in setSessionFromAuth called");
+        }
         setSessionFromAuth(data.session);
+        // Defer navigation until after context has committed so index doesn't redirect to auth with stale session
+        queueMicrotask(() => {
+          if (__DEV__) {
+            console.log("[auth] sign-in navigating to tabs");
+          }
+          router.replace("/(tabs)");
+        });
       }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);

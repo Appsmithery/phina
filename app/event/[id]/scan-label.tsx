@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Platform } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { supabase } from "@/lib/supabase";
@@ -11,9 +11,17 @@ export default function ScanLabelScreen() {
   const theme = useTheme();
   const [permission, requestPermission] = useCameraPermissions();
   const [extracting, setExtracting] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
   const cameraRef = useRef<CameraView>(null);
 
   const captureAndExtract = async () => {
+    if (__DEV__) {
+      console.log("[scan-label] captureAndExtract called", {
+        id,
+        hasRef: !!cameraRef.current,
+        permissionGranted: permission?.granted,
+      });
+    }
     if (!id) {
       Alert.alert("Error", "Event not found.");
       return;
@@ -29,12 +37,21 @@ export default function ScanLabelScreen() {
         return;
       }
     }
+    if (__DEV__) {
+      console.log("[scan-label] guards passed, calling takePictureAsync");
+    }
     setExtracting(true);
     try {
       const photo = await cameraRef.current.takePictureAsync({
         base64: true,
         quality: 0.8,
       });
+      if (__DEV__) {
+        console.log("[scan-label] takePictureAsync resolved", {
+          hasPhoto: !!photo,
+          hasBase64: !!photo?.base64,
+        });
+      }
       if (!photo?.base64) {
         Alert.alert("Error", "Could not capture image.");
         return;
@@ -66,7 +83,7 @@ export default function ScanLabelScreen() {
       router.replace(`/event/${id}/add-wine`);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Label extraction failed.";
-      console.warn("Scan label error:", e);
+      console.warn("[scan-label] captureAndExtract error", e);
       Alert.alert("Error", message);
     } finally {
       setExtracting(false);
@@ -93,18 +110,43 @@ export default function ScanLabelScreen() {
 
   return (
     <View style={styles.container}>
-      <CameraView style={StyleSheet.absoluteFill} ref={cameraRef} pointerEvents="none" />
-      <View style={styles.footer}>
-        <Text style={[styles.hint, { color: theme.textSecondary }]}>Frame the wine label in the viewfinder</Text>
+      <CameraView
+        style={StyleSheet.absoluteFill}
+        ref={cameraRef}
+        pointerEvents="none"
+        onCameraReady={() => {
+          if (__DEV__) {
+            console.log("[scan-label] onCameraReady fired");
+          }
+          setCameraReady(true);
+        }}
+      />
+      <View
+        style={[
+          styles.footer,
+          { zIndex: 10 },
+          Platform.OS === "android" && { elevation: 10 },
+        ]}
+      >
+        <Text style={[styles.hint, { color: theme.textSecondary }]}>
+          {cameraReady
+            ? "Frame the wine label in the viewfinder"
+            : "Preparing camera…"}
+        </Text>
         <TouchableOpacity
-          style={[styles.captureBtn, { backgroundColor: theme.primary }]}
+          style={[
+            styles.captureBtn,
+            { backgroundColor: theme.primary, opacity: cameraReady && !extracting ? 1 : 0.6 },
+          ]}
           onPress={captureAndExtract}
-          disabled={extracting}
+          disabled={extracting || !cameraReady}
         >
           {extracting ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.captureBtnText}>{extracting ? "Extracting…" : "Scan label"}</Text>
+            <Text style={styles.captureBtnText}>
+              {!cameraReady ? "Preparing…" : "Scan label"}
+            </Text>
           )}
         </TouchableOpacity>
       </View>

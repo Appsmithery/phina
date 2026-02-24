@@ -81,5 +81,12 @@ export default function Index() {
     return <Redirect href="/(tabs)" />;
   }
 
+  if (__DEV__) {
+    console.log("[auth] index redirect to auth", {
+      sessionLoaded,
+      hasSession: !!session,
+      nullSessionRecheckDone,
+    });
+  }
   return <Redirect href="/(auth)" />;
 }
