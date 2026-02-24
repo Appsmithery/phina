@@ -41,11 +41,11 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 
   const setSessionFromAuth = (s: Session | null) => {
     setSession(s);
+    setSessionLoaded(true);
     if (s?.user?.id) {
-      fetchMember(s.user.id, s.user.email ?? undefined).finally(() => setSessionLoaded(true));
+      fetchMember(s.user.id, s.user.email ?? undefined);
     } else {
       setMember(null);
-      setSessionLoaded(true);
     }
   };
 

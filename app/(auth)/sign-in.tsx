@@ -58,13 +58,8 @@ export default function SignInScreen() {
       // Update auth context immediately so root index sees session before we navigate
       if (data.session) {
         setSessionFromAuth(data.session);
-        // Defer navigation so root index sees updated session (avoids race on web)
-        const go = () => router.replace("/");
-        if (typeof requestAnimationFrame !== "undefined") {
-          requestAnimationFrame(() => requestAnimationFrame(go));
-        } else {
-          setTimeout(go, 0);
-        }
+        // Defer navigation so root index sees updated session (avoids race where root renders before context commits)
+        setTimeout(() => router.replace("/"), 100);
       }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
