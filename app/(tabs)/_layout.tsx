@@ -1,4 +1,5 @@
 import { Tabs } from "expo-router";
+import { Image } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
@@ -12,7 +13,12 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: true,
-        headerTitle: "",
+        headerTitle: () => (
+          <Image 
+            source={require("@/assets/phina_logo.png")} 
+            style={{ height: 32, width: 120, resizeMode: "contain" }} 
+          />
+        ),
         headerStyle: { backgroundColor: theme.background },
         headerShadowVisible: false,
         headerTintColor: theme.primary,

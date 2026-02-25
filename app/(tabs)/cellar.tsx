@@ -79,12 +79,12 @@ export default function CellarScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.titleRow}>
-        <Text style={[styles.title, { color: theme.text }]}>My wines</Text>
+        <Text style={[styles.title, { color: theme.text }]}>My Cellar</Text>
         <TouchableOpacity
           style={[styles.addButton, { backgroundColor: theme.primary }]}
           onPress={() => router.push("/add-wine")}
         >
-          <Text style={styles.addButtonText}>Add wine</Text>
+          <Text style={styles.addButtonText}>+ Add</Text>
         </TouchableOpacity>
       </View>
       <TextInput

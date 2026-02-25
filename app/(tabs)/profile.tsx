@@ -2,6 +2,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert 
 import { useEffect, useMemo, useState } from "react";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
+import { Ionicons } from "@expo/vector-icons";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
@@ -184,21 +185,33 @@ export default function ProfileScreen() {
             <View style={styles.statsGrid}>
               <View style={[styles.statTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                 <Text style={[styles.tileValue, { color: theme.text }]}>{stats.totalRatings}</Text>
-                <Text style={[styles.tileLabel, { color: theme.textSecondary }]}>🍷 Wines Rated</Text>
+                <View style={styles.tileLabelRow}>
+                  <Ionicons name="wine-outline" size={18} color={theme.textSecondary} />
+                  <Text style={[styles.tileLabel, { color: theme.textSecondary }]}>Wines Rated</Text>
+                </View>
               </View>
               <View style={[styles.statTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                 <Text style={[styles.tileValue, { color: theme.text }]}>
                   {stats.totalRatings > 0 ? `${stats.pctLiked}%` : "—"}
                 </Text>
-                <Text style={[styles.tileLabel, { color: theme.textSecondary }]}>👍 Liked</Text>
+                <View style={styles.tileLabelRow}>
+                  <Ionicons name="thumbs-up-outline" size={18} color={theme.textSecondary} />
+                  <Text style={[styles.tileLabel, { color: theme.textSecondary }]}>Liked</Text>
+                </View>
               </View>
               <View style={[styles.statTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                 <Text style={[styles.tileValue, { color: theme.text }]}>{stats.eventsAttended}</Text>
-                <Text style={[styles.tileLabel, { color: theme.textSecondary }]}>🎉 Events</Text>
+                <View style={styles.tileLabelRow}>
+                  <Ionicons name="calendar-outline" size={18} color={theme.textSecondary} />
+                  <Text style={[styles.tileLabel, { color: theme.textSecondary }]}>Events</Text>
+                </View>
               </View>
               <View style={[styles.statTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                 <Text style={[styles.tileValue, { color: theme.text }]}>{stats.favoritesCount}</Text>
-                <Text style={[styles.tileLabel, { color: theme.textSecondary }]}>⭐ Favorites</Text>
+                <View style={styles.tileLabelRow}>
+                  <Ionicons name="star-outline" size={18} color={theme.textSecondary} />
+                  <Text style={[styles.tileLabel, { color: theme.textSecondary }]}>Favorites</Text>
+                </View>
               </View>
             </View>
             <View style={[styles.card, styles.preferencesCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -351,6 +364,11 @@ const styles = StyleSheet.create({
     fontFamily: "PlayfairDisplay_700Bold",
     fontSize: 28,
     marginBottom: 4,
+  },
+  tileLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   tileLabel: {
     fontFamily: "Montserrat_400Regular",

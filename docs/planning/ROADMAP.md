@@ -35,9 +35,7 @@ This is the canonical roadmap for this repo. PRDs, implementation plans (Cursor/
 ### Later (ideas)
 
 - **User preferences and social data for wines** — Users add additional metadata to their rankings (e.g. tags, tasting notes, preferred contexts) to build a per-user preferences graph. This graph informs personalized discovery in later phases (shop picker, recipe pairing). Status: 🧠 — [PRD-2026-003](./PRDs/PRD-2026-003__user-preferences-social-data-wines.md).
-- **Shop wine picker (photo)** — Help a user pick a wine in a shop: user photographs a bottle/shelf, app uses preferences graph + label recognition to recommend or explain fit. Depends on user preferences phase. Status: 🧠 — No PRD yet.
-- **Recipe/meal pairing** — Recommend a wine pairing from the user's preferences and cellar: user uploads a recipe doc or pastes a link; app suggests pairings. Depends on user preferences phase. Status: 🧠 — No PRD yet.
-- **Dining out** — So that a user can add a bottle while they are out to dinner at a restaurant: capture pairing data (what was eaten, how it paired) on top of preferences. Later phases may use location or reservation data via integration with OpenTable/Resy and Google Maps. Depends on user preferences phase. Status: 🧠 — No PRD yet.
+- **"Help me pick" (discovery)** — A single contextual feature with three modes (wine shop photo, restaurant menu photo, cooking chat/recipe upload) powered by the Taste Graph. Consolidates the former shop picker, recipe pairing, and dining-out ideas. Depends on user preferences phase (PRD-2026-003). Status: 🧠 — [PRD-2026-004](./PRDs/PRD-2026-004__help-me-pick.md).
 - **Brand application** — Apply [Brand Guidelines](../brand-guidelines.md) consistently across app (typography, palette, imagery). No PRD yet.
 - **Observability** — Error tracking, basic analytics. No PRD yet.
 - **Native store builds** — Google Play / App Store when accounts are ready. No PRD yet.
@@ -70,20 +68,21 @@ This is the canonical roadmap for this repo. PRDs, implementation plans (Cursor/
 - **Includes:** User preferences and social data for wines (ranking metadata, preference graph) — [PRD-2026-003](./PRDs/PRD-2026-003__user-preferences-social-data-wines.md).
 - **Architecture:** [Taste Graph](../architecture/taste-graph.md) — signal sources, weighted preference algorithm, and evolution plan.
 
-### v0.6+ (discovery)
+### v0.6 — "Help me pick" (discovery)
 
-- **Goal:** Use the preferences graph for in-the-wild discovery: shop wine picker (photo), recipe/meal pairing (doc or link), dining out (add bottle at restaurant with pairing data; optional OpenTable/Resy/Maps).
-- **Includes:** Shop wine picker (photo); Recipe/meal pairing (upload doc or link to recipe); Dining out (restaurant add-bottle, pairing data; later: location/reservation integrations).
+- **Goal:** A single contextual discovery feature — "Help me pick" — that uses the Taste Graph to recommend wines in three real-world contexts: wine shop (multi-bottle photo), restaurant (menu photo), and cooking (chat + recipe upload).
+- **Includes:** [PRD-2026-004](./PRDs/PRD-2026-004__help-me-pick.md) — unified entry point, batch label extraction, menu OCR/extraction, recipe parsing, shared Taste Graph–powered recommendation engine, feedback loop into ratings.
+- **Architecture:** Builds on [Taste Graph](../architecture/taste-graph.md); recommendation engine runs server-side via Edge Functions.
 
 ## User preferences and discovery (later)
 
-The **preferences graph** (see [Taste Graph architecture](../architecture/taste-graph.md)) is built from ranking metadata: today's thumbs up/meh/down, plus any new structured metadata (e.g. tags, tasting notes, preferred contexts) added in the user preferences phase. That phase is the **foundation** for:
+The **preferences graph** (see [Taste Graph architecture](../architecture/taste-graph.md)) is built from ranking metadata: today's thumbs up/meh/down, plus any new structured metadata (e.g. tags, tasting notes, preferred contexts) added in the user preferences phase (v0.5, [PRD-2026-003](./PRDs/PRD-2026-003__user-preferences-social-data-wines.md)). That phase is the **foundation** for v0.6's **"Help me pick"** feature ([PRD-2026-004](./PRDs/PRD-2026-004__help-me-pick.md)), which consolidates the former shop picker, recipe pairing, and dining-out ideas into a single contextual discovery feature with three modes:
 
-- **Shop wine picker** — User photographs a bottle or shelf in a shop → app matches to known wines and the user's preference profile → "this fits your taste" or "you liked similar at event X."
-- **Recipe/meal pairing** — User uploads a recipe doc or pastes a link → app derives a meal profile → recommends wines from the user's cellar or taste profile.
-- **Dining out** — User adds a bottle while at a restaurant → capture pairing data (dish/meal, how it paired) to enrich the preferences graph; eventually integrate location or reservation context (OpenTable/Resy, Google Maps) for richer context and discovery.
+- **Wine shop** — User photographs bottles or a shelf → batch label extraction → Taste Graph–powered ranked recommendations with explanations.
+- **Restaurant** — User photographs a menu/wine list → OCR extraction → ranked recommendations matched to taste profile and meal context.
+- **Cooking** — User describes a meal or uploads a recipe (photo, PDF, URL) → conversational chat interface → wine pairing recommendations grounded in the user's Taste Graph.
 
-Future PRDs for preferences, shop picker, and recipe pairing should reference this section and the releases above. The user preferences phase is specified in [PRD-2026-003](./PRDs/PRD-2026-003__user-preferences-social-data-wines.md).
+All three modes share a single recommendation engine and feed results back into the Taste Graph via saves and ratings, closing the loop.
 
 ## PRD index (by area)
 
@@ -96,9 +95,7 @@ Future PRDs for preferences, shop picker, and recipe pairing should reference th
 | Product     | — | Personal cellars | 🛠 In progress |
 | Monetization| — | Payments (donations + $2.99/mo cellar) | 🧠 Next |
 | Preferences | PRD-2026-003 | [User preferences and social data for wines](./PRDs/PRD-2026-003__user-preferences-social-data-wines.md) | 🧠 Later |
-| Discovery   | — | Shop wine picker (photo) | 🧠 Later |
-| Discovery   | — | Recipe/meal pairing | 🧠 Later |
-| Discovery   | — | Dining out (restaurant add-bottle, pairing data, OpenTable/Resy/Maps) | 🧠 Later |
+| Discovery   | PRD-2026-004 | ["Help me pick" — shop photo, menu photo, cooking chat](./PRDs/PRD-2026-004__help-me-pick.md) | 🧠 Draft |
 | *Add new*   | — | Use [PRD_Template](./PRDs/PRD_Template.md); assign ID and add here | — |
 
 ---

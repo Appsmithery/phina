@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Platform } from "react-native";
+import { View, Text, StyleSheet, Platform, Image } from "react-native";
 import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from "expo-notifications";
@@ -111,7 +111,12 @@ function SupabaseLayout() {
   // Blank headers matching page body so content isn't cut off; indistinguishable from body.
   const headerOptions = {
     headerShown: true,
-    headerTitle: "",
+    headerTitle: () => (
+      <Image 
+        source={require("@/assets/phina_logo.png")} 
+        style={{ height: 32, width: 120, resizeMode: "contain" }} 
+      />
+    ),
     headerStyle: { backgroundColor: "#F2EFE9" },
     headerShadowVisible: false,
     headerTintColor: "#B58271",

@@ -127,15 +127,17 @@ Planned additions (schema TBD, see open questions in PRD):
 
 These fields are additive — the existing thumbs/body/sweetness/confidence flow is unchanged.
 
-### v0.6+ — Discovery consumers
+### v0.6 — "Help me pick" (discovery) — PRD-2026-004
 
-Features that will read from the Taste Graph:
+A single contextual discovery feature with three modes, all powered by the Taste Graph:
 
-| Feature | How it uses the graph | Status |
-|---------|----------------------|--------|
-| **Shop wine picker** | User photographs a bottle → match against preference profile → "fits your taste" | 🧠 Later |
-| **Recipe/meal pairing** | User provides a recipe → derive meal profile → recommend wines from taste profile | 🧠 Later |
-| **Dining out** | User adds a bottle at a restaurant → capture pairing data to enrich the graph | 🧠 Later |
+| Context | How it uses the graph | Input |
+|---------|----------------------|-------|
+| **Wine shop** | Batch-extracted bottles scored against preference profile → ranked picks with explanations | Multi-bottle photos + optional filters |
+| **Restaurant** | Menu-extracted wines scored against profile + meal context → ranked suggestions | Menu/wine-list photo + optional filters |
+| **Cooking** | Meal profile derived from recipe → wines matched to taste profile via conversational chat | Recipe text/photo/PDF/URL + follow-ups |
+
+See [PRD-2026-004](../planning/PRDs/PRD-2026-004__help-me-pick.md) for full specification.
 
 ---
 
