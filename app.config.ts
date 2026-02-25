@@ -59,6 +59,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-router",
     "expo-camera",
     "expo-web-browser",
+    "@react-native-community/datetimepicker",
     // Only include the native Google Sign-In plugin when the iOS URL scheme is configured.
     // Set EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME in .env once you have the iOS OAuth client ID
     // from Google Cloud Console (reversed client ID: com.googleusercontent.apps.YOUR_ID).

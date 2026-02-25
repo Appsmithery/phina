@@ -7,7 +7,7 @@
       "DOM",
       "ESNext"
     ],
-    "module": "es2022",
+    "module": "esnext",
     "moduleDetection": "force",
     "moduleResolution": "bundler",
     "customConditions": [

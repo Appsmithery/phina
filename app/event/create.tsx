@@ -1,10 +1,15 @@
 import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, ScrollView, Platform } from "react-native";
+import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { useQueryClient } from "@tanstack/react-query";
+
+function formatDisplayDate(d: Date): string {
+  return d.toLocaleDateString(undefined, { weekday: "short", month: "long", day: "numeric", year: "numeric" });
+}
 
 export default function CreateEventScreen() {
   const { session } = useSupabase();
@@ -12,8 +17,16 @@ export default function CreateEventScreen() {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [themeText, setThemeText] = useState("");
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showPicker, setShowPicker] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const date = selectedDate.toISOString().slice(0, 10);
+
+  const onDateChange = (_event: DateTimePickerEvent, picked?: Date) => {
+    if (Platform.OS === "android") setShowPicker(false);
+    if (picked) setSelectedDate(picked);
+  };
 
   const create = async () => {
     if (!session?.user?.id || !title.trim()) return;
@@ -76,12 +89,31 @@ export default function CreateEventScreen() {
           placeholder="e.g. alpine"
         />
         <Text style={[styles.label, { color: theme.textSecondary }]}>Date</Text>
-        <TextInput
-          style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-          value={date}
-          onChangeText={setDate}
-          placeholder="YYYY-MM-DD"
-        />
+        <TouchableOpacity
+          style={[styles.input, styles.dateInput, { borderColor: theme.border }]}
+          onPress={() => setShowPicker(true)}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.dateText, { color: theme.text }]}>{formatDisplayDate(selectedDate)}</Text>
+        </TouchableOpacity>
+        {showPicker && (
+          <DateTimePicker
+            value={selectedDate}
+            mode="date"
+            display={Platform.OS === "ios" ? "inline" : "default"}
+            onChange={onDateChange}
+            minimumDate={new Date()}
+            themeVariant="light"
+          />
+        )}
+        {showPicker && Platform.OS === "ios" && (
+          <TouchableOpacity
+            style={[styles.doneButton, { backgroundColor: theme.primary }]}
+            onPress={() => setShowPicker(false)}
+          >
+            <Text style={styles.doneButtonText}>Done</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           style={[styles.button, { backgroundColor: theme.primary }]}
           onPress={create}
@@ -114,4 +146,8 @@ const styles = StyleSheet.create({
   },
   button: { borderRadius: 12, padding: 14, alignItems: "center" },
   buttonText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
+  dateInput: { justifyContent: "center" },
+  dateText: { fontSize: 16, fontFamily: "Montserrat_400Regular" },
+  doneButton: { borderRadius: 10, padding: 12, alignItems: "center", marginBottom: 16 },
+  doneButtonText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
 });
