@@ -15,9 +15,9 @@ export function useStartRatingRound(eventId: string, wineId: string) {
     },
     onSuccess: async () => {
       qc.invalidateQueries({ queryKey: ["rating_rounds", eventId] });
-      qc.invalidateQueries({ queryKey: ["ratingRound", wineId] });
+      qc.invalidateQueries({ queryKey: ["ratingRound", eventId, wineId] });
       await qc.refetchQueries({ queryKey: ["rating_rounds", eventId] });
-      await qc.refetchQueries({ queryKey: ["ratingRound", wineId] });
+      await qc.refetchQueries({ queryKey: ["ratingRound", eventId, wineId] });
       supabase.functions
         .invoke("send-rating-round-push", {
           body: { event_id: eventId, wine_id: wineId },
@@ -59,7 +59,7 @@ export function useEndRatingRound(roundId: string, eventId: string, wineId: stri
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["rating_rounds", eventId] });
-      qc.invalidateQueries({ queryKey: ["ratingRound", wineId] });
+      qc.invalidateQueries({ queryKey: ["ratingRound", eventId, wineId] });
     },
   });
 }

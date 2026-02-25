@@ -42,7 +42,7 @@ export default function RateWineScreen() {
   const wineId = typeof params.wineId === "string" ? params.wineId : params.wineId?.[0];
   const { member, session, sessionLoaded } = useSupabase();
   const theme = useTheme();
-  const [, setVote] = useState<Vote | null>(null);
+  const [vote, setVote] = useState<Vote | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [body, setBody] = useState<BodyOption | null>(null);
   const [sweetness, setSweetness] = useState<SweetnessOption | null>(null);
@@ -68,18 +68,19 @@ export default function RateWineScreen() {
   });
 
   const { data: round } = useQuery({
-    queryKey: ["ratingRound", wineId],
+    queryKey: ["ratingRound", eventId, wineId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("rating_rounds")
         .select("*")
+        .eq("event_id", eventId!)
         .eq("wine_id", wineId!)
         .eq("is_active", true)
         .maybeSingle();
       if (error) throw error;
       return data as RatingRound | null;
     },
-    enabled: !!wineId && isAuthenticated,
+    enabled: !!eventId && !!wineId && isAuthenticated,
     refetchInterval: (query) => (query.state.data == null ? 4_000 : false),
   });
 
@@ -115,6 +116,7 @@ export default function RateWineScreen() {
 
   useEffect(() => {
     if (existingRating) {
+      if (existingRating.value != null) setVote(existingRating.value as Vote);
       if (existingRating.body) setBody(existingRating.body as BodyOption);
       if (existingRating.sweetness) setSweetness(existingRating.sweetness as SweetnessOption);
       if (existingRating.confidence != null) setConfidence(existingRating.confidence);
@@ -149,9 +151,13 @@ export default function RateWineScreen() {
     }
   };
 
-  const submit = async (value: Vote) => {
+  const submit = async () => {
     if (!userId) {
       Alert.alert("Sign in to vote", "You need to be signed in to rate this wine.");
+      return;
+    }
+    if (vote === null) {
+      Alert.alert("Choose a rating", "Select Down, Meh, or Up before submitting.");
       return;
     }
     if (!wineId || !round) {
@@ -161,7 +167,6 @@ export default function RateWineScreen() {
       );
       return;
     }
-    setVote(value);
     setSubmitting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
@@ -169,7 +174,7 @@ export default function RateWineScreen() {
         {
           wine_id: wineId,
           member_id: userId,
-          value,
+          value: vote,
           body: body ?? null,
           sweetness: sweetness ?? null,
           confidence: confidence != null ? Math.round(confidence * 100) / 100 : null,
@@ -177,7 +182,7 @@ export default function RateWineScreen() {
         { onConflict: "wine_id,member_id" }
       );
       if (error) throw error;
-      queryClient.invalidateQueries({ queryKey: ["ratingRound", wineId] });
+      queryClient.invalidateQueries({ queryKey: ["ratingRound", eventId, wineId] });
       queryClient.invalidateQueries({ queryKey: ["rating", wineId, userId] });
       Alert.alert("Vote recorded!", "Thanks for rating.", [{ text: "OK", onPress: () => router.back() }]);
     } catch (e: unknown) {
@@ -238,24 +243,36 @@ export default function RateWineScreen() {
           <Text style={[styles.prompt, { color: theme.text }]}>Your rating:</Text>
           <View style={styles.buttons}>
             <TouchableOpacity
-              style={[styles.voteBtn, { backgroundColor: theme.thumbsDown }]}
-              onPress={() => canVote && submit(-1)}
+              style={[
+                styles.voteBtn,
+                { backgroundColor: theme.thumbsDown },
+                vote === -1 && { borderWidth: 3, borderColor: theme.primary },
+              ]}
+              onPress={() => canVote && setVote(-1)}
               disabled={!canVote}
             >
               <Text style={styles.voteEmoji}>👎</Text>
               <Text style={styles.voteLabel}>Down</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.voteBtn, { backgroundColor: theme.meh }]}
-              onPress={() => canVote && submit(0)}
+              style={[
+                styles.voteBtn,
+                { backgroundColor: theme.meh },
+                vote === 0 && { borderWidth: 3, borderColor: theme.primary },
+              ]}
+              onPress={() => canVote && setVote(0)}
               disabled={!canVote}
             >
               <Text style={styles.voteEmoji}>😐</Text>
               <Text style={styles.voteLabel}>Meh</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.voteBtn, { backgroundColor: theme.thumbsUp }]}
-              onPress={() => canVote && submit(1)}
+              style={[
+                styles.voteBtn,
+                { backgroundColor: theme.thumbsUp },
+                vote === 1 && { borderWidth: 3, borderColor: theme.primary },
+              ]}
+              onPress={() => canVote && setVote(1)}
               disabled={!canVote}
             >
               <Text style={styles.voteEmoji}>👍</Text>
@@ -404,6 +421,18 @@ export default function RateWineScreen() {
               <Text style={[styles.confidenceNoneText, { color: theme.textMuted }]}>None</Text>
             </TouchableOpacity>
           </View>
+
+          <TouchableOpacity
+            style={[
+              styles.submitButton,
+              { backgroundColor: theme.primary },
+              (!canVote || vote === null || submitting) && { opacity: 0.6 },
+            ]}
+            onPress={submit}
+            disabled={!canVote || vote === null || submitting}
+          >
+            <Text style={styles.submitButtonText}>{submitting ? "Submitting…" : "Submit rating"}</Text>
+          </TouchableOpacity>
         </>
       )}
     </ScrollView>
@@ -419,9 +448,11 @@ const styles = StyleSheet.create({
   favoriteBtn: { padding: 4 },
   prompt: { fontSize: 16, textAlign: "center", marginBottom: 16 },
   buttons: { flexDirection: "row", justifyContent: "space-evenly", gap: 16, marginBottom: 24 },
-  voteBtn: { flex: 1, borderRadius: 14, padding: 20, alignItems: "center" },
+  voteBtn: { flex: 1, borderRadius: 14, padding: 20, alignItems: "center", borderWidth: 3, borderColor: "transparent" },
   voteEmoji: { fontSize: 32, marginBottom: 8 },
   voteLabel: { color: "#fff", fontWeight: "600" },
+  submitButton: { borderRadius: 14, padding: 16, alignItems: "center", marginTop: 8, marginBottom: 16 },
+  submitButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   labelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
   metaLabel: { fontSize: 12, color: "inherit" },
   helperText: { fontSize: 11, lineHeight: 16, marginBottom: 10, paddingHorizontal: 2 },
