@@ -28,7 +28,7 @@ Analyze the photo of a wine bottle label. Extract structured information from th
 
 Tone rules (strictly follow these):
 - Write in warm, conversational language as if recommending a wine to a curious friend.
-- Avoid or briefly explain wine jargon (e.g. instead of "terroir" say "the land and climate it grows in").
+- Briefly explain wine jargon (e.g. instead of "terroir" say "the land and climate it grows in").
 - Every text field must be exactly 1-2 short sentences, maximum 40 words.
 - Do NOT include citation references like [1], [2], etc. in any field.
 
