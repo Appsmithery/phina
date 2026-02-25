@@ -27,9 +27,34 @@ function getAuthStorage() {
     };
   }
   return {
-    getItem: (key: string) => SecureStore.getItemAsync(key),
-    setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
-    removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+    getItem: async (key: string) => {
+      try {
+        return await SecureStore.getItemAsync(key);
+      } catch (e) {
+        if (__DEV__) {
+          console.warn("[Supabase auth storage] getItem failed (e.g. user interaction not allowed):", e);
+        }
+        return null;
+      }
+    },
+    setItem: async (key: string, value: string) => {
+      try {
+        await SecureStore.setItemAsync(key, value);
+      } catch (e) {
+        if (__DEV__) {
+          console.warn("[Supabase auth storage] setItem failed:", e);
+        }
+      }
+    },
+    removeItem: async (key: string) => {
+      try {
+        await SecureStore.deleteItemAsync(key);
+      } catch (e) {
+        if (__DEV__) {
+          console.warn("[Supabase auth storage] removeItem failed:", e);
+        }
+      }
+    },
   };
 }
 

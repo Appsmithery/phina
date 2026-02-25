@@ -132,6 +132,9 @@ export interface Database {
           wine_id: string;
           member_id: string;
           value: -1 | 0 | 1;
+          body: "light" | "medium" | "full" | null;
+          sweetness: "dry" | "off-dry" | "sweet" | null;
+          confidence: number | null;
           created_at: string;
         };
         Insert: {
@@ -139,6 +142,9 @@ export interface Database {
           wine_id: string;
           member_id: string;
           value: -1 | 0 | 1;
+          body?: "light" | "medium" | "full" | null;
+          sweetness?: "dry" | "off-dry" | "sweet" | null;
+          confidence?: number | null;
           created_at?: string;
         };
         Update: {
@@ -146,6 +152,30 @@ export interface Database {
           wine_id?: string;
           member_id?: string;
           value?: -1 | 0 | 1;
+          body?: "light" | "medium" | "full" | null;
+          sweetness?: "dry" | "off-dry" | "sweet" | null;
+          confidence?: number | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      event_favorites: {
+        Row: {
+          event_id: string;
+          member_id: string;
+          wine_id: string;
+          created_at: string;
+        };
+        Insert: {
+          event_id: string;
+          member_id: string;
+          wine_id: string;
+          created_at?: string;
+        };
+        Update: {
+          event_id?: string;
+          member_id?: string;
+          wine_id?: string;
           created_at?: string;
         };
         Relationships: [];
@@ -223,6 +253,7 @@ export type Event = Database["public"]["Tables"]["events"]["Row"];
 export type EventMember = Database["public"]["Tables"]["event_members"]["Row"];
 export type Wine = Database["public"]["Tables"]["wines"]["Row"];
 export type Rating = Database["public"]["Tables"]["ratings"]["Row"];
+export type EventFavorite = Database["public"]["Tables"]["event_favorites"]["Row"];
 export type RatingRound = Database["public"]["Tables"]["rating_rounds"]["Row"];
 export type WineRatingSummary = Database["public"]["Views"]["wine_rating_summary"]["Row"];
 export type WineWithPricePrivacy = Database["public"]["Views"]["wines_with_price_privacy"]["Row"];

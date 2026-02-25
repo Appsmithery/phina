@@ -1,6 +1,7 @@
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
@@ -55,6 +56,22 @@ export default function EventDetailScreen() {
       return (data ?? []) as { wine_id: string; thumbs_up: number; meh: number; thumbs_down: number }[];
     },
     enabled: !!id && isAuthenticated && event?.status === "ended",
+  });
+
+  const userId = session?.user?.id ?? member?.id;
+  const { data: eventFavorite } = useQuery({
+    queryKey: ["event_favorite", id, userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("event_favorites")
+        .select("wine_id")
+        .eq("event_id", id!)
+        .eq("member_id", userId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as { wine_id: string } | null;
+    },
+    enabled: !!id && !!userId && isAuthenticated,
   });
 
   const isHost = event?.created_by === member?.id;
@@ -166,16 +183,22 @@ export default function EventDetailScreen() {
           data={wines}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => {
-            const round = rounds.find((r) => r.wine_id === item.id);
+            const activeRound = rounds.find((r) => r.wine_id === item.id && r.is_active);
+            const round = activeRound ?? rounds.find((r) => r.wine_id === item.id);
             const summary = ratingSummaries.find((s) => s.wine_id === item.id);
             const canRemove = isHost || item.brought_by === member?.id;
             return (
               <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                 <TouchableOpacity onPress={() => router.push(`/event/${id}/wine/${item.id}`)}>
-                  <Text style={[styles.wineName, { color: theme.text }]}>
-                    {item.quantity != null && item.quantity > 1 ? `${item.quantity}× ` : ""}
-                    {item.producer ?? "Unknown"} {item.varietal ?? ""} {item.vintage ?? ""}
-                  </Text>
+                  <View style={styles.wineNameRow}>
+                    <Text style={[styles.wineName, { color: theme.text }]}>
+                      {item.quantity != null && item.quantity > 1 ? `${item.quantity}× ` : ""}
+                      {item.producer ?? "Unknown"} {item.varietal ?? ""} {item.vintage ?? ""}
+                    </Text>
+                    {eventFavorite?.wine_id === item.id && (
+                      <Ionicons name="star" size={18} color={theme.primary} style={styles.favoriteStar} />
+                    )}
+                  </View>
                   {item.region && (
                     <Text style={[styles.wineMeta, { color: theme.textSecondary }]}>{item.region}</Text>
                   )}
@@ -196,18 +219,21 @@ export default function EventDetailScreen() {
                   <WineHostActions
                     eventId={id!}
                     wine={item}
-                    round={round}
+                    round={activeRound ?? round}
                     theme={theme}
                     onRate={() => router.push(`/event/${id}/rate/${item.id}`)}
                   />
                 )}
-                {event.status === "active" && !isHost && (
+                {event.status === "active" && !isHost && activeRound && (
                   <TouchableOpacity
                     style={[styles.rateButton, { backgroundColor: theme.secondary }]}
                     onPress={() => router.push(`/event/${id}/rate/${item.id}`)}
                   >
                     <Text style={styles.rateButtonText}>Rate</Text>
                   </TouchableOpacity>
+                )}
+                {event.status === "active" && !isHost && !activeRound && member?.is_admin && (
+                  <WineAdminReopen eventId={id!} wineId={item.id} theme={theme} />
                 )}
                 {canRemove && (
                   <TouchableOpacity
@@ -241,7 +267,9 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
-  wineName: { fontSize: 16, fontWeight: "600" },
+  wineNameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  wineName: { fontSize: 16, fontWeight: "600", flex: 1 },
+  favoriteStar: { marginLeft: 4 },
   wineMeta: { fontSize: 14, marginTop: 4 },
   placeholder: { padding: 16 },
   endEventButton: { borderWidth: 1, borderRadius: 14, padding: 12, alignItems: "center", marginBottom: 16 },
@@ -311,5 +339,34 @@ function WineHostActions({
     >
       <Text style={styles.rateButtonText}>{startRound.isPending ? "Starting…" : "Start rating round"}</Text>
     </TouchableOpacity>
+  );
+}
+
+function WineAdminReopen({
+  eventId,
+  wineId,
+  theme: t,
+}: {
+  eventId: string;
+  wineId: string;
+  theme: ReturnType<typeof useTheme>;
+}) {
+  const startRound = useStartRatingRound(eventId, wineId);
+  const handleReopen = () => {
+    startRound.mutate(undefined, {
+      onError: (err) =>
+        Alert.alert("Could not reopen round", err instanceof Error ? err.message : "Something went wrong. Try again."),
+    });
+  };
+  return (
+    <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+      <TouchableOpacity
+        style={[styles.rateButton, { backgroundColor: t.textMuted }]}
+        onPress={handleReopen}
+        disabled={startRound.isPending}
+      >
+        <Text style={styles.rateButtonText}>{startRound.isPending ? "Starting…" : "Reopen ratings"}</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
