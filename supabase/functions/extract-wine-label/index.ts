@@ -22,20 +22,28 @@ interface SupabaseStorageClient {
 const PERPLEXITY_URL = "https://api.perplexity.ai/chat/completions";
 const MODEL = "sonar-pro";
 
-const EXTRACTION_PROMPT = `You are analyzing a photo of a wine bottle label. Extract the following from the label text and any recognizable design or branding. Use your knowledge (and search if helpful) to provide structured information. If something is not visible or unclear, omit it or use null.
+const EXTRACTION_PROMPT = `You are a friendly wine guide writing for people who are new to wine and just starting to explore it.
 
-Return a JSON object with exactly these keys (use null for missing values):
+Analyze the photo of a wine bottle label. Extract structured information from the label text, design, and your knowledge.
+
+Tone rules (strictly follow these):
+- Write in warm, conversational language as if recommending a wine to a curious friend.
+- Avoid or briefly explain wine jargon (e.g. instead of "terroir" say "the land and climate it grows in").
+- Every text field must be exactly 1-2 short sentences, maximum 40 words.
+- Do NOT include citation references like [1], [2], etc. in any field.
+
+Return a JSON object with exactly these keys (use null for missing/unclear values):
 - producer: string (winery or producer name)
 - varietal: string (e.g. Pinot Noir, Chardonnay)
 - vintage: number or null (year)
 - region: string (e.g. Burgundy, Napa Valley)
-- color: "red", "white", or "skin-contact" (for rose/orange wines). Infer from label color, varietal, or region if not explicit.
-- is_sparkling: boolean (true if champagne, prosecco, cava, cremant, pet-nat, or any sparkling wine; false otherwise)
-- ai_overview: string (1-2 sentences: producer background, notable ratings/acclaim, fun facts, general summary)
-- ai_geography: string (1-2 sentences: region details, terroir, climate)
-- ai_production: string (1-2 sentences: winemaking methods, aging, fermentation)
-- ai_tasting_notes: string (1-2 sentences: aromas, flavors, body, finish)
-- ai_pairings: string (1-2 sentences: food pairing suggestions)`;
+- color: "red", "white", or "skin-contact" (for rosé/orange wines). Infer from label color, varietal, or region if not explicit.
+- is_sparkling: boolean (true if champagne, prosecco, cava, crémant, pét-nat, or any sparkling wine; false otherwise)
+- ai_overview: string (1-2 sentences: who makes this wine and one fun fact or point of acclaim. Keep it conversational.)
+- ai_geography: string (1-2 sentences: where it's from and what makes that place great for this style of wine. No jargon.)
+- ai_production: string (1-2 sentences: how it's made in plain language. Briefly explain any technical terms used.)
+- ai_tasting_notes: string (1-2 sentences: what it tastes and smells like, using everyday words like fruits, spices, or textures.)
+- ai_pairings: string (1-2 sentences: specific food pairings a friend might suggest, like dishes or cuisines.)`;
 
 const jsonSchema = {
   type: "object",
@@ -46,12 +54,12 @@ const jsonSchema = {
     region: { type: ["string", "null"] },
     color: { type: ["string", "null"], enum: ["red", "white", "skin-contact", null] },
     is_sparkling: { type: ["boolean", "null"] },
-    ai_summary: { type: ["string", "null"] },
-    ai_overview: { type: ["string", "null"] },
-    ai_geography: { type: ["string", "null"] },
-    ai_production: { type: ["string", "null"] },
-    ai_tasting_notes: { type: ["string", "null"] },
-    ai_pairings: { type: ["string", "null"] },
+    ai_summary: { type: ["string", "null"], maxLength: 300 },
+    ai_overview: { type: ["string", "null"], maxLength: 300 },
+    ai_geography: { type: ["string", "null"], maxLength: 300 },
+    ai_production: { type: ["string", "null"], maxLength: 300 },
+    ai_tasting_notes: { type: ["string", "null"], maxLength: 300 },
+    ai_pairings: { type: ["string", "null"], maxLength: 300 },
   },
   required: ["producer", "varietal", "vintage", "region", "color", "is_sparkling", "ai_overview", "ai_geography", "ai_production", "ai_tasting_notes", "ai_pairings"],
   additionalProperties: false,
@@ -78,6 +86,18 @@ interface WineExtraction {
   label_photo_url: string | null;
 }
 
+const AI_MAX_CHARS = 300;
+
+/** Strip Perplexity citation refs like [1][2], collapse extra whitespace, and truncate to the last
+ *  complete sentence within AI_MAX_CHARS. Falls back to a hard cut + ellipsis if no sentence boundary found. */
+function cleanAiText(text: string): string {
+  let s = text.replace(/\[\d+\]/g, "").replace(/\s{2,}/g, " ").trim();
+  if (s.length <= AI_MAX_CHARS) return s;
+  const truncated = s.slice(0, AI_MAX_CHARS);
+  const lastPeriod = truncated.lastIndexOf(".");
+  return lastPeriod > 0 ? truncated.slice(0, lastPeriod + 1).trim() : truncated.trim() + "…";
+}
+
 function normalizeWineExtraction(obj: unknown): Omit<WineExtraction, "label_photo_url"> {
   const o = obj && typeof obj === "object" ? obj as Record<string, unknown> : {};
   const color = typeof o.color === "string" && ["red", "white", "skin-contact"].includes(o.color) 
@@ -88,14 +108,14 @@ function normalizeWineExtraction(obj: unknown): Omit<WineExtraction, "label_phot
     varietal: typeof o.varietal === "string" ? o.varietal : null,
     vintage: typeof o.vintage === "number" && Number.isInteger(o.vintage) ? o.vintage : null,
     region: typeof o.region === "string" ? o.region : null,
-    ai_summary: typeof o.ai_summary === "string" ? o.ai_summary : null,
+    ai_summary: typeof o.ai_summary === "string" ? cleanAiText(o.ai_summary) : null,
     color,
     is_sparkling: typeof o.is_sparkling === "boolean" ? o.is_sparkling : null,
-    ai_overview: typeof o.ai_overview === "string" ? o.ai_overview : null,
-    ai_geography: typeof o.ai_geography === "string" ? o.ai_geography : null,
-    ai_production: typeof o.ai_production === "string" ? o.ai_production : null,
-    ai_tasting_notes: typeof o.ai_tasting_notes === "string" ? o.ai_tasting_notes : null,
-    ai_pairings: typeof o.ai_pairings === "string" ? o.ai_pairings : null,
+    ai_overview: typeof o.ai_overview === "string" ? cleanAiText(o.ai_overview) : null,
+    ai_geography: typeof o.ai_geography === "string" ? cleanAiText(o.ai_geography) : null,
+    ai_production: typeof o.ai_production === "string" ? cleanAiText(o.ai_production) : null,
+    ai_tasting_notes: typeof o.ai_tasting_notes === "string" ? cleanAiText(o.ai_tasting_notes) : null,
+    ai_pairings: typeof o.ai_pairings === "string" ? cleanAiText(o.ai_pairings) : null,
   };
 }
 
