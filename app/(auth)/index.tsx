@@ -180,7 +180,7 @@ export default function AuthScreen() {
         showsVerticalScrollIndicator={false}
       >
       <View style={styles.content}>
-        <View style={[styles.logoWrapper, { backgroundColor: theme.background }]}>
+        <View style={styles.logoWrapper}>
           <Image
             source={require("@/assets/phina_logo.png")}
             style={[styles.logo, { width: logoSize, height: logoSize }]}
