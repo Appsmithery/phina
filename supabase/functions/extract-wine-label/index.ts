@@ -6,7 +6,7 @@
 // this function verifies the JWT itself using the project JWKS. When the gateway verifies JWT,
 // the header is still present and this check passes.
 
-import * as jose from "jose";
+import * as jose from "npm:jose";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 /** Minimal type for createClient result (deno-global.d.ts declares it as unknown). */
