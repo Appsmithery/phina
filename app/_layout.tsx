@@ -94,6 +94,8 @@ function SupabaseLayout() {
 
     const handleUrl = async (event: { url: string }) => {
       const url = event.url;
+      console.log("[deep-link] Received URL:", url);
+
       if (!url || url === processedUrl) return;
 
       // Only handle URLs that look like OAuth callbacks (contain auth params)
@@ -102,12 +104,18 @@ function SupabaseLayout() {
         url.includes("refresh_token") ||
         url.includes("code=");
 
+      console.log("[deep-link] isOAuthCallback:", isOAuthCallback);
+
       if (isOAuthCallback) {
+        console.log("[deep-link] ✅ Detected OAuth callback, creating session from URL");
         processedUrl = url;
         const session = await createSessionFromUrl(url);
         if (session) {
+          console.log("[deep-link] ✅ Session created, navigating to tabs");
           setSessionFromAuth(session);
           router.replace("/(tabs)");
+        } else {
+          console.error("[deep-link] ❌ createSessionFromUrl returned null");
         }
       }
     };

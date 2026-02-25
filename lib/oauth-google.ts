@@ -159,6 +159,7 @@ async function signInWithGoogleBrowser(): Promise<Session | null> {
   // When Supabase redirects back to exp://..., the browser closes and result.type = "success".
   // If result.type = "cancel", the deep-link listener in _layout.tsx will still catch the
   // exp:// URL if the OS opens Expo Go with it after auth completes.
+  console.log("[oauth-google] 🔍 Calling openAuthSessionAsync with redirectUrl:", redirectUrl);
   const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
 
   console.log("[oauth-google] Native browser result type:", result.type);
@@ -167,13 +168,15 @@ async function signInWithGoogleBrowser(): Promise<Session | null> {
     console.log("[oauth-google] ✅ Success! Callback URL received:", result.url);
     return await createSessionFromUrl(result.url);
   } else if (result.type === "cancel") {
-    // This can mean the user cancelled OR that the redirect happened but
-    // openAuthSessionAsync didn't catch it (common on Android with exp://).
-    // The _layout.tsx deep-link listener will handle the session if auth actually completed.
-    console.log("[oauth-google] Browser dismissed — auth may still complete via deep link");
+    // "cancel" means the browser closed without matching the redirectUrl prefix.
+    // This happens on Android/iOS when Supabase redirects to the Site URL instead of exp://.
+    // If the deep-link listener in _layout.tsx receives an exp:// URL it will still set the session.
+    console.log("[oauth-google] Browser closed (cancel) — waiting for deep link...");
+    console.log("[oauth-google] 🔍 If no deep-link fires, Supabase is NOT redirecting to:", redirectUrl);
+    console.log("[oauth-google] 🔍 Check Supabase Dashboard → Auth → Redirect URLs includes:", redirectUrl);
     return null;
   } else if (result.type === "dismiss") {
-    console.log("[oauth-google] ❌ Browser was dismissed (check redirect URL is in Supabase allowed list)");
+    console.log("[oauth-google] ❌ Browser was dismissed before completing auth");
     console.log("[oauth-google] 💡 Expected redirect URL:", redirectUrl);
     return null;
   } else {
