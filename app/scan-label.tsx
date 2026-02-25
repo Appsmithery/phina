@@ -114,7 +114,15 @@ export default function SharedScanLabelScreen() {
         region?: string | null;
         ai_summary?: string | null;
         label_photo_url?: string | null;
+        color?: "red" | "white" | "skin-contact" | null;
+        is_sparkling?: boolean | null;
+        ai_overview?: string | null;
+        ai_geography?: string | null;
+        ai_production?: string | null;
+        ai_tasting_notes?: string | null;
+        ai_pairings?: string | null;
       };
+      const color = extracted.color ?? null;
       setLastLabelExtraction({
         producer: extracted.producer ?? null,
         varietal: extracted.varietal ?? null,
@@ -122,6 +130,13 @@ export default function SharedScanLabelScreen() {
         region: extracted.region ?? null,
         ai_summary: extracted.ai_summary ?? null,
         label_photo_url: extracted.label_photo_url ?? null,
+        color: color === "red" || color === "white" || color === "skin-contact" ? color : null,
+        is_sparkling: extracted.is_sparkling ?? null,
+        ai_overview: extracted.ai_overview ?? null,
+        ai_geography: extracted.ai_geography ?? null,
+        ai_production: extracted.ai_production ?? null,
+        ai_tasting_notes: extracted.ai_tasting_notes ?? null,
+        ai_pairings: extracted.ai_pairings ?? null,
       });
       router.replace(getRedirectPath() as any);
     } catch (e) {
