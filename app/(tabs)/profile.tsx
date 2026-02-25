@@ -29,10 +29,10 @@ export default function ProfileScreen() {
       if (!member?.id) return [];
       const { data, error } = await supabase
         .from("ratings")
-        .select("value, body, sweetness")
+        .select("value, body, sweetness, wine_id, wines!ratings_wine_id_fkey(color)")
         .eq("member_id", member.id);
       if (error) throw error;
-      return (data ?? []) as { value: number; body: string | null; sweetness: string | null }[];
+      return data ?? [];
     },
     enabled: !!member?.id,
   });
@@ -51,51 +51,74 @@ export default function ProfileScreen() {
     enabled: !!member?.id,
   });
 
+  const { data: favoritesCount = 0 } = useQuery({
+    queryKey: ["profile", "favorites", member?.id],
+    queryFn: async () => {
+      if (!member?.id) return 0;
+      const { count, error } = await supabase
+        .from("event_favorites")
+        .select("wine_id", { count: "exact", head: true })
+        .eq("member_id", member.id);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!member?.id,
+  });
+
   const stats = useMemo(() => {
+    const PREF_WEIGHT: Record<number, number> = { 1: 3, 0: 1, [-1]: 0 };
+
+    function weightedPreference(
+      ratings: { value: number; trait: string | null }[],
+      toNum: (v: string) => number,
+    ): number | null {
+      let sumWV = 0;
+      let sumW = 0;
+      for (const r of ratings) {
+        if (r.trait == null) continue;
+        const w = PREF_WEIGHT[r.value] ?? 0;
+        if (w === 0) continue;
+        sumW += w;
+        sumWV += w * toNum(r.trait);
+      }
+      return sumW > 0 ? Math.round((sumWV / sumW) * 10) / 10 : null;
+    }
+
+    const bodyToNum = (v: string) => (v === "light" ? 1 : v === "medium" ? 2 : 3);
+    const sweetnessToNum = (v: string) => (v === "dry" ? 1 : v === "off-dry" ? 2 : 3);
+    const colorToNum = (v: string) => (v === "red" ? 1 : v === "skin-contact" ? 2 : 3);
+
     const total = ownRatings.length;
     const liked = ownRatings.filter((r) => r.value === 1).length;
     const pctLiked = total > 0 ? Math.round((liked / total) * 100) : 0;
-    const bodyNums = ownRatings
-      .filter((r) => r.body != null)
-      .map((r) => (r.body === "light" ? 1 : r.body === "medium" ? 2 : 3));
-    const sweetnessNums = ownRatings
-      .filter((r) => r.sweetness != null)
-      .map((r) => (r.sweetness === "dry" ? 1 : r.sweetness === "off-dry" ? 2 : 3));
-    const avgBody =
-      bodyNums.length > 0
-        ? bodyNums.reduce((a, b) => a + b, 0) / bodyNums.length
-        : null;
-    const avgSweetness =
-      sweetnessNums.length > 0
-        ? sweetnessNums.reduce((a, b) => a + b, 0) / sweetnessNums.length
-        : null;
-    const bodyLabel =
-      avgBody != null
-        ? avgBody <= 1.5
-          ? "Light"
-          : avgBody <= 2.5
-            ? "Medium"
-            : "Full"
-        : null;
-    const drynessLabel =
-      avgSweetness != null
-        ? avgSweetness <= 1.5
-          ? "Dry"
-          : avgSweetness <= 2.5
-            ? "Off-dry"
-            : "Sweet"
-        : null;
+
+    const prefBody = weightedPreference(
+      ownRatings.map((r) => ({ value: r.value, trait: r.body })),
+      bodyToNum,
+    );
+    const prefDryness = weightedPreference(
+      ownRatings.map((r) => ({ value: r.value, trait: r.sweetness })),
+      sweetnessToNum,
+    );
+    const prefColor = weightedPreference(
+      ownRatings.map((r) => ({
+        value: r.value,
+        trait: r.wines?.color ?? null,
+      })),
+      colorToNum,
+    );
+
     return {
       totalRatings: total,
       liked,
       pctLiked,
       eventsAttended: eventsCount,
-      avgBody: avgBody != null ? Math.round(avgBody * 10) / 10 : null,
-      avgDryness: avgSweetness != null ? Math.round(avgSweetness * 10) / 10 : null,
-      bodyLabel,
-      drynessLabel,
+      favoritesCount,
+      prefBody,
+      prefDryness,
+      prefColor,
     };
-  }, [ownRatings, eventsCount]);
+  }, [ownRatings, eventsCount, favoritesCount]);
 
   const saveProfile = async () => {
     if (!session?.user?.id) return;
@@ -157,39 +180,82 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         {member?.id != null ? (
-          <View style={[styles.card, styles.statsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Text style={[styles.statsTitle, { color: theme.text }]}>Stats</Text>
-            <View style={styles.statsRow}>
-              <Text style={[styles.statsLabel, { color: theme.textSecondary }]}>Wines rated</Text>
-              <Text style={[styles.statsValue, { color: theme.text }]}>{stats.totalRatings}</Text>
-            </View>
-            <View style={styles.statsRow}>
-              <Text style={[styles.statsLabel, { color: theme.textSecondary }]}>Liked</Text>
-              <Text style={[styles.statsValue, { color: theme.text }]}>
-                {stats.totalRatings > 0 ? `${stats.pctLiked}%` : "—"}
-              </Text>
-            </View>
-            <View style={styles.statsRow}>
-              <Text style={[styles.statsLabel, { color: theme.textSecondary }]}>Events attended</Text>
-              <Text style={[styles.statsValue, { color: theme.text }]}>{stats.eventsAttended}</Text>
-            </View>
-            {stats.avgBody != null ? (
-              <View style={styles.statsRow}>
-                <Text style={[styles.statsLabel, { color: theme.textSecondary }]}>Avg body</Text>
-                <Text style={[styles.statsValue, { color: theme.text }]}>
-                  {stats.bodyLabel} ({stats.avgBody})
-                </Text>
+          <>
+            <View style={styles.statsGrid}>
+              <View style={[styles.statTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Text style={[styles.tileValue, { color: theme.text }]}>{stats.totalRatings}</Text>
+                <Text style={[styles.tileLabel, { color: theme.textSecondary }]}>🍷 Wines Rated</Text>
               </View>
-            ) : null}
-            {stats.avgDryness != null ? (
-              <View style={styles.statsRow}>
-                <Text style={[styles.statsLabel, { color: theme.textSecondary }]}>Avg dryness</Text>
-                <Text style={[styles.statsValue, { color: theme.text }]}>
-                  {stats.drynessLabel} ({stats.avgDryness})
+              <View style={[styles.statTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Text style={[styles.tileValue, { color: theme.text }]}>
+                  {stats.totalRatings > 0 ? `${stats.pctLiked}%` : "—"}
                 </Text>
+                <Text style={[styles.tileLabel, { color: theme.textSecondary }]}>👍 Liked</Text>
               </View>
-            ) : null}
-          </View>
+              <View style={[styles.statTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Text style={[styles.tileValue, { color: theme.text }]}>{stats.eventsAttended}</Text>
+                <Text style={[styles.tileLabel, { color: theme.textSecondary }]}>🎉 Events</Text>
+              </View>
+              <View style={[styles.statTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Text style={[styles.tileValue, { color: theme.text }]}>{stats.favoritesCount}</Text>
+                <Text style={[styles.tileLabel, { color: theme.textSecondary }]}>⭐ Favorites</Text>
+              </View>
+            </View>
+            <View style={[styles.card, styles.preferencesCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Text style={[styles.preferencesTitle, { color: theme.text }]}>Preferences</Text>
+              
+              <View style={styles.scaleContainer}>
+                <Text style={[styles.scaleLabel, { color: theme.textSecondary }]}>Body</Text>
+                <View style={styles.scaleTrackRow}>
+                  <Text style={[styles.scaleExtreme, { color: theme.textMuted }]}>Light</Text>
+                  <View style={styles.scaleTrackWrapper}>
+                    <View style={[styles.scaleTrack, { backgroundColor: theme.border }]} />
+                    {stats.prefBody != null && (
+                      <View style={[styles.scaleMarker, { backgroundColor: theme.primary, left: `${((stats.prefBody - 1) / 2) * 100}%` }]} />
+                    )}
+                  </View>
+                  <Text style={[styles.scaleExtreme, { color: theme.textMuted }]}>Full</Text>
+                </View>
+                {stats.prefBody == null && (
+                  <Text style={[styles.noDataText, { color: theme.textMuted }]}>Not enough data</Text>
+                )}
+              </View>
+
+              <View style={styles.scaleContainer}>
+                <Text style={[styles.scaleLabel, { color: theme.textSecondary }]}>Dryness</Text>
+                <View style={styles.scaleTrackRow}>
+                  <Text style={[styles.scaleExtreme, { color: theme.textMuted }]}>Dry</Text>
+                  <View style={styles.scaleTrackWrapper}>
+                    <View style={[styles.scaleTrack, { backgroundColor: theme.border }]} />
+                    {stats.prefDryness != null && (
+                      <View style={[styles.scaleMarker, { backgroundColor: theme.primary, left: `${((stats.prefDryness - 1) / 2) * 100}%` }]} />
+                    )}
+                  </View>
+                  <Text style={[styles.scaleExtreme, { color: theme.textMuted }]}>Sweet</Text>
+                </View>
+                {stats.prefDryness == null && (
+                  <Text style={[styles.noDataText, { color: theme.textMuted }]}>Not enough data</Text>
+                )}
+              </View>
+
+              <View style={styles.scaleContainer}>
+                <Text style={[styles.scaleLabel, { color: theme.textSecondary }]}>Color</Text>
+                <View style={styles.scaleTrackRow}>
+                  <Text style={[styles.scaleExtreme, { color: theme.textMuted }]}>Red</Text>
+                  <View style={styles.scaleTrackWrapper}>
+                    <View style={[styles.scaleTrack, { backgroundColor: theme.border }]} />
+                    {stats.prefColor != null && (
+                      <View style={[styles.scaleMarker, { backgroundColor: theme.primary, left: `${((stats.prefColor - 1) / 2) * 100}%` }]} />
+                    )}
+                  </View>
+                  <Text style={[styles.scaleExtreme, { color: theme.textMuted }]}>White</Text>
+                </View>
+                {stats.prefColor == null && (
+                  <Text style={[styles.noDataText, { color: theme.textMuted }]}>Not enough data</Text>
+                )}
+              </View>
+            </View>
+          </>
         ) : null}
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.label, { color: theme.textSecondary }]}>Email</Text>
@@ -254,22 +320,91 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 24,
   },
-  label: { fontSize: 12, marginBottom: 4 },
-  value: { fontSize: 16, marginBottom: 16 },
+  label: { fontSize: 12, marginBottom: 4, fontFamily: "Montserrat_400Regular" },
+  value: { fontSize: 16, marginBottom: 16, fontFamily: "Montserrat_400Regular" },
   input: {
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
     fontSize: 16,
     marginBottom: 16,
+    fontFamily: "Montserrat_400Regular",
   },
   button: { borderRadius: 12, padding: 14, alignItems: "center" },
-  buttonText: { color: "#fff", fontWeight: "600" },
+  buttonText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   signOut: { borderWidth: 1, borderRadius: 12, padding: 14, alignItems: "center" },
-  signOutText: { fontSize: 16 },
-  statsCard: { marginBottom: 24 },
-  statsTitle: { fontSize: 14, fontWeight: "600", marginBottom: 12 },
-  statsRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
-  statsLabel: { fontSize: 14 },
-  statsValue: { fontSize: 16, fontWeight: "500" },
+  signOutText: { fontSize: 16, fontFamily: "Montserrat_400Regular" },
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginBottom: 16,
+  },
+  statTile: {
+    width: "48%",
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+    alignItems: "center",
+  },
+  tileValue: {
+    fontFamily: "PlayfairDisplay_700Bold",
+    fontSize: 28,
+    marginBottom: 4,
+  },
+  tileLabel: {
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 13,
+    textAlign: "center",
+  },
+  preferencesCard: {
+    marginBottom: 24,
+  },
+  preferencesTitle: {
+    fontFamily: "Montserrat_600SemiBold",
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  scaleContainer: {
+    marginBottom: 16,
+  },
+  scaleLabel: {
+    fontFamily: "Montserrat_600SemiBold",
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  scaleTrackRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  scaleExtreme: {
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 11,
+    width: 40,
+  },
+  scaleTrackWrapper: {
+    flex: 1,
+    height: 4,
+    position: "relative",
+  },
+  scaleTrack: {
+    width: "100%",
+    height: 4,
+    borderRadius: 2,
+  },
+  scaleMarker: {
+    position: "absolute",
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    top: -5,
+    marginLeft: -7,
+  },
+  noDataText: {
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 11,
+    textAlign: "center",
+    marginTop: 4,
+  },
 });

@@ -22,14 +22,20 @@ interface SupabaseStorageClient {
 const PERPLEXITY_URL = "https://api.perplexity.ai/chat/completions";
 const MODEL = "sonar-pro";
 
-const EXTRACTION_PROMPT = `You are analyzing a photo of a wine bottle label. Extract the following from the label text and any recognizable design or branding. Use your knowledge (and search if helpful) to add a short summary. If something is not visible or unclear, omit it or use null.
+const EXTRACTION_PROMPT = `You are analyzing a photo of a wine bottle label. Extract the following from the label text and any recognizable design or branding. Use your knowledge (and search if helpful) to provide structured information. If something is not visible or unclear, omit it or use null.
 
 Return a JSON object with exactly these keys (use null for missing values):
 - producer: string (winery or producer name)
 - varietal: string (e.g. Pinot Noir, Chardonnay)
 - vintage: number or null (year)
 - region: string (e.g. Burgundy, Napa Valley)
-- ai_summary: string (2-3 sentences about this wine's region, typical flavor profile, and any notable facts a dinner guest would find interesting; use search/knowledge to enrich if needed; if you cannot infer, use a brief generic note or null)`;
+- color: "red", "white", or "skin-contact" (for rose/orange wines). Infer from label color, varietal, or region if not explicit.
+- is_sparkling: boolean (true if champagne, prosecco, cava, cremant, pet-nat, or any sparkling wine; false otherwise)
+- ai_overview: string (1-2 sentences: producer background, notable ratings/acclaim, fun facts, general summary)
+- ai_geography: string (1-2 sentences: region details, terroir, climate)
+- ai_production: string (1-2 sentences: winemaking methods, aging, fermentation)
+- ai_tasting_notes: string (1-2 sentences: aromas, flavors, body, finish)
+- ai_pairings: string (1-2 sentences: food pairing suggestions)`;
 
 const jsonSchema = {
   type: "object",
@@ -38,9 +44,16 @@ const jsonSchema = {
     varietal: { type: ["string", "null"] },
     vintage: { type: ["integer", "null"] },
     region: { type: ["string", "null"] },
+    color: { type: ["string", "null"], enum: ["red", "white", "skin-contact", null] },
+    is_sparkling: { type: ["boolean", "null"] },
     ai_summary: { type: ["string", "null"] },
+    ai_overview: { type: ["string", "null"] },
+    ai_geography: { type: ["string", "null"] },
+    ai_production: { type: ["string", "null"] },
+    ai_tasting_notes: { type: ["string", "null"] },
+    ai_pairings: { type: ["string", "null"] },
   },
-  required: ["producer", "varietal", "vintage", "region", "ai_summary"],
+  required: ["producer", "varietal", "vintage", "region", "color", "is_sparkling", "ai_overview", "ai_geography", "ai_production", "ai_tasting_notes", "ai_pairings"],
   additionalProperties: false,
 };
 
@@ -55,17 +68,34 @@ interface WineExtraction {
   vintage: number | null;
   region: string | null;
   ai_summary: string | null;
+  color: "red" | "white" | "skin-contact" | null;
+  is_sparkling: boolean | null;
+  ai_overview: string | null;
+  ai_geography: string | null;
+  ai_production: string | null;
+  ai_tasting_notes: string | null;
+  ai_pairings: string | null;
   label_photo_url: string | null;
 }
 
 function normalizeWineExtraction(obj: unknown): Omit<WineExtraction, "label_photo_url"> {
   const o = obj && typeof obj === "object" ? obj as Record<string, unknown> : {};
+  const color = typeof o.color === "string" && ["red", "white", "skin-contact"].includes(o.color) 
+    ? o.color as "red" | "white" | "skin-contact" 
+    : null;
   return {
     producer: typeof o.producer === "string" ? o.producer : null,
     varietal: typeof o.varietal === "string" ? o.varietal : null,
     vintage: typeof o.vintage === "number" && Number.isInteger(o.vintage) ? o.vintage : null,
     region: typeof o.region === "string" ? o.region : null,
     ai_summary: typeof o.ai_summary === "string" ? o.ai_summary : null,
+    color,
+    is_sparkling: typeof o.is_sparkling === "boolean" ? o.is_sparkling : null,
+    ai_overview: typeof o.ai_overview === "string" ? o.ai_overview : null,
+    ai_geography: typeof o.ai_geography === "string" ? o.ai_geography : null,
+    ai_production: typeof o.ai_production === "string" ? o.ai_production : null,
+    ai_tasting_notes: typeof o.ai_tasting_notes === "string" ? o.ai_tasting_notes : null,
+    ai_pairings: typeof o.ai_pairings === "string" ? o.ai_pairings : null,
   };
 }
 

@@ -126,6 +126,22 @@ export default function WineDetailScreen() {
       <Text style={[styles.meta, { color: theme.textSecondary }]}>
         {[wine.varietal, wine.vintage?.toString(), wine.region].filter(Boolean).join(" · ")}
       </Text>
+      {(wine.color || wine.is_sparkling) && (
+        <View style={styles.badgeRow}>
+          {wine.color && (
+            <View style={[styles.badge, { backgroundColor: wine.color === "red" ? "#B55A5A20" : wine.color === "white" ? "#F2EFE920" : "#D9BBAE20", borderColor: wine.color === "red" ? "#B55A5A" : wine.color === "white" ? "#9A8B82" : "#D9BBAE" }]}>
+              <Text style={[styles.badgeText, { color: wine.color === "red" ? "#B55A5A" : wine.color === "white" ? "#6B5B54" : "#B58271" }]}>
+                {wine.color === "red" ? "Red" : wine.color === "white" ? "White" : "Rose / Orange"}
+              </Text>
+            </View>
+          )}
+          {wine.is_sparkling && (
+            <View style={[styles.badge, { backgroundColor: theme.primary + "20", borderColor: theme.primary }]}>
+              <Text style={[styles.badgeText, { color: theme.primary }]}>Sparkling</Text>
+            </View>
+          )}
+        </View>
+      )}
       {(wine.quantity != null && wine.quantity >= 1) && (
         <Text style={[styles.quantityText, { color: theme.textSecondary }]}>Quantity: {wine.quantity}</Text>
       )}
@@ -171,8 +187,44 @@ export default function WineDetailScreen() {
         </TouchableOpacity>
       )}
 
-      {wine.ai_summary ? (
-        <Text style={[styles.summary, { color: theme.text }]}>{wine.ai_summary}</Text>
+      {(wine.ai_overview || wine.ai_geography || wine.ai_production || wine.ai_tasting_notes || wine.ai_pairings) ? (
+        <>
+          {wine.ai_overview && (
+            <>
+              <Text style={[styles.sectionHeader, { color: theme.text }]}>Overview</Text>
+              <Text style={[styles.sectionBody, { color: theme.text }]}>{wine.ai_overview}</Text>
+            </>
+          )}
+          {wine.ai_geography && (
+            <>
+              <Text style={[styles.sectionHeader, { color: theme.text }]}>Geography</Text>
+              <Text style={[styles.sectionBody, { color: theme.text }]}>{wine.ai_geography}</Text>
+            </>
+          )}
+          {wine.ai_production && (
+            <>
+              <Text style={[styles.sectionHeader, { color: theme.text }]}>Production</Text>
+              <Text style={[styles.sectionBody, { color: theme.text }]}>{wine.ai_production}</Text>
+            </>
+          )}
+          {wine.ai_tasting_notes && (
+            <>
+              <Text style={[styles.sectionHeader, { color: theme.text }]}>Tasting Notes</Text>
+              <Text style={[styles.sectionBody, { color: theme.text }]}>{wine.ai_tasting_notes}</Text>
+            </>
+          )}
+          {wine.ai_pairings && (
+            <>
+              <Text style={[styles.sectionHeader, { color: theme.text }]}>Suggested Pairings</Text>
+              <Text style={[styles.sectionBody, { color: theme.text }]}>{wine.ai_pairings}</Text>
+            </>
+          )}
+        </>
+      ) : wine.ai_summary ? (
+        <>
+          <Text style={[styles.sectionHeader, { color: theme.text }]}>About</Text>
+          <Text style={[styles.sectionBody, { color: theme.text }]}>{wine.ai_summary}</Text>
+        </>
       ) : null}
       {canRemove && (
         <>
@@ -198,20 +250,25 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 16, paddingBottom: 32 },
   photo: { width: "100%", height: 200, borderRadius: 14, marginBottom: 16 },
-  producer: { fontSize: 22, fontWeight: "700", marginBottom: 4 },
-  meta: { fontSize: 16, marginBottom: 8 },
-  quantityText: { fontSize: 14, marginBottom: 16 },
+  producer: { fontSize: 22, fontWeight: "700", marginBottom: 4, fontFamily: "PlayfairDisplay_700Bold" },
+  meta: { fontSize: 16, marginBottom: 8, fontFamily: "Montserrat_400Regular" },
+  quantityText: { fontSize: 14, marginBottom: 16, fontFamily: "Montserrat_400Regular" },
   ratingBlock: { borderWidth: 1, borderRadius: 12, padding: 14, marginBottom: 12 },
-  ratingBlockTitle: { fontSize: 14, fontWeight: "600", marginBottom: 8 },
-  ratingVote: { fontSize: 16, marginBottom: 4 },
-  ratingMeta: { fontSize: 14, marginBottom: 2 },
-  noRating: { fontSize: 14, marginBottom: 12 },
+  ratingBlockTitle: { fontSize: 14, fontWeight: "600", marginBottom: 8, fontFamily: "Montserrat_600SemiBold" },
+  ratingVote: { fontSize: 16, marginBottom: 4, fontFamily: "Montserrat_400Regular" },
+  ratingMeta: { fontSize: 14, marginBottom: 2, fontFamily: "Montserrat_400Regular" },
+  noRating: { fontSize: 14, marginBottom: 12, fontFamily: "Montserrat_400Regular" },
   rateButton: { borderRadius: 12, padding: 12, alignItems: "center", marginBottom: 16 },
-  rateButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  rateButtonText: { color: "#fff", fontSize: 16, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   summary: { fontSize: 15, lineHeight: 22 },
+  sectionHeader: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 16, marginTop: 16, marginBottom: 4 },
+  sectionBody: { fontFamily: "Montserrat_400Regular", fontSize: 15, lineHeight: 22 },
   editButton: { borderRadius: 12, padding: 12, alignItems: "center", marginTop: 24 },
-  editButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  editButtonText: { color: "#fff", fontSize: 16, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   removeButton: { borderWidth: 1, borderRadius: 12, padding: 12, alignItems: "center", marginTop: 12 },
-  removeButtonText: { fontSize: 16, fontWeight: "500" },
-  placeholder: { padding: 24 },
+  removeButtonText: { fontSize: 16, fontWeight: "500", fontFamily: "Montserrat_400Regular" },
+  placeholder: { padding: 24, fontFamily: "Montserrat_400Regular" },
+  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
+  badge: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
+  badgeText: { fontSize: 12, fontWeight: "600" },
 });

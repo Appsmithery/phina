@@ -163,9 +163,9 @@ export default function CellarScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginHorizontal: 16, marginTop: 16, marginBottom: 8 },
-  title: { fontSize: 22, fontWeight: "700" },
+  title: { fontSize: 22, fontWeight: "700", fontFamily: "PlayfairDisplay_700Bold" },
   addButton: { borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16 },
-  addButtonText: { color: "#fff", fontSize: 15, fontWeight: "600" },
+  addButtonText: { color: "#fff", fontSize: 15, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   search: {
     borderWidth: 1,
     borderRadius: 12,
@@ -173,6 +173,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginHorizontal: 16,
     marginBottom: 16,
+    fontFamily: "Montserrat_400Regular",
   },
   list: { padding: 16, paddingTop: 0 },
   card: {
@@ -181,8 +182,8 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
-  cardTitle: { fontSize: 18, fontWeight: "600", marginBottom: 4 },
-  cardMeta: { fontSize: 14, marginBottom: 2 },
-  cardEvent: { fontSize: 12 },
-  placeholder: { padding: 24, textAlign: "center" },
+  cardTitle: { fontSize: 18, fontWeight: "600", marginBottom: 4, fontFamily: "PlayfairDisplay_600SemiBold" },
+  cardMeta: { fontSize: 14, marginBottom: 2, fontFamily: "Montserrat_400Regular" },
+  cardEvent: { fontSize: 12, fontFamily: "Montserrat_300Light" },
+  placeholder: { padding: 24, textAlign: "center", fontFamily: "Montserrat_400Regular" },
 });

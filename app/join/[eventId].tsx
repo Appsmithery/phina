@@ -69,5 +69,5 @@ export default function JoinEventScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
-  text: { marginTop: 16, fontSize: 16 },
+  text: { marginTop: 16, fontSize: 16, fontFamily: "Montserrat_400Regular" },
 });

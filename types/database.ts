@@ -90,6 +90,13 @@ export interface Database {
           label_photo_url: string | null;
           ai_summary: string | null;
           quantity: number;
+          color: "red" | "white" | "skin-contact" | null;
+          is_sparkling: boolean;
+          ai_overview: string | null;
+          ai_geography: string | null;
+          ai_production: string | null;
+          ai_tasting_notes: string | null;
+          ai_pairings: string | null;
           price_range: string | null;
           price_cents: number | null;
           created_at: string;
@@ -105,6 +112,13 @@ export interface Database {
           label_photo_url?: string | null;
           ai_summary?: string | null;
           quantity?: number;
+          color?: "red" | "white" | "skin-contact" | null;
+          is_sparkling?: boolean;
+          ai_overview?: string | null;
+          ai_geography?: string | null;
+          ai_production?: string | null;
+          ai_tasting_notes?: string | null;
+          ai_pairings?: string | null;
           price_range?: string | null;
           price_cents?: number | null;
           created_at?: string;
@@ -120,6 +134,13 @@ export interface Database {
           label_photo_url?: string | null;
           ai_summary?: string | null;
           quantity?: number;
+          color?: "red" | "white" | "skin-contact" | null;
+          is_sparkling?: boolean;
+          ai_overview?: string | null;
+          ai_geography?: string | null;
+          ai_production?: string | null;
+          ai_tasting_notes?: string | null;
+          ai_pairings?: string | null;
           price_range?: string | null;
           price_cents?: number | null;
           created_at?: string;
@@ -157,7 +178,22 @@ export interface Database {
           confidence?: number | null;
           created_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "ratings_wine_id_fkey";
+            columns: ["wine_id"];
+            isOneToOne: false;
+            referencedRelation: "wines";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ratings_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "members";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       event_favorites: {
         Row: {
@@ -231,6 +267,13 @@ export interface Database {
           label_photo_url: string | null;
           ai_summary: string | null;
           quantity: number;
+          color: "red" | "white" | "skin-contact" | null;
+          is_sparkling: boolean;
+          ai_overview: string | null;
+          ai_geography: string | null;
+          ai_production: string | null;
+          ai_tasting_notes: string | null;
+          ai_pairings: string | null;
           created_at: string;
           price_range: string | null;
           price_cents: number | null;

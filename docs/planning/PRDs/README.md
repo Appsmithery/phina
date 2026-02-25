@@ -23,5 +23,7 @@ See the [planning guide](../planning%20guide.md) for full conventions and migrat
 
 | PRD ID | Title | Status | Area |
 |--------|--------|--------|------|
-| PRD-2026-002 | [Quantity (1–12) for Events and Cellar](./PRD-2026-002__quantity-events-cellar.md) | 🧠 Draft | Events |
+| PRD-2026-002 | [Quantity (1–12) for Events and Cellar](./archive/PRD-2026-002__quantity-events-cellar.md) (archived) | 🚀 Shipped | Events |
 | PRD-2026-003 | [User preferences and social data for wines](./PRD-2026-003__user-preferences-social-data-wines.md) | 🧠 Draft | Preferences |
+
+Shipped or completed PRDs may be moved to `archive/` and marked archived in the doc; the PRD index in [ROADMAP.md](../ROADMAP.md) links to the archived path.

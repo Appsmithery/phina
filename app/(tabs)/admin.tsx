@@ -85,7 +85,7 @@ export default function AdminScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  title: { fontSize: 24, fontWeight: "700", padding: 16 },
+  title: { fontSize: 24, fontWeight: "700", padding: 16, fontFamily: "PlayfairDisplay_700Bold" },
   list: { padding: 16, paddingTop: 0 },
   card: {
     borderWidth: 1,
@@ -97,11 +97,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   cardMain: { flex: 1 },
-  name: { fontSize: 16, fontWeight: "600", marginBottom: 2 },
-  email: { fontSize: 14 },
+  name: { fontSize: 16, fontWeight: "600", marginBottom: 2, fontFamily: "Montserrat_600SemiBold" },
+  email: { fontSize: 14, fontFamily: "Montserrat_400Regular" },
   badge: { alignSelf: "flex-start", marginTop: 6, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  badgeText: { color: "#fff", fontSize: 12, fontWeight: "600" },
+  badgeText: { color: "#fff", fontSize: 12, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   toggleBtn: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
-  toggleBtnText: { color: "#fff", fontWeight: "600" },
-  placeholder: { padding: 24, textAlign: "center" },
+  toggleBtnText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
+  placeholder: { padding: 24, textAlign: "center", fontFamily: "Montserrat_400Regular" },
 });

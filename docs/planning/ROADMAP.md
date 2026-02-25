@@ -13,6 +13,7 @@ This is the canonical roadmap for this repo. PRDs, implementation plans (Cursor/
 
 - **PRDs** live in `docs/planning/PRDs/` and are referenced by stable IDs (e.g. `PRD-2026-001`). Use [PRD_Template.md](./PRDs/PRD_Template.md) and the [planning guide](./planning%20guide.md) for naming and structure.
 - **Plan Mode notes** live in `docs/planning/Plans/` and use the same PRD ID (e.g. `PRD-2026-001__cursor-plan.md`).
+- **Architecture docs** live in `docs/architecture/` for cross-cutting technical designs that evolve across releases (e.g. [Taste Graph](../architecture/taste-graph.md)).
 - **Status conventions:** 🧠 Draft · ✅ Ready · 🛠 In progress · 🧪 Validating · 🚀 Shipped · 🧊 Parked
 - When you create or update a PRD, add or update its line in **Now / Next / Later** and in the **PRD index** below.
 
@@ -28,8 +29,7 @@ This is the canonical roadmap for this repo. PRDs, implementation plans (Cursor/
 ### Next (queued)
 
 - **Sign in / sign up with Google** — Add Google OAuth alongside magic-link email. Reduces friction for new and returning members. Status: 🧠 — Target: TBD — No PRD yet.
-- **Personal cellars** — Wine collections not tied to events: users can build, search, and manage their own cellar (bottles they’ve had or want to try). Enables use outside event-only flow. Status: 🛠 — Target: TBD — No PRD yet. **Shipped (foundation):** Profile stats (wines rated, % liked, events attended, avg body/dryness); Add wine from My Wines (non-event); Rate personal wines anytime; optional label scan for personal wines. **Foundation:** Quantity (1–12) is implemented first for Events per [PRD-2026-002](./PRDs/PRD-2026-002__quantity-events-cellar.md); the same quantity semantics will be reused for Cellar when built.
-- **Quantity (1–12) for Events** — Add quantity input to the scan/add-wine flow and persist in DB for event wines; prepares reuse for Cellar. Status: 🧠 — Target: TBD — [PRD-2026-002](./PRDs/PRD-2026-002__quantity-events-cellar.md).
+- **Personal cellars** — Wine collections not tied to events: users can build, search, and manage their own cellar (bottles they’ve had or want to try). Enables use outside event-only flow. Status: 🛠 — Target: TBD — No PRD yet. **Shipped (foundation):** Profile stats (wines rated, % liked, events attended, avg body/dryness); Add wine from My Wines (non-event); Rate personal wines anytime; optional label scan for personal wines. **Foundation:** Quantity (1–12) for Events is shipped per [PRD-2026-002](./PRDs/archive/PRD-2026-002__quantity-events-cellar.md) (archived); the same semantics will be reused for Cellar when built.
 - **Payments** — Two streams: (1) **Donations** — optional one-time donate-to-project when joining events; (2) **Subscription** — $2.99/month for personal cellar users (unlocks/cellar features). Subscription tier depends on Personal cellars. Status: 🧠 — Target: TBD — No PRD yet.
 
 ### Later (ideas)
@@ -68,6 +68,7 @@ This is the canonical roadmap for this repo. PRDs, implementation plans (Cursor/
 
 - **Goal:** Let users add metadata to their rankings and build a per-user preferences graph.
 - **Includes:** User preferences and social data for wines (ranking metadata, preference graph) — [PRD-2026-003](./PRDs/PRD-2026-003__user-preferences-social-data-wines.md).
+- **Architecture:** [Taste Graph](../architecture/taste-graph.md) — signal sources, weighted preference algorithm, and evolution plan.
 
 ### v0.6+ (discovery)
 
@@ -76,7 +77,7 @@ This is the canonical roadmap for this repo. PRDs, implementation plans (Cursor/
 
 ## User preferences and discovery (later)
 
-The **preferences graph** is built from ranking metadata: today's thumbs up/meh/down, plus any new structured metadata (e.g. tags, tasting notes, preferred contexts) added in the user preferences phase. That phase is the **foundation** for:
+The **preferences graph** (see [Taste Graph architecture](../architecture/taste-graph.md)) is built from ranking metadata: today's thumbs up/meh/down, plus any new structured metadata (e.g. tags, tasting notes, preferred contexts) added in the user preferences phase. That phase is the **foundation** for:
 
 - **Shop wine picker** — User photographs a bottle or shelf in a shop → app matches to known wines and the user's preference profile → "this fits your taste" or "you liked similar at event X."
 - **Recipe/meal pairing** — User uploads a recipe doc or pastes a link → app derives a meal profile → recommends wines from the user's cellar or taste profile.
@@ -89,7 +90,7 @@ Future PRDs for preferences, shop picker, and recipe pairing should reference th
 | Area        | PRD ID | Title | Status |
 |-------------|--------|--------|--------|
 | *Planned*   | — | Label photo extraction (troubleshoot & finalize) | 🛠 Now |
-| Events      | PRD-2026-002 | Quantity (1–12) for Events and Cellar | 🧠 Draft |
+| Events      | PRD-2026-002 | [Quantity (1–12) for Events and Cellar](./PRDs/archive/PRD-2026-002__quantity-events-cellar.md) (archived) | 🚀 Shipped |
 | Auth        | — | Sign in/up with Google | 🧠 Next |
 | Product     | — | Profile stats, cellar add wine & rate personal wines | 🚀 Shipped |
 | Product     | — | Personal cellars | 🛠 In progress |
@@ -195,6 +196,7 @@ wines
   varietal        text
   vintage         int
   region          text
+  quantity        smallint DEFAULT 1 CHECK (quantity >= 1 AND quantity <= 12)
   label_photo_url text
   ai_summary      text          -- Sonar-generated background
   created_at      timestamptz
@@ -238,7 +240,7 @@ GROUP BY wine_id;
 
 ---
 
-## Proposed Tech Stack Summary
+## Tech Stack Summary
 
 | Layer | Technology |
 |-------|------------|
@@ -268,9 +270,9 @@ Email entry → Magic link → Profile setup (name)
 - Event list → Event detail
   - (Host) "Show QR Code" — full-screen QR for members to scan
   - (Host) "Add wine" for walk-in manual entry
-  - (Member) Scan QR → joins event → "Add my wine" → Camera → Review extracted info → Confirm
-  - Wine list (all bottles for this event, with AI summaries)
-    - Wine detail (photo, producer, varietal, vintage, region, AI summary)
+  - (Member) Scan QR → joins event → "Add my wine" → (optional Scan label) → Set quantity (1–12) + review fields → Confirm
+  - Wine list (all bottles for this event, with AI summaries; quantity shown when > 1)
+    - Wine detail (photo, producer, varietal, vintage, region, quantity, AI summary)
   - (Host) "Start rating round" for a wine → push sent to all members
   - (Host) During round: sees "8 of 12 voted" (no results visible)
   - (Host) "End round" → round locked, vote count finalized

@@ -26,6 +26,13 @@ const LABEL_PHOTOS_BUCKET = "label-photos";
 
 const QUANTITY_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
 
+const COLOR_OPTIONS: { label: string; value: "red" | "white" | "skin-contact" | null }[] = [
+  { label: "Not set", value: null },
+  { label: "Red", value: "red" },
+  { label: "White", value: "white" },
+  { label: "Rose / Orange", value: "skin-contact" },
+];
+
 export default function EditWineScreen() {
   const { wineId } = useLocalSearchParams<{ wineId: string }>();
   const { member } = useSupabase();
@@ -38,9 +45,17 @@ export default function EditWineScreen() {
   const [aiSummary, setAiSummary] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [quantityModalVisible, setQuantityModalVisible] = useState(false);
+  const [color, setColor] = useState<"red" | "white" | "skin-contact" | null>(null);
+  const [colorModalVisible, setColorModalVisible] = useState(false);
+  const [isSparkling, setIsSparkling] = useState(false);
   const [loading, setLoading] = useState(false);
   const [replacingPhoto, setReplacingPhoto] = useState(false);
   const [localPhotoUrl, setLocalPhotoUrl] = useState<string | null>(null);
+  const [aiOverview, setAiOverview] = useState("");
+  const [aiGeography, setAiGeography] = useState("");
+  const [aiProduction, setAiProduction] = useState("");
+  const [aiTastingNotes, setAiTastingNotes] = useState("");
+  const [aiPairings, setAiPairings] = useState("");
 
   const { data: wine, isLoading } = useQuery({
     queryKey: ["wine", wineId],
@@ -64,7 +79,14 @@ export default function EditWineScreen() {
       setRegion(wine.region ?? "");
       setAiSummary(wine.ai_summary ?? "");
       setQuantity(wine.quantity ?? 1);
+      setColor(wine.color ?? null);
+      setIsSparkling(wine.is_sparkling ?? false);
       setLocalPhotoUrl(wine.label_photo_url ?? null);
+      setAiOverview(wine.ai_overview ?? "");
+      setAiGeography(wine.ai_geography ?? "");
+      setAiProduction(wine.ai_production ?? "");
+      setAiTastingNotes(wine.ai_tasting_notes ?? "");
+      setAiPairings(wine.ai_pairings ?? "");
     }
   }, [wine]);
 
@@ -78,6 +100,13 @@ export default function EditWineScreen() {
         if (extracted.region != null) setRegion(extracted.region);
         if (extracted.ai_summary != null) setAiSummary(extracted.ai_summary);
         if (extracted.label_photo_url != null) setLocalPhotoUrl(extracted.label_photo_url);
+        if (extracted.color != null) setColor(extracted.color);
+        if (extracted.is_sparkling != null) setIsSparkling(extracted.is_sparkling);
+        if (extracted.ai_overview != null) setAiOverview(extracted.ai_overview);
+        if (extracted.ai_geography != null) setAiGeography(extracted.ai_geography);
+        if (extracted.ai_production != null) setAiProduction(extracted.ai_production);
+        if (extracted.ai_tasting_notes != null) setAiTastingNotes(extracted.ai_tasting_notes);
+        if (extracted.ai_pairings != null) setAiPairings(extracted.ai_pairings);
       }
     }, [])
   );
@@ -153,6 +182,13 @@ export default function EditWineScreen() {
           region: region.trim() || null,
           ai_summary: aiSummary.trim() || null,
           quantity,
+          color,
+          is_sparkling: isSparkling,
+          ai_overview: aiOverview.trim() || null,
+          ai_geography: aiGeography.trim() || null,
+          ai_production: aiProduction.trim() || null,
+          ai_tasting_notes: aiTastingNotes.trim() || null,
+          ai_pairings: aiPairings.trim() || null,
         })
         .eq("id", wineId);
       if (error) throw error;
@@ -273,6 +309,52 @@ export default function EditWineScreen() {
                 </View>
               </Pressable>
             </Modal>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Color</Text>
+            <TouchableOpacity
+              style={[styles.input, styles.quantityTouchable, { borderColor: theme.border }]}
+              onPress={() => setColorModalVisible(true)}
+            >
+              <Text style={{ color: theme.text, fontSize: 16 }}>
+                {COLOR_OPTIONS.find((o) => o.value === color)?.label ?? "Not set"}
+              </Text>
+            </TouchableOpacity>
+            <Modal
+              visible={colorModalVisible}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setColorModalVisible(false)}
+            >
+              <Pressable style={styles.modalOverlay} onPress={() => setColorModalVisible(false)}>
+                <View style={[styles.modalContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                  <Text style={[styles.modalTitle, { color: theme.text }]}>Color</Text>
+                  {COLOR_OPTIONS.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.label}
+                      style={[
+                        styles.quantityOption,
+                        color === opt.value && { backgroundColor: theme.primary + "20" },
+                      ]}
+                      onPress={() => {
+                        setColor(opt.value);
+                        setColorModalVisible(false);
+                      }}
+                    >
+                      <Text style={[styles.quantityOptionText, { color: theme.text }]}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </Pressable>
+            </Modal>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Sparkling</Text>
+            <TouchableOpacity
+              style={[styles.sparklingToggle, { borderColor: theme.border }]}
+              onPress={() => setIsSparkling(!isSparkling)}
+            >
+              <Text style={[styles.sparklingToggleText, { color: theme.text }]}>
+                {isSparkling ? "Yes" : "No"}
+              </Text>
+              <View style={[styles.sparklingIndicator, isSparkling && { backgroundColor: theme.primary }]} />
+            </TouchableOpacity>
             <Text style={[styles.label, { color: theme.textSecondary }]}>Producer</Text>
             <TextInput
               style={[styles.input, { color: theme.text, borderColor: theme.border }]}
@@ -365,6 +447,23 @@ const styles = StyleSheet.create({
   quantityOption: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 10, marginBottom: 4 },
   quantityOptionText: { fontSize: 16 },
   button: { borderRadius: 12, padding: 14, alignItems: "center" },
-  buttonText: { color: "#fff", fontWeight: "600" },
-  hintBlank: { fontSize: 12, marginTop: 8, textAlign: "center" },
+  buttonText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
+  hintBlank: { fontSize: 12, marginTop: 8, textAlign: "center", fontFamily: "Montserrat_400Regular" },
+  sparklingToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  sparklingToggleText: { fontSize: 16 },
+  sparklingIndicator: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#E5DDD6",
+  },
 });

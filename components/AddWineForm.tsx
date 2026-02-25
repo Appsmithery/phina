@@ -25,6 +25,13 @@ const PRICE_RANGE_OPTIONS: { label: string; value: string | null }[] = [
   { label: ">50", value: ">50" },
 ];
 
+const COLOR_OPTIONS: { label: string; value: "red" | "white" | "skin-contact" | null }[] = [
+  { label: "Not set", value: null },
+  { label: "Red", value: "red" },
+  { label: "White", value: "white" },
+  { label: "Rose / Orange", value: "skin-contact" },
+];
+
 export type AddWineFormProps = {
   eventId: string | null;
   memberId: string;
@@ -52,7 +59,15 @@ export function AddWineForm({
   const [priceCents, setPriceCents] = useState("");
   const [priceRange, setPriceRange] = useState<string | null>(null);
   const [priceRangeModalVisible, setPriceRangeModalVisible] = useState(false);
+  const [color, setColor] = useState<"red" | "white" | "skin-contact" | null>(null);
+  const [colorModalVisible, setColorModalVisible] = useState(false);
+  const [isSparkling, setIsSparkling] = useState(false);
   const [pendingLabelPhotoUrl, setPendingLabelPhotoUrl] = useState<string | null>(null);
+  const [aiOverview, setAiOverview] = useState("");
+  const [aiGeography, setAiGeography] = useState("");
+  const [aiProduction, setAiProduction] = useState("");
+  const [aiTastingNotes, setAiTastingNotes] = useState("");
+  const [aiPairings, setAiPairings] = useState("");
 
   useFocusEffect(
     useCallback(() => {
@@ -64,6 +79,13 @@ export function AddWineForm({
         setRegion(extracted.region ?? "");
         setAiSummary(extracted.ai_summary ?? "");
         setPendingLabelPhotoUrl(extracted.label_photo_url ?? null);
+        if (extracted.color != null) setColor(extracted.color);
+        if (extracted.is_sparkling != null) setIsSparkling(extracted.is_sparkling);
+        setAiOverview(extracted.ai_overview ?? "");
+        setAiGeography(extracted.ai_geography ?? "");
+        setAiProduction(extracted.ai_production ?? "");
+        setAiTastingNotes(extracted.ai_tasting_notes ?? "");
+        setAiPairings(extracted.ai_pairings ?? "");
       }
     }, [])
   );
@@ -99,9 +121,16 @@ export function AddWineForm({
         region: region.trim() || null,
         ai_summary: aiSummary.trim() || null,
         quantity: quantity,
+        color: color,
+        is_sparkling: isSparkling,
         label_photo_url: pendingLabelPhotoUrl || null,
         price_range: priceRange || null,
         price_cents: priceCentsValue,
+        ai_overview: aiOverview.trim() || null,
+        ai_geography: aiGeography.trim() || null,
+        ai_production: aiProduction.trim() || null,
+        ai_tasting_notes: aiTastingNotes.trim() || null,
+        ai_pairings: aiPairings.trim() || null,
       });
       if (error) throw error;
       onSuccess();
@@ -205,6 +234,52 @@ export function AddWineForm({
             </View>
           </Pressable>
         </Modal>
+        <Text style={[styles.label, { color: theme.textSecondary }]}>Color</Text>
+        <TouchableOpacity
+          style={[styles.input, styles.quantityTouchable, { borderColor: theme.border }]}
+          onPress={() => setColorModalVisible(true)}
+        >
+          <Text style={{ color: theme.text, fontSize: 16 }}>
+            {COLOR_OPTIONS.find((o) => o.value === color)?.label ?? "Not set"}
+          </Text>
+        </TouchableOpacity>
+        <Modal
+          visible={colorModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setColorModalVisible(false)}
+        >
+          <Pressable style={styles.modalOverlay} onPress={() => setColorModalVisible(false)}>
+            <View style={[styles.modalContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Color</Text>
+              {COLOR_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt.label}
+                  style={[
+                    styles.quantityOption,
+                    color === opt.value && { backgroundColor: theme.primary + "20" },
+                  ]}
+                  onPress={() => {
+                    setColor(opt.value);
+                    setColorModalVisible(false);
+                  }}
+                >
+                  <Text style={[styles.quantityOptionText, { color: theme.text }]}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Pressable>
+        </Modal>
+        <Text style={[styles.label, { color: theme.textSecondary }]}>Sparkling</Text>
+        <TouchableOpacity
+          style={[styles.sparklingToggle, { borderColor: theme.border }]}
+          onPress={() => setIsSparkling(!isSparkling)}
+        >
+          <Text style={[styles.sparklingToggleText, { color: theme.text }]}>
+            {isSparkling ? "Yes" : "No"}
+          </Text>
+          <View style={[styles.sparklingIndicator, isSparkling && { backgroundColor: theme.primary }]} />
+        </TouchableOpacity>
         <Text style={[styles.label, { color: theme.textSecondary }]}>Exact price (optional)</Text>
         <TextInput
           style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.background }]}
@@ -288,25 +363,43 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: 28 },
   scanButton: { borderWidth: 1, borderRadius: 14, padding: 16, marginBottom: 16 },
-  scanButtonText: { fontSize: 16, fontWeight: "600" },
-  scanHint: { fontSize: 12, marginTop: 4 },
+  scanButtonText: { fontSize: 16, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
+  scanHint: { fontSize: 12, marginTop: 4, fontFamily: "Montserrat_300Light" },
   card: { borderWidth: 1, borderRadius: 14, padding: 16 },
-  label: { fontSize: 12, marginBottom: 4 },
+  label: { fontSize: 12, marginBottom: 4, fontFamily: "Montserrat_400Regular" },
   input: {
     borderWidth: 1,
     borderRadius: 12,
     padding: 12,
     fontSize: 16,
     marginBottom: 16,
+    fontFamily: "Montserrat_400Regular",
   },
   summaryInput: { minHeight: 72 },
   quantityTouchable: { justifyContent: "center" },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 24 },
   modalContent: { borderWidth: 1, borderRadius: 14, padding: 16, maxHeight: 320 },
-  modalTitle: { fontSize: 16, fontWeight: "600", marginBottom: 12 },
+  modalTitle: { fontSize: 16, fontWeight: "600", marginBottom: 12, fontFamily: "PlayfairDisplay_600SemiBold" },
   quantityOption: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 10, marginBottom: 4 },
-  quantityOptionText: { fontSize: 16 },
+  quantityOptionText: { fontSize: 16, fontFamily: "Montserrat_400Regular" },
   button: { borderRadius: 12, padding: 14, alignItems: "center" },
-  buttonText: { color: "#fff", fontWeight: "600" },
-  hintBlank: { fontSize: 12, marginTop: 8, textAlign: "center" },
+  buttonText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
+  hintBlank: { fontSize: 12, marginTop: 8, textAlign: "center", fontFamily: "Montserrat_400Regular" },
+  sparklingToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  sparklingToggleText: { fontSize: 16 },
+  sparklingIndicator: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#E5DDD6",
+  },
 });

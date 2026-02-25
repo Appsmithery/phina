@@ -71,6 +71,6 @@ export default function EventAddWineScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   keyboardView: { flex: 1 },
-  title: { fontSize: 24, fontWeight: "700", marginBottom: 16 },
-  placeholder: { padding: 16, textAlign: "center" },
+  title: { fontSize: 24, fontWeight: "700", marginBottom: 16, fontFamily: "PlayfairDisplay_700Bold" },
+  placeholder: { padding: 16, textAlign: "center", fontFamily: "Montserrat_400Regular" },
 });

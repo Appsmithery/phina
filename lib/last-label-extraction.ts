@@ -8,6 +8,13 @@ export interface WineExtraction {
   region: string | null;
   ai_summary: string | null;
   label_photo_url: string | null;
+  color: "red" | "white" | "skin-contact" | null;
+  is_sparkling: boolean | null;
+  ai_overview: string | null;
+  ai_geography: string | null;
+  ai_production: string | null;
+  ai_tasting_notes: string | null;
+  ai_pairings: string | null;
 }
 
 let last: WineExtraction | null = null;

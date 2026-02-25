@@ -1,23 +1,24 @@
 ---
 prd_id: PRD-2026-002
 title: "Quantity field (1-12) for Events and Cellar"
-status: Draft
+status: Complete
+archived: true
 owner: "[name/agent]"
 area: "Events"
 target_release: "v0.x"
-roadmap: "../ROADMAP.md"
+roadmap: "../../ROADMAP.md"
 plans:
   cursor: "Quantity field Events and Cellar (in Cursor plan store; see Related Plan File below)"
-  claude: "../Plans/PRD-2026-002__claude-plan.md"
+  claude: "../../Plans/PRD-2026-002__claude-plan.md"
 ---
 
 # PRD-2026-002: Quantity field (1-12) for Events and Cellar
 
-> **Status:** 🧠 Draft  
+> **Status:** 🚀 Complete (archived)  
 > **Priority:** P2 (Medium)  
 > **Owner:** [Name]  
-> **Target Release:** [Version or Date]  
-> See [planning guide](../planning%20guide.md) for PRD naming, IDs, and when to update the roadmap.
+> **Target Release:** v0.x  
+> See [planning guide](../../planning%20guide.md) for PRD naming, IDs, and when to update the roadmap.
 
 ---
 
@@ -37,7 +38,7 @@ Members adding wines to an event (via the scan-label / add-wine flow) cannot ind
 
 ## Solution Overview
 
-Add a **Quantity** integer field with allowed range **1–12** to the wine entry flow. **Phase 1** implements it for the **Event**-linked workflow only: add-wine form captures quantity, it is stored in the `wines` table, and displayed in the event wine list (and wine detail) where relevant. **Phase 2** (later) is the **Cellar** object type (see [ROADMAP.md](../ROADMAP.md) — Personal cellars): the same quantity concept (1–12) will be used when building user-owned wine collections; this PRD does not implement Cellar, only establishes the field and semantics for Events so Cellar can reuse them.
+Add a **Quantity** integer field with allowed range **1–12** to the wine entry flow. **Phase 1** implements it for the **Event**-linked workflow only: add-wine form captures quantity, it is stored in the `wines` table, and displayed in the event wine list (and wine detail) where relevant. **Phase 2** (later) is the **Cellar** object type (see [ROADMAP.md](../../ROADMAP.md) — Personal cellars): the same quantity concept (1–12) will be used when building user-owned wine collections; this PRD does not implement Cellar, only establishes the field and semantics for Events so Cellar can reuse them.
 
 ### User Stories
 
@@ -221,7 +222,7 @@ No feature flag for Phase 1; quantity is always available on add-wine and displa
 
 ## References
 
-- [ROADMAP.md](../ROADMAP.md) — Personal cellars (Phase 2); Quantity built first for Events.
+- [ROADMAP.md](../../ROADMAP.md) — Personal cellars (Phase 2); Quantity built first for Events.
 - Cursor plan (Quantity field Events and Cellar) — implementation plan linking to this PRD; see Related Plan File above.
 
 ---
@@ -241,3 +242,4 @@ No feature flag for Phase 1; quantity is always available on add-wine and displa
 | 2026-02-23 | [Author] | Initial draft |
 | 2026-02-23 | [Author] | UI: quantity input = drop-down selector (single choice, 1–12). Plan references PRD; PRD references plan. |
 | 2026-02-24 | [Author] | Renamed Library → Cellar (title, filename, references). |
+| 2026-02-24 | [Author] | Marked Complete; archived. Quantity (1–12) shipped for Events; Cellar will reuse semantics when built. |

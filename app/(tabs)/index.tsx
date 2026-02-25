@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", justifyContent: "flex-end", alignItems: "center", padding: 16 },
   headerSpacer: { flex: 1 },
   createButton: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14 },
-  createButtonText: { color: "#fff", fontWeight: "600" },
+  createButtonText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   list: { padding: 16, paddingTop: 0 },
   card: {
     borderWidth: 1,
@@ -78,9 +78,9 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
-  cardTitle: { fontSize: 18, fontWeight: "600", marginBottom: 4 },
-  cardMeta: { fontSize: 14, marginBottom: 8 },
+  cardTitle: { fontSize: 18, fontWeight: "600", marginBottom: 4, fontFamily: "PlayfairDisplay_600SemiBold" },
+  cardMeta: { fontSize: 14, marginBottom: 8, fontFamily: "Montserrat_400Regular" },
   badge: { alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  badgeText: { color: "#fff", fontSize: 12, fontWeight: "600" },
-  placeholder: { padding: 24, textAlign: "center" },
+  badgeText: { color: "#fff", fontSize: 12, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
+  placeholder: { padding: 24, textAlign: "center", fontFamily: "Montserrat_400Regular" },
 });
