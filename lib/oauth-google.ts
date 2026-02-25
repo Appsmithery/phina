@@ -8,11 +8,18 @@ WebBrowser.maybeCompleteAuthSession();
 
 /**
  * Get the OAuth redirect URL for the current platform.
- * Native: phina://
+ * Native: Uses AuthSession.makeRedirectUri() which handles Expo Go (exp://) vs standalone (phina://)
  * Web: current origin (e.g. https://phina.appsmithery.co)
  */
 export function getOAuthRedirectUrl(): string {
-  return AuthSession.makeRedirectUri();
+  // makeRedirectUri() automatically handles:
+  // - Expo Go: exp://... 
+  // - Standalone builds: phina://
+  // - Web: current origin
+  const redirectUri = AuthSession.makeRedirectUri();
+  
+  console.log("[oauth-google] Generated redirect URI:", redirectUri);
+  return redirectUri;
 }
 
 /**
@@ -55,10 +62,17 @@ export async function createSessionFromUrl(url: string): Promise<Session | null>
  * Sign in with Google using OAuth.
  * Opens an in-app browser, handles the redirect, and returns the session.
  * Returns null if the user cancels or an error occurs.
+ * 
+ * IMPORTANT: For Expo Go development, you must add the exp:// redirect URL to Supabase:
+ * 1. Run the app and attempt sign-in to see the redirect URL in logs
+ * 2. Add that URL (e.g., exp://192.168.x.x:8081) to Supabase Dashboard → Authentication → URL Configuration → Redirect URLs
+ * 3. Also add exp://** as a wildcard for development
  */
 export async function signInWithGoogle(): Promise<Session | null> {
   try {
     const redirectUrl = getOAuthRedirectUrl();
+    console.log("[oauth-google] Using redirect URL:", redirectUrl);
+    console.log("[oauth-google] ⚠️  Make sure this URL is added to Supabase Dashboard → Authentication → URL Configuration → Redirect URLs");
 
     // Start OAuth flow
     const { data, error } = await supabase.auth.signInWithOAuth({
@@ -69,11 +83,17 @@ export async function signInWithGoogle(): Promise<Session | null> {
       },
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error("[oauth-google] Supabase signInWithOAuth error:", error);
+      throw error;
+    }
+    
     if (!data?.url) {
       console.error("[oauth-google] No OAuth URL returned");
       return null;
     }
+
+    console.log("[oauth-google] Opening OAuth URL in browser");
 
     // Open in-app browser
     if (Platform.OS === "web") {
@@ -84,20 +104,29 @@ export async function signInWithGoogle(): Promise<Session | null> {
       const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
       
       if (result.type === "success" && result.url) {
+        console.log("[oauth-google] Web auth success, processing URL");
         return await createSessionFromUrl(result.url);
       }
+      console.log("[oauth-google] Web auth result:", result.type);
       return null;
     } else {
       // Native: use openAuthSessionAsync
       const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
 
+      console.log("[oauth-google] Native auth result type:", result.type);
+      
       if (result.type === "success" && result.url) {
+        console.log("[oauth-google] ✅ Success! Callback URL received:", result.url);
         return await createSessionFromUrl(result.url);
       } else if (result.type === "cancel") {
-        console.log("[oauth-google] User cancelled");
+        console.log("[oauth-google] ❌ User cancelled the sign-in");
+        return null;
+      } else if (result.type === "dismiss") {
+        console.log("[oauth-google] ❌ Browser was dismissed (possibly due to redirect URL not being allowed)");
+        console.log("[oauth-google] 💡 Check that", redirectUrl, "is added to Supabase redirect URLs");
         return null;
       } else {
-        console.error("[oauth-google] Unexpected result type:", result.type);
+        console.error("[oauth-google] ❌ Unexpected result type:", result.type);
         return null;
       }
     }

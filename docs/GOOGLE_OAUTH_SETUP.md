@@ -66,7 +66,11 @@ After creating the client, save:
    - Web production: `https://phina.appsmithery.co/**`
    - Web local dev: `http://localhost:8081/**` (or your dev port)
    - Expo tunnel (if testing): `https://*.exp.direct/**`
-   - Native (iOS/Android): `phina://**`
+   - Native standalone builds: `phina://**`
+   - **Expo Go development (IMPORTANT)**: `exp://**`
+     - When testing in Expo Go, the redirect URL will be something like `exp://192.168.x.x:8081`
+     - You can see the exact URL in the console logs when you attempt to sign in
+     - Add `exp://**` as a wildcard to allow all Expo Go redirects during development
 
 ---
 
