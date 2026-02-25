@@ -113,22 +113,32 @@ async function signInWithGoogleNative(): Promise<Session | null> {
 
 /**
  * Browser-based sign-in path (Expo Go fallback).
- * Opens an in-app browser, handles the redirect, and returns the session.
- * The browser closes automatically once the redirect is triggered.
  *
- * For Expo Go: make sure exp://** is added to Supabase Dashboard →
- * Authentication → URL Configuration → Redirect URLs.
- * Do NOT add exp:// to Google Cloud Console — Google only redirects to Supabase.
+ * Uses a two-hop redirect strategy because Supabase doesn't reliably redirect
+ * to non-HTTP schemes like exp:// or phina://.
+ *
+ * Flow:
+ * 1. Supabase redirects to https://phina.appsmithery.co/callback?nativeRedirect=exp://...
+ * 2. The web callback page detects nativeRedirect and does window.location.href = "exp://...#tokens"
+ * 3. ASWebAuthenticationSession (iOS) / Chrome Custom Tab (Android) detects the exp:// scheme
+ * 4. Browser closes, returns the URL to the app
+ * 5. createSessionFromUrl parses the tokens and sets the session
  */
 async function signInWithGoogleBrowser(): Promise<Session | null> {
-  const redirectUrl = getOAuthRedirectUrl();
-  console.log("[oauth-google] Using redirect URL:", redirectUrl);
-  console.log("[oauth-google] ⚠️  Make sure this URL is in Supabase Dashboard → Authentication → Redirect URLs");
+  const nativeRedirectUrl = getOAuthRedirectUrl(); // exp://192.168.x.x:8081 or phina://
+  const appUrl = process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co";
+
+  // Use the web callback as an intermediary: Supabase redirects here (https:// URL it trusts),
+  // then the callback page forwards auth params to the native exp:// or phina:// URL.
+  const webCallbackUrl = `${appUrl}/callback?nativeRedirect=${encodeURIComponent(nativeRedirectUrl)}`;
+
+  console.log("[oauth-google] Native redirect URL:", nativeRedirectUrl);
+  console.log("[oauth-google] Web callback intermediary:", webCallbackUrl);
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: redirectUrl,
+      redirectTo: webCallbackUrl,
       skipBrowserRedirect: true,
     },
   });
@@ -146,7 +156,7 @@ async function signInWithGoogleBrowser(): Promise<Session | null> {
   console.log("[oauth-google] Opening OAuth URL in browser");
 
   if (Platform.OS === "web") {
-    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+    const result = await WebBrowser.openAuthSessionAsync(data.url, appUrl);
     if (result.type === "success" && result.url) {
       console.log("[oauth-google] Web auth success, processing URL");
       return await createSessionFromUrl(result.url);
@@ -155,29 +165,20 @@ async function signInWithGoogleBrowser(): Promise<Session | null> {
     return null;
   }
 
-  // Native Expo Go: openAuthSessionAsync monitors the redirect URL.
-  // When Supabase redirects back to exp://..., the browser closes and result.type = "success".
-  // If result.type = "cancel", the deep-link listener in _layout.tsx will still catch the
-  // exp:// URL if the OS opens Expo Go with it after auth completes.
-  console.log("[oauth-google] 🔍 Calling openAuthSessionAsync with redirectUrl:", redirectUrl);
-  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+  // openAuthSessionAsync monitors for the exp:// (or phina://) scheme.
+  // The web callback page will redirect to this URL with auth params attached.
+  const result = await WebBrowser.openAuthSessionAsync(data.url, nativeRedirectUrl);
 
   console.log("[oauth-google] Native browser result type:", result.type);
 
   if (result.type === "success" && result.url) {
-    console.log("[oauth-google] ✅ Success! Callback URL received:", result.url);
+    console.log("[oauth-google] ✅ Browser returned URL:", result.url);
     return await createSessionFromUrl(result.url);
   } else if (result.type === "cancel") {
-    // "cancel" means the browser closed without matching the redirectUrl prefix.
-    // This happens on Android/iOS when Supabase redirects to the Site URL instead of exp://.
-    // If the deep-link listener in _layout.tsx receives an exp:// URL it will still set the session.
-    console.log("[oauth-google] Browser closed (cancel) — waiting for deep link...");
-    console.log("[oauth-google] 🔍 If no deep-link fires, Supabase is NOT redirecting to:", redirectUrl);
-    console.log("[oauth-google] 🔍 Check Supabase Dashboard → Auth → Redirect URLs includes:", redirectUrl);
+    console.log("[oauth-google] Browser closed (cancel) — checking deep link fallback");
     return null;
   } else if (result.type === "dismiss") {
-    console.log("[oauth-google] ❌ Browser was dismissed before completing auth");
-    console.log("[oauth-google] 💡 Expected redirect URL:", redirectUrl);
+    console.log("[oauth-google] ❌ Browser dismissed before completing auth");
     return null;
   } else {
     console.error("[oauth-google] ❌ Unexpected result type:", result.type);
