@@ -17,8 +17,9 @@ export default function WineDetailScreen() {
   const eventId = typeof params.id === "string" ? params.id : params.id?.[0];
   const wineId = typeof params.wineId === "string" ? params.wineId : params.wineId?.[0];
   const theme = useTheme();
-  const { member } = useSupabase();
+  const { session, member } = useSupabase();
   const queryClient = useQueryClient();
+  const userId = session?.user?.id ?? member?.id;
 
   const { data: wine, isLoading } = useQuery({
     queryKey: ["wine", wineId],
@@ -41,18 +42,18 @@ export default function WineDetailScreen() {
   });
 
   const { data: rating, isPending: ratingPending } = useQuery({
-    queryKey: ["rating", wineId, member?.id],
+    queryKey: ["rating", wineId, userId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ratings")
         .select("*")
         .eq("wine_id", wineId!)
-        .eq("member_id", member!.id)
+        .eq("member_id", userId!)
         .maybeSingle();
       if (error) throw error;
       return data as Rating | null;
     },
-    enabled: !!wineId && !!member?.id,
+    enabled: !!wineId && !!userId,
   });
 
   const { data: activeRound } = useQuery({
@@ -157,7 +158,7 @@ export default function WineDetailScreen() {
           )}
         </View>
       )}
-      {!ratingPending && rating == null && member?.id && (
+      {!ratingPending && rating == null && userId && (
         <Text style={[styles.noRating, { color: theme.textMuted }]}>You haven't rated this wine.</Text>
       )}
 
