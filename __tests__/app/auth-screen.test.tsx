@@ -6,12 +6,22 @@ jest.mock("expo-router", () => ({
   router: { push: jest.fn() },
 }));
 
+jest.mock("@/lib/supabase-context", () => ({
+  useSupabase: () => ({
+    setSessionFromAuth: jest.fn(),
+  }),
+}));
+
 jest.mock("@/lib/supabase", () => ({
   supabase: {
     auth: {
       signInWithOtp: jest.fn(() => Promise.resolve({ error: null })),
     },
   },
+}));
+
+jest.mock("@/lib/oauth-google", () => ({
+  signInWithGoogle: jest.fn(() => Promise.resolve(null)),
 }));
 
 jest.mock("@/lib/theme", () => ({
@@ -27,11 +37,12 @@ jest.mock("@/lib/theme", () => ({
 }));
 
 describe("AuthScreen", () => {
-  it("renders Phína logo, Send magic link button, and sign in with password link", () => {
+  it("renders Phína logo, Send magic link button, Google sign-in, and sign in with password link", () => {
     render(<AuthScreen />);
     expect(screen.getByLabelText("Phína logo")).toBeTruthy();
     expect(screen.getByText("Enter your email to get a sign-in link")).toBeTruthy();
     expect(screen.getByText("Send magic link")).toBeTruthy();
+    expect(screen.getByText("Sign in with Google")).toBeTruthy();
     expect(screen.getByText("sign in with password")).toBeTruthy();
   });
 
