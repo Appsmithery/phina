@@ -4,7 +4,7 @@ import { useLocalSearchParams, router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Slider from "@react-native-community/slider";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
@@ -251,7 +251,7 @@ export default function RateWineScreen() {
               onPress={() => canVote && setVote(-1)}
               disabled={!canVote}
             >
-              <Text style={styles.voteEmoji}>👎</Text>
+              <Ionicons name="thumbs-down" size={32} color="#fff" style={styles.voteIcon} />
               <Text style={styles.voteLabel}>Down</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -263,7 +263,7 @@ export default function RateWineScreen() {
               onPress={() => canVote && setVote(0)}
               disabled={!canVote}
             >
-              <Text style={styles.voteEmoji}>😐</Text>
+              <MaterialCommunityIcons name="scale-balance" size={32} color="#fff" style={styles.voteIcon} />
               <Text style={styles.voteLabel}>Meh</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -275,7 +275,7 @@ export default function RateWineScreen() {
               onPress={() => canVote && setVote(1)}
               disabled={!canVote}
             >
-              <Text style={styles.voteEmoji}>👍</Text>
+              <Ionicons name="thumbs-up" size={32} color="#fff" style={styles.voteIcon} />
               <Text style={styles.voteLabel}>Up</Text>
             </TouchableOpacity>
           </View>
@@ -449,7 +449,7 @@ const styles = StyleSheet.create({
   prompt: { fontSize: 16, textAlign: "center", marginBottom: 16, fontFamily: "Montserrat_400Regular" },
   buttons: { flexDirection: "row", justifyContent: "space-evenly", gap: 16, marginBottom: 24 },
   voteBtn: { flex: 1, borderRadius: 14, padding: 20, alignItems: "center", borderWidth: 3, borderColor: "transparent" },
-  voteEmoji: { fontSize: 32, marginBottom: 8 },
+  voteIcon: { marginBottom: 8 },
   voteLabel: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   submitButton: { borderRadius: 14, padding: 16, alignItems: "center", marginTop: 8, marginBottom: 16 },
   submitButtonText: { color: "#fff", fontSize: 16, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },

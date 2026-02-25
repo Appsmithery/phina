@@ -31,6 +31,16 @@ export default function CreateEventScreen() {
         .select("id")
         .single();
       if (error) throw error;
+
+      // Auto-join the host as a member of their own event
+      const { error: memberError } = await supabase
+        .from("event_members")
+        .upsert(
+          { event_id: data.id, member_id: session.user.id, checked_in: true },
+          { onConflict: "event_id,member_id" }
+        );
+      if (memberError) console.warn("[create-event] host auto-join failed:", memberError.message);
+
       queryClient.invalidateQueries({ queryKey: ["events"] });
       router.replace(`/event/${data.id}`);
     } catch (e: unknown) {

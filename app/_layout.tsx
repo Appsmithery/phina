@@ -166,8 +166,8 @@ function SupabaseLayout() {
   return (
     <Stack screenOptions={headerOptions}>
       <Stack.Screen name="index" />
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="join/[eventId]" />
       <Stack.Screen name="event/create" />
       <Stack.Screen name="event/[id]/index" />

@@ -1,14 +1,13 @@
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView } from "react-native";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import type { WineWithPricePrivacy } from "@/types/database";
 import type { Rating } from "@/types/database";
 
-const BODY_LABELS: Record<string, string> = { light: "Light", medium: "Medium", full: "Full" };
-const SWEETNESS_LABELS: Record<string, string> = { dry: "Dry", "off-dry": "Off-dry", sweet: "Sweet" };
 
 export default function PersonalWineDetailScreen() {
   const params = useLocalSearchParams<{ wineId: string }>();
@@ -101,19 +100,57 @@ export default function PersonalWineDetailScreen() {
 
       {rating != null && (
         <View style={[styles.ratingBlock, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.ratingBlockTitle, { color: theme.text }]}>Your rating</Text>
-          <Text style={[styles.ratingVote, { color: theme.text }]}>
-            {rating.value === -1 ? "👎 Down" : rating.value === 0 ? "😐 Meh" : "👍 Up"}
-          </Text>
+          <View style={styles.ratingHeaderRow}>
+            <Text style={[styles.ratingBlockTitle, { color: theme.text }]}>Your rating</Text>
+            {rating.value === -1 ? (
+              <Ionicons name="thumbs-down" size={22} color={theme.thumbsDown} />
+            ) : rating.value === 0 ? (
+              <MaterialCommunityIcons name="scale-balance" size={22} color={theme.meh} />
+            ) : (
+              <Ionicons name="thumbs-up" size={22} color={theme.thumbsUp} />
+            )}
+          </View>
           {rating.body && (
-            <Text style={[styles.ratingMeta, { color: theme.textSecondary }]}>
-              Body: {BODY_LABELS[rating.body] ?? rating.body}
-            </Text>
+            <View style={styles.ratingScaleContainer}>
+              <Text style={[styles.ratingScaleLabel, { color: theme.textSecondary }]}>Body</Text>
+              <View style={styles.ratingScaleTrackRow}>
+                <Text style={[styles.ratingScaleExtreme, { color: theme.textMuted }]}>Light</Text>
+                <View style={styles.ratingScaleTrackWrapper}>
+                  <View style={[styles.ratingScaleTrack, { backgroundColor: theme.border }]} />
+                  <View
+                    style={[
+                      styles.ratingScaleMarker,
+                      {
+                        backgroundColor: theme.primary,
+                        left: `${rating.body === "light" ? 0 : rating.body === "medium" ? 50 : 100}%`,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.ratingScaleExtreme, { color: theme.textMuted }]}>Full</Text>
+              </View>
+            </View>
           )}
           {rating.sweetness && (
-            <Text style={[styles.ratingMeta, { color: theme.textSecondary }]}>
-              Dryness: {SWEETNESS_LABELS[rating.sweetness] ?? rating.sweetness}
-            </Text>
+            <View style={styles.ratingScaleContainer}>
+              <Text style={[styles.ratingScaleLabel, { color: theme.textSecondary }]}>Dryness</Text>
+              <View style={styles.ratingScaleTrackRow}>
+                <Text style={[styles.ratingScaleExtreme, { color: theme.textMuted }]}>Dry</Text>
+                <View style={styles.ratingScaleTrackWrapper}>
+                  <View style={[styles.ratingScaleTrack, { backgroundColor: theme.border }]} />
+                  <View
+                    style={[
+                      styles.ratingScaleMarker,
+                      {
+                        backgroundColor: theme.primary,
+                        left: `${rating.sweetness === "dry" ? 0 : rating.sweetness === "off-dry" ? 50 : 100}%`,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.ratingScaleExtreme, { color: theme.textMuted }]}>Sweet</Text>
+              </View>
+            </View>
           )}
           {rating.confidence != null && (
             <Text style={[styles.ratingMeta, { color: theme.textSecondary }]}>
@@ -208,9 +245,16 @@ const styles = StyleSheet.create({
   meta: { fontSize: 16, marginBottom: 8, fontFamily: "Montserrat_400Regular" },
   quantityText: { fontSize: 14, marginBottom: 16, fontFamily: "Montserrat_400Regular" },
   ratingBlock: { borderWidth: 1, borderRadius: 12, padding: 14, marginBottom: 12 },
-  ratingBlockTitle: { fontSize: 14, fontWeight: "600", marginBottom: 8, fontFamily: "Montserrat_600SemiBold" },
-  ratingVote: { fontSize: 16, marginBottom: 4, fontFamily: "Montserrat_400Regular" },
-  ratingMeta: { fontSize: 14, marginBottom: 2, fontFamily: "Montserrat_400Regular" },
+  ratingHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
+  ratingBlockTitle: { fontSize: 14, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
+  ratingScaleContainer: { marginBottom: 12 },
+  ratingScaleLabel: { fontFamily: "Montserrat_600SemiBold", fontSize: 12, marginBottom: 6 },
+  ratingScaleTrackRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  ratingScaleExtreme: { fontFamily: "Montserrat_400Regular", fontSize: 11, width: 36 },
+  ratingScaleTrackWrapper: { flex: 1, height: 4, position: "relative" },
+  ratingScaleTrack: { width: "100%", height: 4, borderRadius: 2 },
+  ratingScaleMarker: { position: "absolute", width: 14, height: 14, borderRadius: 7, top: -5, marginLeft: -7 },
+  ratingMeta: { fontSize: 13, marginBottom: 2, fontFamily: "Montserrat_400Regular" },
   noRating: { fontSize: 14, marginBottom: 12, fontFamily: "Montserrat_400Regular" },
   rateButton: { borderRadius: 12, padding: 12, alignItems: "center", marginBottom: 16 },
   rateButtonText: { color: "#fff", fontSize: 16, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
