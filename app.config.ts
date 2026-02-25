@@ -1,5 +1,7 @@
 import { ExpoConfig, ConfigContext } from "expo/config";
 
+const iosUrlScheme = process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME;
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: "Phína",
@@ -53,5 +55,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID ?? "c778f4f2-6c6b-4e80-a6df-f86be328a7c8",
     },
   },
-  plugins: ["expo-router", "expo-camera", "expo-web-browser"],
+  plugins: [
+    "expo-router",
+    "expo-camera",
+    "expo-web-browser",
+    // Only include the native Google Sign-In plugin when the iOS URL scheme is configured.
+    // Set EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME in .env once you have the iOS OAuth client ID
+    // from Google Cloud Console (reversed client ID: com.googleusercontent.apps.YOUR_ID).
+    ...(iosUrlScheme
+      ? [["@react-native-google-signin/google-signin", { iosUrlScheme }] as [string, unknown]]
+      : []),
+  ],
 });

@@ -86,7 +86,7 @@ function SupabaseLayout() {
     return () => sub.remove();
   }, []);
 
-  // Deep link: OAuth callback (phina://... with access_token or code)
+  // Deep link: OAuth callback (phina:// for native builds, exp:// for Expo Go)
   useEffect(() => {
     if (Platform.OS === "web") return; // Web uses callback route instead
 
@@ -94,8 +94,15 @@ function SupabaseLayout() {
 
     const handleUrl = async (event: { url: string }) => {
       const url = event.url;
-      // Guard: prevent processing the same URL multiple times
-      if (url && url.startsWith("phina://") && url !== processedUrl) {
+      if (!url || url === processedUrl) return;
+
+      // Only handle URLs that look like OAuth callbacks (contain auth params)
+      const isOAuthCallback =
+        url.includes("access_token") ||
+        url.includes("refresh_token") ||
+        url.includes("code=");
+
+      if (isOAuthCallback) {
         processedUrl = url;
         const session = await createSessionFromUrl(url);
         if (session) {
