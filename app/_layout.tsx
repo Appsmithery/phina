@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Platform, Image } from "react-native";
+import { View, Text, StyleSheet, Platform, Linking } from "react-native";
 import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from "expo-notifications";
 import { useFonts } from "expo-font";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SupabaseProvider, useSupabase } from "@/lib/supabase-context";
+import { createSessionFromUrl } from "@/lib/oauth-google";
 import {
   PlayfairDisplay_600SemiBold,
   PlayfairDisplay_700Bold,
@@ -64,7 +65,7 @@ export default function RootLayout() {
 }
 
 function SupabaseLayout() {
-  const { sessionLoaded } = useSupabase();
+  const { sessionLoaded, setSessionFromAuth } = useSupabase();
   const [splashTimedOut, setSplashTimedOut] = useState(false);
   const [fontsLoaded, fontError] = useFonts({
     PlayfairDisplay_600SemiBold,
@@ -84,6 +85,35 @@ function SupabaseLayout() {
     });
     return () => sub.remove();
   }, []);
+
+  // Deep link: OAuth callback (phina://... with access_token or code)
+  useEffect(() => {
+    if (Platform.OS === "web") return; // Web uses callback route instead
+
+    let processedUrl: string | null = null;
+
+    const handleUrl = async (event: { url: string }) => {
+      const url = event.url;
+      // Guard: prevent processing the same URL multiple times
+      if (url && url.startsWith("phina://") && url !== processedUrl) {
+        processedUrl = url;
+        const session = await createSessionFromUrl(url);
+        if (session) {
+          setSessionFromAuth(session);
+          router.replace("/(tabs)");
+        }
+      }
+    };
+
+    // Handle initial URL (app opened via deep link)
+    Linking.getInitialURL().then((url) => {
+      if (url) handleUrl({ url });
+    });
+
+    // Handle URL while app is running
+    const subscription = Linking.addEventListener("url", handleUrl);
+    return () => subscription.remove();
+  }, [setSessionFromAuth]);
 
   // On web, fix malformed path (e.g. // from magic link redirect) so router and Supabase can handle /
   useEffect(() => {
@@ -111,12 +141,7 @@ function SupabaseLayout() {
   // Blank headers matching page body so content isn't cut off; indistinguishable from body.
   const headerOptions = {
     headerShown: true,
-    headerTitle: () => (
-      <Image 
-        source={require("@/assets/phina_logo.png")} 
-        style={{ height: 32, width: 120, resizeMode: "contain" }} 
-      />
-    ),
+    headerTitle: "",
     headerStyle: { backgroundColor: "#F2EFE9" },
     headerShadowVisible: false,
     headerTintColor: "#B58271",

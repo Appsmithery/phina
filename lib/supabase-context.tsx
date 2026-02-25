@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
@@ -38,12 +38,12 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const refreshMember = async () => {
+  const refreshMember = useCallback(async () => {
     const { data: { session: s } } = await supabase.auth.getSession();
     if (s?.user?.id) await fetchMember(s.user.id, s.user.email ?? undefined);
-  };
+  }, []);
 
-  const setSessionFromAuth = (s: Session | null) => {
+  const setSessionFromAuth = useCallback((s: Session | null) => {
     setSession(s);
     setSessionLoaded(true);
     if (s?.user?.id) {
@@ -51,7 +51,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     } else {
       setMember(null);
     }
-  };
+  }, []);
 
   useEffect(() => {
     supabase.auth

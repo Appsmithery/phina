@@ -53,5 +53,5 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID ?? "c778f4f2-6c6b-4e80-a6df-f86be328a7c8",
     },
   },
-  plugins: ["expo-router", "expo-camera"],
+  plugins: ["expo-router", "expo-camera", "expo-web-browser"],
 });

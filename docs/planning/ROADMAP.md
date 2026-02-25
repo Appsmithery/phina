@@ -28,7 +28,6 @@ This is the canonical roadmap for this repo. PRDs, implementation plans (Cursor/
 
 ### Next (queued)
 
-- **Sign in / sign up with Google** — Add Google OAuth alongside magic-link email. Reduces friction for new and returning members. Status: 🧠 — Target: TBD — No PRD yet.
 - **Personal cellars** — Wine collections not tied to events: users can build, search, and manage their own cellar (bottles they’ve had or want to try). Enables use outside event-only flow. Status: 🛠 — Target: TBD — No PRD yet. **Shipped (foundation):** Profile stats (wines rated, % liked, events attended, avg body/dryness); Add wine from My Wines (non-event); Rate personal wines anytime; optional label scan for personal wines. **Foundation:** Quantity (1–12) for Events is shipped per [PRD-2026-002](./PRDs/archive/PRD-2026-002__quantity-events-cellar.md) (archived); the same semantics will be reused for Cellar when built.
 - **Payments** — Two streams: (1) **Donations** — optional one-time donate-to-project when joining events; (2) **Subscription** — $2.99/month for personal cellar users (unlocks/cellar features). Subscription tier depends on Personal cellars. Status: 🧠 — Target: TBD — No PRD yet.
 
@@ -52,10 +51,11 @@ This is the canonical roadmap for this repo. PRDs, implementation plans (Cursor/
 - **Goal:** Rebrand (Phína), admin panel, domain & secrets, brand guidelines in repo.
 - **Includes:** Rebrand to Phína, in-app admin (promote/demote members), phina.appsmithery.co, env/secrets strategy, CI (typecheck/lint/test + deploy to droplet), [Brand Guidelines](../brand-guidelines.md) doc.
 
-### v0.3 (reliability & auth)
+### v0.3 (reliability & auth) — 🛠 In progress
 
 - **Goal:** Fix label extraction; add Google sign-in for lower friction.
 - **Includes:** Label photo extraction troubleshooting and finalization; Sign in/up with Google (OAuth).
+- **Status:** Google Sign-In shipped; label extraction in progress.
 
 ### v0.4 (personal cellars & monetization)
 
@@ -90,7 +90,7 @@ All three modes share a single recommendation engine and feed results back into 
 |-------------|--------|--------|--------|
 | *Planned*   | — | Label photo extraction (troubleshoot & finalize) | 🛠 Now |
 | Events      | PRD-2026-002 | [Quantity (1–12) for Events and Cellar](./PRDs/archive/PRD-2026-002__quantity-events-cellar.md) (archived) | 🚀 Shipped |
-| Auth        | — | Sign in/up with Google | 🧠 Next |
+| Auth        | — | Sign in/up with Google | 🚀 Shipped |
 | Product     | — | Profile stats, cellar add wine & rate personal wines | 🚀 Shipped |
 | Product     | — | Personal cellars | 🛠 In progress |
 | Monetization| — | Payments (donations + $2.99/mo cellar) | 🧠 Next |
@@ -257,7 +257,7 @@ GROUP BY wine_id;
 ## App Screen Flow (v1)
 
 **Onboarding:**  
-Email entry → Magic link → Profile setup (name)
+Email entry → Magic link OR Sign in with Google → Profile setup (name)
 
 **Main tabs:**  
 [Events] · [History] · [Profile]

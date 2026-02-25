@@ -17,6 +17,8 @@ import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 import { getRedirectUrl } from "@/lib/auth-redirect";
 import { setLastUsedEmail } from "@/lib/last-email";
+import { useSupabase } from "@/lib/supabase-context";
+import { signInWithGoogle } from "@/lib/oauth-google";
 
 const UNAUTHORIZED_HINT =
   "In Supabase: Authentication → Providers → turn Email ON. Check Project Settings → API: use the anon public key and project URL in .env, then restart the app.";
@@ -30,11 +32,13 @@ export default function AuthScreen() {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [errorHint, setErrorHint] = useState<string | null>(null);
   const [magicLinkSentTo, setMagicLinkSentTo] = useState<string | null>(null);
   const [resendCooldownSeconds, setResendCooldownSeconds] = useState(0);
   const cooldownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const theme = useTheme();
+  const { setSessionFromAuth } = useSupabase();
 
   const logoSize = Math.max(
     LOGO_MIN_SIDE,
@@ -134,6 +138,25 @@ export default function AuthScreen() {
       pathname: "/(auth)/sign-in",
       params: { email: trimmedEmail },
     });
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    setErrorHint(null);
+    try {
+      const session = await signInWithGoogle();
+      if (session) {
+        setSessionFromAuth(session);
+        router.replace("/(tabs)");
+      } else {
+        setErrorHint("Google sign-in was cancelled or failed");
+      }
+    } catch (error) {
+      console.error("[auth] Google sign-in error:", error);
+      setErrorHint(error instanceof Error ? error.message : "Google sign-in failed");
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   const inputStyle = [
@@ -241,6 +264,28 @@ export default function AuthScreen() {
             >
               <Text style={[styles.primaryButtonText, { color: "#FFFFFF" }]}>
                 Send magic link
+              </Text>
+            </TouchableOpacity>
+            <View style={styles.divider}>
+              <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+              <Text style={[styles.dividerText, { color: theme.textSecondary }]}>or</Text>
+              <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.googleButton,
+                {
+                  borderColor: theme.border,
+                  backgroundColor: theme.surface,
+                },
+              ]}
+              onPress={handleGoogleSignIn}
+              disabled={googleLoading || loading}
+              accessibilityRole="button"
+              accessibilityLabel="Sign in with Google"
+            >
+              <Text style={[styles.googleButtonText, { color: theme.text }]}>
+                {googleLoading ? "Signing in..." : "Sign in with Google"}
               </Text>
             </TouchableOpacity>
           </>
@@ -397,5 +442,31 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 16,
     paddingHorizontal: 8,
+  },
+  divider: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 14,
+    marginHorizontal: 12,
+  },
+  googleButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    alignItems: "center",
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  googleButtonText: {
+    fontFamily: "Montserrat_600SemiBold",
+    fontSize: 16,
   },
 });
