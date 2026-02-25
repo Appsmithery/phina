@@ -28,7 +28,7 @@ This is the canonical roadmap for this repo. PRDs, implementation plans (Cursor/
 ### Next (queued)
 
 - **Sign in / sign up with Google** — Add Google OAuth alongside magic-link email. Reduces friction for new and returning members. Status: 🧠 — Target: TBD — No PRD yet.
-- **Personal cellars** — Wine collections not tied to events: users can build, search, and manage their own cellar (bottles they’ve had or want to try). Enables use outside event-only flow. Status: 🧠 — Target: TBD — No PRD yet. **Foundation:** Quantity (1–12) is implemented first for Events per [PRD-2026-002](./PRDs/PRD-2026-002__quantity-events-cellar.md); the same quantity semantics will be reused for Cellar when built.
+- **Personal cellars** — Wine collections not tied to events: users can build, search, and manage their own cellar (bottles they’ve had or want to try). Enables use outside event-only flow. Status: 🛠 — Target: TBD — No PRD yet. **Shipped (foundation):** Profile stats (wines rated, % liked, events attended, avg body/dryness); Add wine from My Wines (non-event); Rate personal wines anytime; optional label scan for personal wines. **Foundation:** Quantity (1–12) is implemented first for Events per [PRD-2026-002](./PRDs/PRD-2026-002__quantity-events-cellar.md); the same quantity semantics will be reused for Cellar when built.
 - **Quantity (1–12) for Events** — Add quantity input to the scan/add-wine flow and persist in DB for event wines; prepares reuse for Cellar. Status: 🧠 — Target: TBD — [PRD-2026-002](./PRDs/PRD-2026-002__quantity-events-cellar.md).
 - **Payments** — Two streams: (1) **Donations** — optional one-time donate-to-project when joining events; (2) **Subscription** — $2.99/month for personal cellar users (unlocks/cellar features). Subscription tier depends on Personal cellars. Status: 🧠 — Target: TBD — No PRD yet.
 
@@ -91,7 +91,8 @@ Future PRDs for preferences, shop picker, and recipe pairing should reference th
 | *Planned*   | — | Label photo extraction (troubleshoot & finalize) | 🛠 Now |
 | Events      | PRD-2026-002 | Quantity (1–12) for Events and Cellar | 🧠 Draft |
 | Auth        | — | Sign in/up with Google | 🧠 Next |
-| Product     | — | Personal cellars | 🧠 Next |
+| Product     | — | Profile stats, cellar add wine & rate personal wines | 🚀 Shipped |
+| Product     | — | Personal cellars | 🛠 In progress |
 | Monetization| — | Payments (donations + $2.99/mo cellar) | 🧠 Next |
 | Preferences | PRD-2026-003 | [User preferences and social data for wines](./PRDs/PRD-2026-003__user-preferences-social-data-wines.md) | 🧠 Later |
 | Discovery   | — | Shop wine picker (photo) | 🧠 Later |

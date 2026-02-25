@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -13,12 +13,13 @@ import {
   Platform,
   Image,
 } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
+import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
+import { takeLastLabelExtraction } from "@/lib/last-label-extraction";
 import type { Wine } from "@/types/database";
 
 const LABEL_PHOTOS_BUCKET = "label-photos";
@@ -66,6 +67,20 @@ export default function EditWineScreen() {
       setLocalPhotoUrl(wine.label_photo_url ?? null);
     }
   }, [wine]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const extracted = takeLastLabelExtraction();
+      if (extracted) {
+        if (extracted.producer != null) setProducer(extracted.producer);
+        if (extracted.varietal != null) setVarietal(extracted.varietal);
+        if (extracted.vintage != null) setVintage(String(extracted.vintage));
+        if (extracted.region != null) setRegion(extracted.region);
+        if (extracted.ai_summary != null) setAiSummary(extracted.ai_summary);
+        if (extracted.label_photo_url != null) setLocalPhotoUrl(extracted.label_photo_url);
+      }
+    }, [])
+  );
 
   const displayPhotoUrl = localPhotoUrl ?? wine?.label_photo_url ?? null;
 
@@ -212,6 +227,20 @@ export default function EditWineScreen() {
               <Text style={[styles.replacePhotoButtonText, { color: theme.textSecondary }]}>Add label photo</Text>
             </TouchableOpacity>
           )}
+          {wineId && (
+            <TouchableOpacity
+              style={[styles.scanButton, { backgroundColor: theme.surface, borderColor: theme.border, marginBottom: 16 }]}
+              onPress={() =>
+                router.push({
+                  pathname: "/scan-label",
+                  params: { returnTo: `/wine/${wineId}/edit` },
+                })
+              }
+            >
+              <Text style={[styles.scanButtonText, { color: theme.primary }]}>Scan label</Text>
+              <Text style={[styles.scanHint, { color: theme.textSecondary }]}>Use AI to fill fields from a photo</Text>
+            </TouchableOpacity>
+          )}
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Text style={[styles.label, { color: theme.textSecondary }]}>Quantity</Text>
             <TouchableOpacity
@@ -316,6 +345,9 @@ const styles = StyleSheet.create({
   photoPlaceholderText: { fontSize: 14 },
   replacePhotoButton: { borderWidth: 1, borderRadius: 12, padding: 12, alignItems: "center" },
   replacePhotoButtonText: { fontSize: 16, fontWeight: "500" },
+  scanButton: { borderWidth: 1, borderRadius: 14, padding: 16 },
+  scanButtonText: { fontSize: 16, fontWeight: "600" },
+  scanHint: { fontSize: 12, marginTop: 4 },
   card: { borderWidth: 1, borderRadius: 14, padding: 16 },
   label: { fontSize: 12, marginBottom: 4 },
   input: {

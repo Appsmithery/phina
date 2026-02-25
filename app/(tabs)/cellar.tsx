@@ -78,7 +78,15 @@ export default function CellarScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Text style={[styles.title, { color: theme.text }]}>My wines</Text>
+      <View style={styles.titleRow}>
+        <Text style={[styles.title, { color: theme.text }]}>My wines</Text>
+        <TouchableOpacity
+          style={[styles.addButton, { backgroundColor: theme.primary }]}
+          onPress={() => router.push("/add-wine")}
+        >
+          <Text style={styles.addButtonText}>Add wine</Text>
+        </TouchableOpacity>
+      </View>
       <TextInput
         style={[styles.search, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
         placeholder="Search by producer, varietal, event…"
@@ -140,7 +148,7 @@ export default function CellarScreen() {
             return (
               <TouchableOpacity
                 style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
-                onPress={() => router.push(`/wine/${item.id}/edit`)}
+                onPress={() => router.push(`/wine/${item.id}`)}
               >
                 {cardContent}
               </TouchableOpacity>
@@ -154,7 +162,10 @@ export default function CellarScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  title: { fontSize: 22, fontWeight: "700", marginHorizontal: 16, marginTop: 16, marginBottom: 8 },
+  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginHorizontal: 16, marginTop: 16, marginBottom: 8 },
+  title: { fontSize: 22, fontWeight: "700" },
+  addButton: { borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16 },
+  addButtonText: { color: "#fff", fontSize: 15, fontWeight: "600" },
   search: {
     borderWidth: 1,
     borderRadius: 12,

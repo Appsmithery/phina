@@ -6,9 +6,9 @@ import { useTheme } from "@/lib/theme";
 import { AddWineForm } from "@/components/AddWineForm";
 import { KeyboardAvoidingView, Platform } from "react-native";
 
-export default function EventAddWineScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const eventId = typeof id === "string" ? id : null;
+export default function AddWineScreen() {
+  const params = useLocalSearchParams<{ eventId?: string }>();
+  const eventId = typeof params.eventId === "string" ? params.eventId : null;
   const { member, session, sessionLoaded } = useSupabase();
   const theme = useTheme();
   const queryClient = useQueryClient();
@@ -22,7 +22,11 @@ export default function EventAddWineScreen() {
   };
 
   const onScan = () => {
-    if (eventId) router.push(`/event/${eventId}/scan-label`);
+    if (eventId) {
+      router.push(`/event/${eventId}/scan-label`);
+    } else {
+      router.push({ pathname: "/scan-label", params: { returnTo: "/add-wine" } });
+    }
   };
 
   if (!sessionLoaded) {
@@ -42,10 +46,10 @@ export default function EventAddWineScreen() {
     );
   }
 
-  if (!member?.id || !eventId) {
+  if (!member?.id) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <Text style={[styles.placeholder, { color: theme.textSecondary }]}>Event not found.</Text>
+        <Text style={[styles.placeholder, { color: theme.textSecondary }]}>Sign in to add a wine.</Text>
       </View>
     );
   }

@@ -131,6 +131,11 @@ function SupabaseLayout() {
       <Stack.Screen name="event/[id]/qr" />
       <Stack.Screen name="event/[id]/wine/[wineId]" />
       <Stack.Screen name="event/[id]/rate/[wineId]" />
+      <Stack.Screen name="add-wine" />
+      <Stack.Screen name="scan-label" />
+      <Stack.Screen name="wine/[wineId]/index" />
+      <Stack.Screen name="wine/[wineId]/edit" />
+      <Stack.Screen name="wine/[wineId]/rate" />
     </Stack>
   );
 }
