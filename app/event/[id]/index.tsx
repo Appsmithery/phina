@@ -1,6 +1,6 @@
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, Share, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
@@ -77,6 +77,22 @@ export default function EventDetailScreen() {
   const isHost = event?.created_by === member?.id;
   const endEventMutation = useEndEvent(id!);
 
+  const APP_BASE_URL = process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co";
+
+  const handleShareInvite = async () => {
+    const joinUrl = `${APP_BASE_URL}/join/${id}`;
+    const message = `Join my wine tasting event: ${joinUrl}`;
+    try {
+      await Share.share(
+        Platform.OS === "ios"
+          ? { url: joinUrl, message: `Join my wine tasting event` }
+          : { message }
+      );
+    } catch {
+      // user cancelled or share failed silently
+    }
+  };
+
   const handleRemoveWine = (wine: WineWithPricePrivacy) => {
     Alert.alert(
       "Remove wine",
@@ -151,6 +167,13 @@ export default function EventDetailScreen() {
             onPress={() => router.push(`/event/${id}/qr`)}
           >
             <Text style={styles.primaryButtonText}>Show QR code</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.shareButton, { borderColor: theme.primary }]}
+            onPress={handleShareInvite}
+          >
+            <Ionicons name="share-outline" size={18} color={theme.primary} style={{ marginRight: 6 }} />
+            <Text style={[styles.shareButtonText, { color: theme.primary }]}>Share invite link</Text>
           </TouchableOpacity>
           {event.status === "active" && (
             <TouchableOpacity
@@ -272,6 +295,8 @@ const styles = StyleSheet.create({
   favoriteStar: { marginLeft: 4 },
   wineMeta: { fontSize: 14, marginTop: 4, fontFamily: "Montserrat_400Regular" },
   placeholder: { padding: 16, fontFamily: "Montserrat_400Regular" },
+  shareButton: { borderWidth: 1, borderRadius: 14, padding: 12, alignItems: "center", marginBottom: 16, flexDirection: "row", justifyContent: "center" },
+  shareButtonText: { fontSize: 16, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   endEventButton: { borderWidth: 1, borderRadius: 14, padding: 12, alignItems: "center", marginBottom: 16 },
   endEventText: { fontSize: 16, fontFamily: "Montserrat_400Regular" },
   rateButton: { borderRadius: 12, padding: 10, alignItems: "center", marginTop: 12 },
