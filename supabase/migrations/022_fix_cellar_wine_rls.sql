@@ -1,46 +1,63 @@
 -- ============================================================
 -- 022: Fix infinite recursion in RLS policies
 --
--- Root cause: events SELECT policy references event_members,
--- and event_members SELECT policy references events, creating
--- a circular dependency that triggers "infinite recursion
--- detected in policy for relation 'events'".
+-- Root cause: events ↔ event_members have circular RLS
+-- references, and self-referential event_members policies also
+-- recurse.  PostgreSQL applies RLS recursively to subqueries
+-- inside policies, so any cross-table or self-referencing
+-- cycle triggers "infinite recursion detected in policy".
 --
--- Fix:
---   1. Break the cycle by making event_members policy
---      self-referential (no events subquery).  This is safe
---      because migration 021 backfills all hosts into
---      event_members.
---   2. Simplify wines event policy to only check event_members
---      (hosts are always in event_members).
---   3. Split wines SELECT into cellar vs event policies so
---      cellar reads never touch events/event_members.
---   4. Guard the view's CASE expressions so cellar wine rows
---      never trigger event subqueries.
+-- Fix: create a SECURITY DEFINER helper function that checks
+-- event membership WITHOUT RLS.  Use it in all policies that
+-- previously did cross-table subqueries into event_members or
+-- events.  SECURITY DEFINER runs as the function owner
+-- (superuser), bypassing RLS entirely — breaking every cycle.
 -- ============================================================
 
 -- ------------------------------------------------------------
--- 1. Break the circular dependency: event_members no longer
---    references events.  "Can I see this membership row?" →
---    "Am I that member, or am I also a member of the same event?"
+-- 1. SECURITY DEFINER helper: "is this user a member of this
+--    event?"  Hosts are always in event_members (backfilled by
+--    migration 021), so this covers both hosts and members.
+-- ------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.is_event_member(p_event_id uuid, p_member_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM event_members
+    WHERE event_id = p_event_id AND member_id = p_member_id
+  );
+$$;
+
+-- ------------------------------------------------------------
+-- 2. Fix events SELECT policy (was referencing event_members)
+-- ------------------------------------------------------------
+DROP POLICY IF EXISTS "Read own or joined events" ON events;
+
+CREATE POLICY "Read own or joined events" ON events
+  FOR SELECT TO authenticated
+  USING (
+    auth.uid() = created_by
+    OR public.is_event_member(events.id, auth.uid())
+  );
+
+-- ------------------------------------------------------------
+-- 3. Fix event_members SELECT policy (was referencing events
+--    and self-referencing event_members — both cause recursion)
 -- ------------------------------------------------------------
 DROP POLICY IF EXISTS "Read event_members for participants" ON event_members;
 
 CREATE POLICY "Read event_members for participants" ON event_members
   FOR SELECT TO authenticated
   USING (
-    -- I can always see my own membership rows
-    member_id = auth.uid()
-    -- I can see other members if I'm also in the same event
-    OR EXISTS (
-      SELECT 1 FROM event_members em2
-      WHERE em2.event_id = event_members.event_id
-        AND em2.member_id = auth.uid()
-    )
+    public.is_event_member(event_members.event_id, auth.uid())
   );
 
 -- ------------------------------------------------------------
--- 2. Split wines SELECT policy
+-- 4. Split wines SELECT policy
 -- ------------------------------------------------------------
 DROP POLICY IF EXISTS "Read wines for participants" ON wines;
 DROP POLICY IF EXISTS "Read own cellar wines" ON wines;
@@ -51,21 +68,27 @@ CREATE POLICY "Read own cellar wines" ON wines
   FOR SELECT TO authenticated
   USING (event_id IS NULL AND auth.uid() = brought_by);
 
--- Event wines: only check event_members (hosts are backfilled)
--- This avoids touching events table from wines RLS entirely.
+-- Event wines: use the SECURITY DEFINER helper
 CREATE POLICY "Read event wines for participants" ON wines
   FOR SELECT TO authenticated
   USING (
     event_id IS NOT NULL
-    AND EXISTS (
-      SELECT 1 FROM event_members em
-      WHERE em.event_id = wines.event_id
-        AND em.member_id = auth.uid()
-    )
+    AND public.is_event_member(wines.event_id, auth.uid())
   );
 
 -- ------------------------------------------------------------
--- 3. Recreate view with guarded CASE expressions
+-- 5. Fix rating_rounds SELECT policy (same pattern)
+-- ------------------------------------------------------------
+DROP POLICY IF EXISTS "Read rating_rounds for participants" ON rating_rounds;
+
+CREATE POLICY "Read rating_rounds for participants" ON rating_rounds
+  FOR SELECT TO authenticated
+  USING (
+    public.is_event_member(rating_rounds.event_id, auth.uid())
+  );
+
+-- ------------------------------------------------------------
+-- 6. Recreate view with guarded CASE expressions
 --    Guard the events subquery with event_id IS NOT NULL so it
 --    is never evaluated for cellar wines.
 -- ------------------------------------------------------------
