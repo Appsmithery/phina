@@ -26,7 +26,10 @@ export default function CellarScreen() {
         .select("*")
         .eq("brought_by", member.id)
         .order("created_at", { ascending: false });
-      if (winesError) throw winesError;
+      if (winesError) {
+        console.error("[cellar] wines query error:", JSON.stringify(winesError));
+        throw winesError;
+      }
       const list = (winesData ?? []) as WineWithPricePrivacy[];
       if (list.length === 0) return [];
       const eventIds = [...new Set(list.map((w) => w.event_id).filter((id): id is string => id != null))];

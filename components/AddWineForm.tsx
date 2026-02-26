@@ -132,8 +132,12 @@ export function AddWineForm({
         ai_tasting_notes: aiTastingNotes.trim() || null,
         ai_pairings: aiPairings.trim() || null,
       }).select("id").single();
-      if (error) throw error;
+      if (error) {
+        console.error("[add-wine] insert error:", JSON.stringify(error));
+        throw error;
+      }
       if (!data?.id) throw new Error("Wine was not saved. Please try again.");
+      console.log("[add-wine] insert success, id:", data.id);
       onSuccess();
     } catch (e: unknown) {
       const message =
