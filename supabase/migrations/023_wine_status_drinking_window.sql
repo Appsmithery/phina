@@ -18,8 +18,9 @@ ALTER TABLE wines
   ADD COLUMN IF NOT EXISTS drink_from smallint,
   ADD COLUMN IF NOT EXISTS drink_until smallint;
 
--- Recreate view to include new columns
-CREATE OR REPLACE VIEW wines_with_price_privacy AS
+-- DROP + recreate view (CREATE OR REPLACE cannot reorder columns)
+DROP VIEW IF EXISTS wines_with_price_privacy;
+CREATE VIEW wines_with_price_privacy AS
 SELECT
   w.id,
   w.event_id,
