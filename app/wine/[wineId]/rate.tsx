@@ -130,7 +130,15 @@ export default function PersonalRateWineScreen() {
         { onConflict: "wine_id,member_id" }
       );
       if (error) throw error;
+      // Auto-mark wine as consumed when rated
+      if (wine && wine.status !== "consumed") {
+        await supabase
+          .from("wines")
+          .update({ status: "consumed", date_consumed: new Date().toISOString().split("T")[0] })
+          .eq("id", wineId);
+      }
       queryClient.invalidateQueries({ queryKey: ["rating", wineId, userId] });
+      queryClient.invalidateQueries({ queryKey: ["wine", wineId] });
       queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", member?.id] });
       Alert.alert("Rating saved!", "Thanks for rating.", [{ text: "OK", onPress: () => router.back() }]);
     } catch (e: unknown) {

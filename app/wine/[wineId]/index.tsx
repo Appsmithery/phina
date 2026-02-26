@@ -1,6 +1,6 @@
 import { useLocalSearchParams, router } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
-import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView } from "react-native";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, Alert } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
@@ -45,7 +45,50 @@ export default function PersonalWineDetailScreen() {
     enabled: !!wineId && !!userId,
   });
 
+  const queryClient = useQueryClient();
   const isOwner = wine && member?.id === wine.brought_by;
+
+  const handleDelete = () => {
+    if (!wine?.id) return;
+    Alert.alert(
+      "Delete from cellar",
+      "Permanently delete this wine from your cellar?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            const { error } = await supabase.from("wines").delete().eq("id", wine.id);
+            if (error) {
+              Alert.alert("Error", error.message ?? "Could not delete wine.");
+              return;
+            }
+            queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", member?.id] });
+            router.back();
+          },
+        },
+      ]
+    );
+  };
+
+  const handleToggleConsumed = async () => {
+    if (!wine?.id) return;
+    const isConsumed = wine.status === "consumed";
+    const { error } = await supabase
+      .from("wines")
+      .update({
+        status: isConsumed ? "storage" : "consumed",
+        date_consumed: isConsumed ? null : new Date().toISOString().split("T")[0],
+      })
+      .eq("id", wine.id);
+    if (error) {
+      Alert.alert("Error", error.message ?? "Could not update wine.");
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["wine", wineId] });
+    queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", member?.id] });
+  };
 
   if (!wine) {
     return (
@@ -96,6 +139,19 @@ export default function PersonalWineDetailScreen() {
         <Text style={[styles.quantityText, { color: theme.textSecondary }]}>
           Price: {wine.price_cents != null ? `$${wine.price_cents / 100}` : wine.price_range ?? ""}
         </Text>
+      )}
+      {(wine.drink_from != null || wine.drink_until != null) && (
+        <View style={[styles.drinkingWindow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.drinkingWindowLabel, { color: theme.textSecondary }]}>Drinking window</Text>
+          <Text style={[styles.drinkingWindowValue, { color: wine.drink_until != null && wine.drink_until < new Date().getFullYear() ? "#B55A5A" : theme.text }]}>
+            {wine.drink_from != null && wine.drink_until != null
+              ? `${wine.drink_from}–${wine.drink_until}`
+              : wine.drink_from != null
+              ? `From ${wine.drink_from}`
+              : `Until ${wine.drink_until}`}
+            {wine.drink_until != null && wine.drink_until < new Date().getFullYear() ? "  (past window)" : ""}
+          </Text>
+        </View>
       )}
 
       {rating != null && (
@@ -231,6 +287,20 @@ export default function PersonalWineDetailScreen() {
           >
             <Text style={[styles.scanButtonText, { color: theme.textSecondary }]}>Update label (scan)</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.consumedButton, { borderColor: theme.primary }]}
+            onPress={handleToggleConsumed}
+          >
+            <Text style={[styles.consumedButtonText, { color: theme.primary }]}>
+              {wine.status === "consumed" ? "Move back to storage" : "Mark as consumed"}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.deleteButton, { borderColor: "#B55A5A" }]}
+            onPress={handleDelete}
+          >
+            <Text style={styles.deleteButtonText}>Delete from cellar</Text>
+          </TouchableOpacity>
         </>
       )}
     </ScrollView>
@@ -269,4 +339,11 @@ const styles = StyleSheet.create({
   badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
   badge: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   badgeText: { fontSize: 12, fontWeight: "600" },
+  drinkingWindow: { borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 16 },
+  drinkingWindowLabel: { fontSize: 12, fontFamily: "Montserrat_600SemiBold", marginBottom: 4 },
+  drinkingWindowValue: { fontSize: 15, fontFamily: "Montserrat_400Regular" },
+  consumedButton: { borderWidth: 1, borderRadius: 12, padding: 12, alignItems: "center", marginTop: 12 },
+  consumedButtonText: { fontSize: 16, fontWeight: "500", fontFamily: "Montserrat_400Regular" },
+  deleteButton: { borderWidth: 1, borderRadius: 12, padding: 12, alignItems: "center", marginTop: 12 },
+  deleteButtonText: { color: "#B55A5A", fontSize: 16, fontWeight: "500", fontFamily: "Montserrat_400Regular" },
 });

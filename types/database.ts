@@ -99,6 +99,10 @@ export interface Database {
           ai_pairings: string | null;
           price_range: string | null;
           price_cents: number | null;
+          status: "storage" | "consumed";
+          date_consumed: string | null;
+          drink_from: number | null;
+          drink_until: number | null;
           created_at: string;
         };
         Insert: {
@@ -121,6 +125,10 @@ export interface Database {
           ai_pairings?: string | null;
           price_range?: string | null;
           price_cents?: number | null;
+          status?: "storage" | "consumed";
+          date_consumed?: string | null;
+          drink_from?: number | null;
+          drink_until?: number | null;
           created_at?: string;
         };
         Update: {
@@ -143,6 +151,10 @@ export interface Database {
           ai_pairings?: string | null;
           price_range?: string | null;
           price_cents?: number | null;
+          status?: "storage" | "consumed";
+          date_consumed?: string | null;
+          drink_from?: number | null;
+          drink_until?: number | null;
           created_at?: string;
         };
         Relationships: [];
@@ -274,6 +286,10 @@ export interface Database {
           ai_production: string | null;
           ai_tasting_notes: string | null;
           ai_pairings: string | null;
+          status: "storage" | "consumed";
+          date_consumed: string | null;
+          drink_from: number | null;
+          drink_until: number | null;
           created_at: string;
           price_range: string | null;
           price_cents: number | null;

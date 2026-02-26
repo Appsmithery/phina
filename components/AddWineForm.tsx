@@ -68,6 +68,8 @@ export function AddWineForm({
   const [aiProduction, setAiProduction] = useState("");
   const [aiTastingNotes, setAiTastingNotes] = useState("");
   const [aiPairings, setAiPairings] = useState("");
+  const [drinkFrom, setDrinkFrom] = useState<number | null>(null);
+  const [drinkUntil, setDrinkUntil] = useState<number | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -86,6 +88,8 @@ export function AddWineForm({
         setAiProduction(extracted.ai_production ?? "");
         setAiTastingNotes(extracted.ai_tasting_notes ?? "");
         setAiPairings(extracted.ai_pairings ?? "");
+        if (extracted.drink_from != null) setDrinkFrom(extracted.drink_from);
+        if (extracted.drink_until != null) setDrinkUntil(extracted.drink_until);
       }
     }, [])
   );
@@ -131,6 +135,8 @@ export function AddWineForm({
         ai_production: aiProduction.trim() || null,
         ai_tasting_notes: aiTastingNotes.trim() || null,
         ai_pairings: aiPairings.trim() || null,
+        drink_from: drinkFrom,
+        drink_until: drinkUntil,
       }).select("id").single();
       if (error) {
         console.error("[add-wine] insert error:", JSON.stringify(error));

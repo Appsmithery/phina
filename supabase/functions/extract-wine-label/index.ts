@@ -43,7 +43,9 @@ Return a JSON object with exactly these keys (use null for missing/unclear value
 - ai_geography: string (1-2 sentences: where it's from and what makes that place great for this style of wine. No jargon.)
 - ai_production: string (1-2 sentences: how it's made in plain language. Briefly explain any technical terms used.)
 - ai_tasting_notes: string (1-2 sentences: what it tastes and smells like, using everyday words like fruits, spices, or textures.)
-- ai_pairings: string (1-2 sentences: specific food pairings a friend might suggest, like dishes or cuisines.)`;
+- ai_pairings: string (1-2 sentences: specific food pairings a friend might suggest, like dishes or cuisines.)
+- drink_from: number or null (the year this wine should start being at its best for drinking. For wines that are ready now, use the current year or the vintage year. For age-worthy wines, estimate when they'll hit their stride. Use null only if no vintage is available.)
+- drink_until: number or null (the year by which this wine should ideally be consumed. Consider the varietal, region, and quality level. Light whites and rosés: 1-3 years from vintage. Bold reds and quality wines: 5-15+ years. Use null only if no vintage is available.)`;
 
 const jsonSchema = {
   type: "object",
@@ -60,8 +62,10 @@ const jsonSchema = {
     ai_production: { type: ["string", "null"], maxLength: 300 },
     ai_tasting_notes: { type: ["string", "null"], maxLength: 300 },
     ai_pairings: { type: ["string", "null"], maxLength: 300 },
+    drink_from: { type: ["integer", "null"] },
+    drink_until: { type: ["integer", "null"] },
   },
-  required: ["producer", "varietal", "vintage", "region", "color", "is_sparkling", "ai_overview", "ai_geography", "ai_production", "ai_tasting_notes", "ai_pairings"],
+  required: ["producer", "varietal", "vintage", "region", "color", "is_sparkling", "ai_overview", "ai_geography", "ai_production", "ai_tasting_notes", "ai_pairings", "drink_from", "drink_until"],
   additionalProperties: false,
 };
 
@@ -83,6 +87,8 @@ interface WineExtraction {
   ai_production: string | null;
   ai_tasting_notes: string | null;
   ai_pairings: string | null;
+  drink_from: number | null;
+  drink_until: number | null;
   label_photo_url: string | null;
 }
 
@@ -116,6 +122,8 @@ function normalizeWineExtraction(obj: unknown): Omit<WineExtraction, "label_phot
     ai_production: typeof o.ai_production === "string" ? cleanAiText(o.ai_production) : null,
     ai_tasting_notes: typeof o.ai_tasting_notes === "string" ? cleanAiText(o.ai_tasting_notes) : null,
     ai_pairings: typeof o.ai_pairings === "string" ? cleanAiText(o.ai_pairings) : null,
+    drink_from: typeof o.drink_from === "number" && Number.isInteger(o.drink_from) ? o.drink_from : null,
+    drink_until: typeof o.drink_until === "number" && Number.isInteger(o.drink_until) ? o.drink_until : null,
   };
 }
 

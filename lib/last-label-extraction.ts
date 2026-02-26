@@ -15,6 +15,8 @@ export interface WineExtraction {
   ai_production: string | null;
   ai_tasting_notes: string | null;
   ai_pairings: string | null;
+  drink_from: number | null;
+  drink_until: number | null;
 }
 
 let last: WineExtraction | null = null;

@@ -8,6 +8,8 @@ import { useTheme } from "@/lib/theme";
 import type { WineWithPricePrivacy } from "@/types/database";
 import type { Event } from "@/types/database";
 
+type CellarTab = "storage" | "history";
+
 type WineWithEvent = WineWithPricePrivacy & {
   event: { title: string; date: string; status: string } | null;
 };
@@ -16,6 +18,7 @@ export default function CellarScreen() {
   const theme = useTheme();
   const { member } = useSupabase();
   const [search, setSearch] = useState("");
+  const [tab, setTab] = useState<CellarTab>("storage");
 
   const { data: wines = [] } = useQuery({
     queryKey: ["cellar", "my-wines", member?.id],
@@ -51,9 +54,14 @@ export default function CellarScreen() {
   });
 
   const filtered = useMemo(() => {
+    // First filter by tab
+    const tabFiltered = wines.filter((w) =>
+      tab === "storage" ? w.status !== "consumed" : w.status === "consumed"
+    );
+    // Then filter by search
     const q = search.trim().toLowerCase();
-    if (!q) return wines;
-    return wines.filter((w) => {
+    if (!q) return tabFiltered;
+    return tabFiltered.filter((w) => {
       const producer = (w.producer ?? "").toLowerCase();
       const varietal = (w.varietal ?? "").toLowerCase();
       const region = (w.region ?? "").toLowerCase();
@@ -67,7 +75,10 @@ export default function CellarScreen() {
         vintage.includes(q)
       );
     });
-  }, [wines, search]);
+  }, [wines, search, tab]);
+
+  const storageCt = useMemo(() => wines.filter((w) => w.status !== "consumed").length, [wines]);
+  const historyCt = useMemo(() => wines.filter((w) => w.status === "consumed").length, [wines]);
 
   if (!member?.id) {
     return (
@@ -90,6 +101,40 @@ export default function CellarScreen() {
           <Text style={styles.addButtonText}>+ Add</Text>
         </TouchableOpacity>
       </View>
+      <View style={styles.tabRow}>
+        <TouchableOpacity
+          style={[
+            styles.tab,
+            tab === "storage" && { borderBottomColor: theme.primary, borderBottomWidth: 2 },
+          ]}
+          onPress={() => setTab("storage")}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              { color: tab === "storage" ? theme.primary : theme.textMuted },
+            ]}
+          >
+            In Storage ({storageCt})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.tab,
+            tab === "history" && { borderBottomColor: theme.primary, borderBottomWidth: 2 },
+          ]}
+          onPress={() => setTab("history")}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              { color: tab === "history" ? theme.primary : theme.textMuted },
+            ]}
+          >
+            History ({historyCt})
+          </Text>
+        </TouchableOpacity>
+      </View>
       <TextInput
         style={[styles.search, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
         placeholder="Search by producer, varietal, event…"
@@ -101,7 +146,9 @@ export default function CellarScreen() {
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>
           {wines.length === 0
             ? "Add wines to your personal cellar to track what you have at home."
-            : "No wines match your search."}
+            : tab === "storage"
+            ? "No wines in storage."
+            : "No consumed wines yet."}
         </Text>
       ) : (
         <FlatList
@@ -122,12 +169,26 @@ export default function CellarScreen() {
             ]
               .filter(Boolean)
               .join(" ");
+            const drinkWindow =
+              item.drink_from != null && item.drink_until != null
+                ? `Drink ${item.drink_from}–${item.drink_until}`
+                : item.drink_from != null
+                ? `Drink from ${item.drink_from}`
+                : item.drink_until != null
+                ? `Drink until ${item.drink_until}`
+                : null;
+            const isPastWindow = item.drink_until != null && item.drink_until < new Date().getFullYear();
             const cardContent = (
               <>
                 <Text style={[styles.cardTitle, { color: theme.text }]}>{wineLine.trim() || "Unnamed wine"}</Text>
                 {item.region ? (
                   <Text style={[styles.cardMeta, { color: theme.textSecondary }]}>{item.region}</Text>
                 ) : null}
+                {drinkWindow && (
+                  <Text style={[styles.cardMeta, { color: isPastWindow ? "#B55A5A" : theme.textSecondary }]}>
+                    {drinkWindow}{isPastWindow ? " (past window)" : ""}
+                  </Text>
+                )}
                 {(item.price_cents != null || item.price_range != null) && (
                   <Text style={[styles.cardMeta, { color: theme.textSecondary }]}>
                     {item.price_cents != null ? `$${item.price_cents / 100}` : item.price_range ?? ""}
@@ -169,6 +230,9 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: "700", fontFamily: "PlayfairDisplay_700Bold" },
   addButton: { borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16 },
   addButtonText: { color: "#fff", fontSize: 15, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
+  tabRow: { flexDirection: "row", marginHorizontal: 16, marginBottom: 12 },
+  tab: { flex: 1, alignItems: "center", paddingVertical: 8, borderBottomWidth: 2, borderBottomColor: "transparent" },
+  tabText: { fontSize: 14, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   search: {
     borderWidth: 1,
     borderRadius: 12,

@@ -123,6 +123,8 @@ export default function SharedScanLabelScreen() {
         ai_production?: string | null;
         ai_tasting_notes?: string | null;
         ai_pairings?: string | null;
+        drink_from?: number | null;
+        drink_until?: number | null;
       };
       const color = extracted.color ?? null;
       setLastLabelExtraction({
@@ -139,6 +141,8 @@ export default function SharedScanLabelScreen() {
         ai_production: extracted.ai_production ?? null,
         ai_tasting_notes: extracted.ai_tasting_notes ?? null,
         ai_pairings: extracted.ai_pairings ?? null,
+        drink_from: extracted.drink_from ?? null,
+        drink_until: extracted.drink_until ?? null,
       });
       router.back();
     } catch (e) {
