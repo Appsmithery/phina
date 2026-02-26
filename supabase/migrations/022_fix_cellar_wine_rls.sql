@@ -43,6 +43,8 @@ CREATE POLICY "Read event_members for participants" ON event_members
 -- 2. Split wines SELECT policy
 -- ------------------------------------------------------------
 DROP POLICY IF EXISTS "Read wines for participants" ON wines;
+DROP POLICY IF EXISTS "Read own cellar wines" ON wines;
+DROP POLICY IF EXISTS "Read event wines for participants" ON wines;
 
 -- Cellar wines: simple ownership check, no event subqueries
 CREATE POLICY "Read own cellar wines" ON wines
