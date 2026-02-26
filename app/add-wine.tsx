@@ -11,8 +11,8 @@ export default function AddWineScreen() {
   const theme = useTheme();
   const queryClient = useQueryClient();
 
-  const onSuccess = () => {
-    queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", member?.id] });
+  const onSuccess = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", member?.id] });
     router.navigate("/(tabs)/cellar");
   };
 

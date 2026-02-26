@@ -59,6 +59,7 @@ export default function SharedScanLabelScreen() {
   const theme = useTheme();
   const [permission, requestPermission] = useCameraPermissions();
   const [extracting, setExtracting] = useState(false);
+  const [photoCaptured, setPhotoCaptured] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const cameraRef = useRef<CameraView>(null);
 
@@ -88,17 +89,23 @@ export default function SharedScanLabelScreen() {
         Alert.alert("Error", "Could not capture image.");
         return;
       }
+
+      // Photo captured successfully — close camera, show loading screen
+      setPhotoCaptured(true);
+
       const imagePayload = `data:image/jpeg;base64,${photo.base64}`;
       const { data, error } = await supabase.functions.invoke("extract-wine-label", {
         body: { image: imagePayload },
       });
       const err = (data as { error?: string })?.error;
       if (err) {
+        setPhotoCaptured(false);
         Alert.alert("Extraction failed", err);
         return;
       }
       if (error) {
         const message = await getEdgeFunctionErrorMessage(error, data);
+        setPhotoCaptured(false);
         Alert.alert("Label extraction failed", message);
         return;
       }
@@ -136,6 +143,7 @@ export default function SharedScanLabelScreen() {
       router.back();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Label extraction failed.";
+      setPhotoCaptured(false);
       Alert.alert("Error", message);
     } finally {
       setExtracting(false);
@@ -156,6 +164,18 @@ export default function SharedScanLabelScreen() {
         <TouchableOpacity style={[styles.button, { backgroundColor: theme.primary }]} onPress={requestPermission}>
           <Text style={styles.buttonText}>Allow camera</Text>
         </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (photoCaptured && extracting) {
+    return (
+      <View style={[styles.center, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} style={styles.spinner} />
+        <Text style={[styles.analyzingTitle, { color: theme.text }]}>Analyzing label…</Text>
+        <Text style={[styles.analyzingHint, { color: theme.textSecondary }]}>
+          This may take a few seconds
+        </Text>
       </View>
     );
   }
@@ -223,4 +243,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   captureBtnText: { color: "#fff", fontWeight: "600", fontSize: 16 },
+  spinner: { marginBottom: 20 },
+  analyzingTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    marginBottom: 8,
+    fontFamily: "PlayfairDisplay_600SemiBold",
+  },
+  analyzingHint: {
+    fontSize: 14,
+    fontFamily: "Montserrat_400Regular",
+  },
 });

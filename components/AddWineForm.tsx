@@ -112,7 +112,7 @@ export function AddWineForm({
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("wines").insert({
+      const { data, error } = await supabase.from("wines").insert({
         event_id: eventId,
         brought_by: memberId,
         producer: producer.trim() || null,
@@ -131,8 +131,9 @@ export function AddWineForm({
         ai_production: aiProduction.trim() || null,
         ai_tasting_notes: aiTastingNotes.trim() || null,
         ai_pairings: aiPairings.trim() || null,
-      });
+      }).select("id").single();
       if (error) throw error;
+      if (!data?.id) throw new Error("Wine was not saved. Please try again.");
       onSuccess();
     } catch (e: unknown) {
       const message =
