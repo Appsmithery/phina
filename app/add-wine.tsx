@@ -13,7 +13,7 @@ export default function AddWineScreen() {
 
   const onSuccess = () => {
     queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", member?.id] });
-    router.back();
+    router.navigate("/(tabs)/cellar");
   };
 
   const onScan = () => {

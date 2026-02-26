@@ -39,7 +39,7 @@ export default function EventsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
-        <View style={styles.headerSpacer} />
+        <Text style={[styles.title, { color: theme.text }]}>Events</Text>
         <TouchableOpacity
           style={[styles.createButton, { backgroundColor: theme.primary }]}
           onPress={() => router.push("/event/create")}
@@ -67,8 +67,8 @@ export default function EventsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: "row", justifyContent: "flex-end", alignItems: "center", padding: 16 },
-  headerSpacer: { flex: 1 },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
+  title: { fontSize: 22, fontWeight: "700", fontFamily: "PlayfairDisplay_700Bold" },
   createButton: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14 },
   createButtonText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   list: { padding: 16, paddingTop: 0 },

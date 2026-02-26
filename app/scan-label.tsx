@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Platform,
 } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
+import { router } from "expo-router";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
@@ -56,20 +56,15 @@ async function getEdgeFunctionErrorMessage(error: unknown, data: unknown): Promi
 }
 
 export default function SharedScanLabelScreen() {
-  const params = useLocalSearchParams<{ returnTo?: string; eventId?: string }>();
-  const returnTo = typeof params.returnTo === "string" ? params.returnTo : null;
   const theme = useTheme();
   const [permission, requestPermission] = useCameraPermissions();
   const [extracting, setExtracting] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const cameraRef = useRef<CameraView>(null);
 
-  const getRedirectPath = (): string => {
-    if (returnTo) return returnTo;
-    const eventId = typeof params.eventId === "string" ? params.eventId : null;
-    if (eventId) return `/event/${eventId}/add-wine`;
-    return "/add-wine";
-  };
+  // NOTE: do not use router.replace() here — it duplicates the add-wine screen in the
+  // navigation stack. router.back() returns to the exact add-wine instance that pushed
+  // this screen, and AddWineForm's useFocusEffect reads the extraction on focus.
 
   const captureAndExtract = async () => {
     if (!cameraRef.current) {
@@ -138,7 +133,7 @@ export default function SharedScanLabelScreen() {
         ai_tasting_notes: extracted.ai_tasting_notes ?? null,
         ai_pairings: extracted.ai_pairings ?? null,
       });
-      router.replace(getRedirectPath() as any);
+      router.back();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Label extraction failed.";
       Alert.alert("Error", message);
