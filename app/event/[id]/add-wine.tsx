@@ -22,7 +22,9 @@ export default function EventAddWineScreen() {
   };
 
   const onScan = () => {
-    if (eventId) router.push(`/event/${eventId}/scan-label`);
+    if (eventId) {
+      router.push({ pathname: "/scan-label", params: { returnTo: `/event/${eventId}/add-wine` } });
+    }
   };
 
   if (!sessionLoaded) {

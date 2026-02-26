@@ -97,7 +97,7 @@ export default function CellarScreen() {
       {filtered.length === 0 ? (
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>
           {wines.length === 0
-            ? "Wines you add to events will appear here."
+            ? "Add wines to your personal cellar to track what you have at home."
             : "No wines match your search."}
         </Text>
       ) : (
