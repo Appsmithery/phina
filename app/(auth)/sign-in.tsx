@@ -19,6 +19,7 @@ import { useTheme } from "@/lib/theme";
 import { getRedirectUrl } from "@/lib/auth-redirect";
 import { setLastUsedEmail } from "@/lib/last-email";
 import { signInWithGoogle } from "@/lib/oauth-google";
+import { navigateAfterAuth } from "@/lib/post-auth-navigate";
 
 const UNAUTHORIZED_HINT =
   "In Supabase: Authentication → Providers → turn Email ON. Check Project Settings → API: use the anon public key and project URL in .env, then restart the app.";
@@ -47,10 +48,12 @@ export default function SignInScreen() {
   useEffect(() => {
     if (session && sessionLoaded && emailFromSplash) {
       if (__DEV__) {
-        console.log("[auth] sign-in useEffect session→tabs", { hasSession: !!session });
+        console.log("[auth] sign-in useEffect session→navigateAfterAuth", { hasSession: !!session });
       }
-      // Navigate directly to tabs so root index doesn't see stale context and redirect to auth/splash
-      router.replace("/(tabs)");
+      // Defer navigation until after context has committed so index doesn't redirect to auth with stale session
+      queueMicrotask(() => {
+        navigateAfterAuth();
+      });
     }
   }, [session, sessionLoaded, emailFromSplash]);
 
@@ -72,14 +75,8 @@ export default function SignInScreen() {
         if (__DEV__) {
           console.log("[auth] sign-in setSessionFromAuth called");
         }
+        // Update context; the useEffect will handle navigation when session state changes
         setSessionFromAuth(data.session);
-        // Defer navigation until after context has committed so index doesn't redirect to auth with stale session
-        queueMicrotask(() => {
-          if (__DEV__) {
-            console.log("[auth] sign-in navigating to tabs");
-          }
-          router.replace("/(tabs)");
-        });
       }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
@@ -134,8 +131,8 @@ export default function SignInScreen() {
     try {
       const session = await signInWithGoogle();
       if (session) {
+        // Update context; the useEffect will handle navigation when session state changes
         setSessionFromAuth(session);
-        router.replace("/(tabs)");
       } else {
         setErrorHint("Google sign-in was cancelled or failed");
       }

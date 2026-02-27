@@ -19,6 +19,7 @@ import { getRedirectUrl } from "@/lib/auth-redirect";
 import { setLastUsedEmail } from "@/lib/last-email";
 import { useSupabase } from "@/lib/supabase-context";
 import { signInWithGoogle } from "@/lib/oauth-google";
+import { navigateAfterAuth } from "@/lib/post-auth-navigate";
 
 const UNAUTHORIZED_HINT =
   "In Supabase: Authentication → Providers → turn Email ON. Check Project Settings → API: use the anon public key and project URL in .env, then restart the app.";
@@ -147,7 +148,7 @@ export default function AuthScreen() {
       const session = await signInWithGoogle();
       if (session) {
         setSessionFromAuth(session);
-        router.replace("/(tabs)");
+        await navigateAfterAuth();
       } else {
         setErrorHint("Google sign-in was cancelled or failed");
       }

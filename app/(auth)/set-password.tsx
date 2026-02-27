@@ -16,6 +16,7 @@ import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
+import { navigateAfterAuth } from "@/lib/post-auth-navigate";
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -55,7 +56,7 @@ export default function SetPasswordScreen() {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
       setSuccess(true);
-      setTimeout(() => router.replace("/(tabs)"), 1000);
+      setTimeout(() => navigateAfterAuth(), 1000);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
       setErrorHint(message);
