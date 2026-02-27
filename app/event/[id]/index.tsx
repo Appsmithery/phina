@@ -93,6 +93,31 @@ export default function EventDetailScreen() {
     }
   };
 
+  const canDeleteEvent = isHost || member?.is_admin;
+
+  const handleDeleteEvent = () => {
+    Alert.alert(
+      "Delete event?",
+      "This will permanently delete the event and all wines, ratings, and member data.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            const { error } = await supabase.from("events").delete().eq("id", id!);
+            if (error) {
+              Alert.alert("Error", error.message ?? "Could not delete event.");
+              return;
+            }
+            queryClient.invalidateQueries({ queryKey: ["events"] });
+            router.replace("/(tabs)");
+          },
+        },
+      ]
+    );
+  };
+
   const handleRemoveWine = (wine: WineWithPricePrivacy) => {
     Alert.alert(
       "Remove wine",
@@ -190,6 +215,15 @@ export default function EventDetailScreen() {
             </TouchableOpacity>
           )}
         </>
+      )}
+
+      {canDeleteEvent && (
+        <TouchableOpacity
+          style={[styles.deleteEventButton, { borderColor: "#B55A5A" }]}
+          onPress={handleDeleteEvent}
+        >
+          <Text style={[styles.deleteEventText, { color: "#B55A5A" }]}>Delete event</Text>
+        </TouchableOpacity>
       )}
 
       <TouchableOpacity
@@ -299,6 +333,8 @@ const styles = StyleSheet.create({
   shareButtonText: { fontSize: 16, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   endEventButton: { borderWidth: 1, borderRadius: 14, padding: 12, alignItems: "center", marginBottom: 16 },
   endEventText: { fontSize: 16, fontFamily: "Montserrat_400Regular" },
+  deleteEventButton: { borderWidth: 1, borderRadius: 14, padding: 12, alignItems: "center", marginBottom: 16 },
+  deleteEventText: { fontSize: 16, fontFamily: "Montserrat_400Regular" },
   rateButton: { borderRadius: 12, padding: 10, alignItems: "center", marginTop: 12 },
   rateButtonText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   removeButton: { borderWidth: 1, borderRadius: 10, padding: 8, alignItems: "center", marginTop: 8, alignSelf: "flex-start" },
