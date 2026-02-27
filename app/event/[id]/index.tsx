@@ -74,7 +74,21 @@ export default function EventDetailScreen() {
     enabled: !!id && !!userId && isAuthenticated,
   });
 
+  const { data: guestCount } = useQuery({
+    queryKey: ["event_members_count", id],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("event_members")
+        .select("*", { count: "exact", head: true })
+        .eq("event_id", id!);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!id && isAuthenticated,
+  });
+
   const isHost = event?.created_by === member?.id;
+  const canSeeMetrics = isHost || member?.is_admin;
   const endEventMutation = useEndEvent(id!);
 
   const APP_BASE_URL = process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co";
@@ -184,6 +198,19 @@ export default function EventDetailScreen() {
       <Text style={[styles.meta, { color: theme.textSecondary }]}>
         {event.theme} · {new Date(event.date).toLocaleDateString()} · {event.status}
       </Text>
+
+      {canSeeMetrics && (
+        <View style={styles.metricsRow}>
+          <View style={[styles.metricTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Text style={[styles.metricValue, { color: theme.text }]}>{guestCount ?? "—"}</Text>
+            <Text style={[styles.metricLabel, { color: theme.textMuted }]}>Guests</Text>
+          </View>
+          <View style={[styles.metricTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Text style={[styles.metricValue, { color: theme.text }]}>{wines.length}</Text>
+            <Text style={[styles.metricLabel, { color: theme.textMuted }]}>Wines</Text>
+          </View>
+        </View>
+      )}
 
       {isHost && (
         <>
@@ -312,7 +339,11 @@ export default function EventDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   title: { fontSize: 24, fontWeight: "700", marginBottom: 4, fontFamily: "PlayfairDisplay_700Bold" },
-  meta: { fontSize: 14, marginBottom: 16, fontFamily: "Montserrat_400Regular" },
+  meta: { fontSize: 14, marginBottom: 12, fontFamily: "Montserrat_400Regular" },
+  metricsRow: { flexDirection: "row", gap: 12, marginBottom: 16 },
+  metricTile: { flex: 1, borderWidth: 1, borderRadius: 14, padding: 12, alignItems: "center" },
+  metricValue: { fontSize: 22, fontWeight: "700", fontFamily: "PlayfairDisplay_700Bold" },
+  metricLabel: { fontSize: 12, marginTop: 2, fontFamily: "Montserrat_400Regular" },
   primaryButton: { borderRadius: 14, padding: 16, alignItems: "center", marginBottom: 24 },
   primaryButtonText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   addWineButton: { borderWidth: 1, borderRadius: 14, padding: 12, alignItems: "center", marginBottom: 16 },

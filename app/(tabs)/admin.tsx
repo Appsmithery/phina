@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useRouter } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useMembers, useToggleAdmin } from "@/hooks/use-members";
 import { useTheme } from "@/lib/theme";
@@ -19,6 +21,36 @@ export default function AdminScreen() {
   const { data: members = [], isLoading } = useMembers();
   const toggleAdmin = useToggleAdmin();
   const theme = useTheme();
+
+  const { data: memberCount } = useQuery({
+    queryKey: ["admin_count_members"],
+    queryFn: async () => {
+      const { count, error } = await supabase.from("members").select("*", { count: "exact", head: true });
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!currentMember?.is_admin,
+  });
+
+  const { data: eventCount } = useQuery({
+    queryKey: ["admin_count_events"],
+    queryFn: async () => {
+      const { count, error } = await supabase.from("events").select("*", { count: "exact", head: true });
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!currentMember?.is_admin,
+  });
+
+  const { data: wineCount } = useQuery({
+    queryKey: ["admin_count_wines"],
+    queryFn: async () => {
+      const { count, error } = await supabase.from("wines").select("*", { count: "exact", head: true });
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!currentMember?.is_admin,
+  });
 
   const handleToggle = (m: Pick<Member, "id" | "name" | "email" | "is_admin">) => {
     if (m.id === currentMember?.id) {
@@ -48,6 +80,20 @@ export default function AdminScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={styles.metricsRow}>
+        <View style={[styles.metricTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.metricValue, { color: theme.text }]}>{memberCount ?? "—"}</Text>
+          <Text style={[styles.metricLabel, { color: theme.textMuted }]}>Members</Text>
+        </View>
+        <View style={[styles.metricTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.metricValue, { color: theme.text }]}>{eventCount ?? "—"}</Text>
+          <Text style={[styles.metricLabel, { color: theme.textMuted }]}>Events</Text>
+        </View>
+        <View style={[styles.metricTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.metricValue, { color: theme.text }]}>{wineCount ?? "—"}</Text>
+          <Text style={[styles.metricLabel, { color: theme.textMuted }]}>Wines</Text>
+        </View>
+      </View>
       <Text style={[styles.title, { color: theme.text }]}>Members</Text>
       <FlatList
         data={members}
@@ -85,6 +131,10 @@ export default function AdminScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  metricsRow: { flexDirection: "row", gap: 12, padding: 16, paddingBottom: 0 },
+  metricTile: { flex: 1, borderWidth: 1, borderRadius: 14, padding: 12, alignItems: "center" },
+  metricValue: { fontSize: 22, fontWeight: "700", fontFamily: "PlayfairDisplay_700Bold" },
+  metricLabel: { fontSize: 12, marginTop: 2, fontFamily: "Montserrat_400Regular" },
   title: { fontSize: 24, fontWeight: "700", padding: 16, fontFamily: "PlayfairDisplay_700Bold" },
   list: { padding: 16, paddingTop: 0 },
   card: {
