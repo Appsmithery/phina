@@ -185,6 +185,7 @@ export default function RateWineScreen() {
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["ratingRound", eventId, wineId] });
       queryClient.invalidateQueries({ queryKey: ["rating", wineId, userId] });
+      queryClient.invalidateQueries({ queryKey: ["profile", "ratings"] });
       showAlert("Vote recorded!", "Thanks for rating.", [{ text: "OK", onPress: () => router.back() }]);
     } catch (e: unknown) {
       const message =

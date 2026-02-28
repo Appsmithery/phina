@@ -124,7 +124,9 @@ export default function EventDetailScreen() {
           queryClient.invalidateQueries({ queryKey: ["event_members_count", id] });
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (__DEV__) console.log(`[realtime] event:${id} status=${status}`, err ?? "");
+      });
 
     return () => {
       supabase.removeChannel(channel);

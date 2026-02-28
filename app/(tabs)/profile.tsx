@@ -184,13 +184,16 @@ export default function ProfileScreen() {
         {member?.id != null ? (
           <>
             <View style={styles.statsGrid}>
-              <View style={[styles.statTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <TouchableOpacity
+                style={[styles.statTile, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                onPress={() => router.push("/(tabs)/cellar?tab=history")}
+              >
                 <Text style={[styles.tileValue, { color: theme.text }]}>{stats.totalRatings}</Text>
                 <View style={styles.tileLabelRow}>
                   <Ionicons name="wine-outline" size={18} color={theme.textSecondary} />
                   <Text style={[styles.tileLabel, { color: theme.textSecondary }]}>Wines Rated</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
               <View style={[styles.statTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                 <Text style={[styles.tileValue, { color: theme.text }]}>
                   {stats.totalRatings > 0 ? `${stats.pctLiked}%` : "—"}
@@ -200,13 +203,16 @@ export default function ProfileScreen() {
                   <Text style={[styles.tileLabel, { color: theme.textSecondary }]}>Liked</Text>
                 </View>
               </View>
-              <View style={[styles.statTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <TouchableOpacity
+                style={[styles.statTile, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                onPress={() => router.push("/(tabs)")}
+              >
                 <Text style={[styles.tileValue, { color: theme.text }]}>{stats.eventsAttended}</Text>
                 <View style={styles.tileLabelRow}>
                   <Ionicons name="calendar-outline" size={18} color={theme.textSecondary} />
                   <Text style={[styles.tileLabel, { color: theme.textSecondary }]}>Events</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
               <View style={[styles.statTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                 <Text style={[styles.tileValue, { color: theme.text }]}>{stats.favoritesCount}</Text>
                 <View style={styles.tileLabelRow}>

@@ -140,6 +140,7 @@ export default function PersonalRateWineScreen() {
       queryClient.invalidateQueries({ queryKey: ["rating", wineId, userId] });
       queryClient.invalidateQueries({ queryKey: ["wine", wineId] });
       queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", member?.id] });
+      queryClient.invalidateQueries({ queryKey: ["profile", "ratings"] });
       showAlert("Rating saved!", "Thanks for rating.", [{ text: "OK", onPress: () => router.back() }]);
     } catch (e: unknown) {
       const message =
