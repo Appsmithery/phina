@@ -31,8 +31,9 @@ interface MemberRow {
 }
 
 function corsHeaders(): Record<string, string> {
+  const origin = Deno.env.get("APP_URL") || "https://phina.appsmithery.co";
   return {
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
   };

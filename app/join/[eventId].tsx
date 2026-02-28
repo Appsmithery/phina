@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 import { useQueryClient } from "@tanstack/react-query";
 import { setPendingJoinEventId } from "@/lib/pending-join";
+import { showAlert } from "@/lib/alert";
 
 export default function JoinEventScreen() {
   const { eventId } = useLocalSearchParams<{ eventId: string }>();
@@ -34,7 +35,8 @@ export default function JoinEventScreen() {
         queryClient.invalidateQueries({ queryKey: ["event", eventId] });
         setDone(true);
         router.replace(`/event/${eventId}`);
-      } catch {
+      } catch (e: unknown) {
+        showAlert("Error", e instanceof Error ? e.message : "Could not join event. Please try again.");
         setJoining(false);
       }
     })();

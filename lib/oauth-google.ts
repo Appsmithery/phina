@@ -38,7 +38,7 @@ export function getOAuthRedirectUrl(): string {
   // - Web: current origin
   const redirectUri = AuthSession.makeRedirectUri();
 
-  console.log("[oauth-google] Generated redirect URI:", redirectUri);
+  if (__DEV__) console.log("[oauth-google] Generated redirect URI:", redirectUri);
   return redirectUri;
 }
 
@@ -73,7 +73,7 @@ export async function createSessionFromUrl(url: string): Promise<Session | null>
 
     return null;
   } catch (error) {
-    console.error("[oauth-google] createSessionFromUrl error:", error);
+    if (__DEV__) console.error("[oauth-google] createSessionFromUrl error:", error);
     return null;
   }
 }
@@ -96,11 +96,11 @@ async function signInWithGoogleNative(): Promise<Session | null> {
   const idToken = response.data?.idToken;
 
   if (!idToken) {
-    console.log("[oauth-google] Native: no ID token returned (user may have cancelled)");
+    if (__DEV__) console.log("[oauth-google] Native: no ID token returned (user may have cancelled)");
     return null;
   }
 
-  console.log("[oauth-google] Native: received ID token, exchanging with Supabase");
+  if (__DEV__) console.log("[oauth-google] Native: received ID token, exchanging with Supabase");
 
   const { data, error } = await supabase.auth.signInWithIdToken({
     provider: "google",
@@ -132,8 +132,8 @@ async function signInWithGoogleBrowser(): Promise<Session | null> {
   // then the callback page forwards auth params to the native exp:// or phina:// URL.
   const webCallbackUrl = `${appUrl}/callback?nativeRedirect=${encodeURIComponent(nativeRedirectUrl)}`;
 
-  console.log("[oauth-google] Native redirect URL:", nativeRedirectUrl);
-  console.log("[oauth-google] Web callback intermediary:", webCallbackUrl);
+  if (__DEV__) console.log("[oauth-google] Native redirect URL:", nativeRedirectUrl);
+  if (__DEV__) console.log("[oauth-google] Web callback intermediary:", webCallbackUrl);
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
@@ -144,24 +144,24 @@ async function signInWithGoogleBrowser(): Promise<Session | null> {
   });
 
   if (error) {
-    console.error("[oauth-google] Supabase signInWithOAuth error:", error);
+    if (__DEV__) console.error("[oauth-google] Supabase signInWithOAuth error:", error);
     throw error;
   }
 
   if (!data?.url) {
-    console.error("[oauth-google] No OAuth URL returned");
+    if (__DEV__) console.error("[oauth-google] No OAuth URL returned");
     return null;
   }
 
-  console.log("[oauth-google] Opening OAuth URL in browser");
+  if (__DEV__) console.log("[oauth-google] Opening OAuth URL in browser");
 
   if (Platform.OS === "web") {
     const result = await WebBrowser.openAuthSessionAsync(data.url, appUrl);
     if (result.type === "success" && result.url) {
-      console.log("[oauth-google] Web auth success, processing URL");
+      if (__DEV__) console.log("[oauth-google] Web auth success, processing URL");
       return await createSessionFromUrl(result.url);
     }
-    console.log("[oauth-google] Web auth result:", result.type);
+    if (__DEV__) console.log("[oauth-google] Web auth result:", result.type);
     return null;
   }
 
@@ -169,19 +169,19 @@ async function signInWithGoogleBrowser(): Promise<Session | null> {
   // The web callback page will redirect to this URL with auth params attached.
   const result = await WebBrowser.openAuthSessionAsync(data.url, nativeRedirectUrl);
 
-  console.log("[oauth-google] Native browser result type:", result.type);
+  if (__DEV__) console.log("[oauth-google] Native browser result type:", result.type);
 
   if (result.type === "success" && result.url) {
-    console.log("[oauth-google] ✅ Browser returned URL:", result.url);
+    if (__DEV__) console.log("[oauth-google] Browser returned URL:", result.url);
     return await createSessionFromUrl(result.url);
   } else if (result.type === "cancel") {
-    console.log("[oauth-google] Browser closed (cancel) — checking deep link fallback");
+    if (__DEV__) console.log("[oauth-google] Browser closed (cancel) — checking deep link fallback");
     return null;
   } else if (result.type === "dismiss") {
-    console.log("[oauth-google] ❌ Browser dismissed before completing auth");
+    if (__DEV__) console.log("[oauth-google] Browser dismissed before completing auth");
     return null;
   } else {
-    console.error("[oauth-google] ❌ Unexpected result type:", result.type);
+    if (__DEV__) console.error("[oauth-google] Unexpected result type:", result.type);
     return null;
   }
 }
@@ -199,14 +199,14 @@ async function signInWithGoogleBrowser(): Promise<Session | null> {
 export async function signInWithGoogle(): Promise<Session | null> {
   try {
     if (isNativeGoogleAvailable()) {
-      console.log("[oauth-google] Using native Google Sign-In (production build)");
+      if (__DEV__) console.log("[oauth-google] Using native Google Sign-In (production build)");
       return await signInWithGoogleNative();
     }
 
-    console.log("[oauth-google] Native SDK not available — using browser fallback (Expo Go)");
+    if (__DEV__) console.log("[oauth-google] Native SDK not available — using browser fallback (Expo Go)");
     return await signInWithGoogleBrowser();
   } catch (error) {
-    console.error("[oauth-google] signInWithGoogle error:", error);
+    if (__DEV__) console.error("[oauth-google] signInWithGoogle error:", error);
     return null;
   }
 }

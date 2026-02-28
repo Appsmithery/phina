@@ -10,7 +10,7 @@ A wine club app that digitizes themed tasting events: members snap a photo of th
 
 - **Events** — Host creates an event with a theme and shows a QR code at the venue.
 - **Join in person** — Members scan the QR to join (no remote voting).
-- **Wine entry** — Camera captures the label; AI (Perplexity Sonar) extracts producer, varietal, vintage, region and optional background summary.
+- **Wine entry** — Camera captures the label; AI (Perplexity Sonar) extracts producer, varietal, vintage, region, tasting notes, and more.
 - **Check-in** — Name, email, and wine details (auto-filled from the photo).
 - **Live rating rounds** — Host starts a round → push notification → everyone rates 👍 / 😐 / 👎. Ratings are blind until the host ends the event; then anonymous aggregates are revealed.
 - **History** — Searchable repository of past events, wines, and ratings (read-only after an event ends).
@@ -24,68 +24,62 @@ A wine club app that digitizes themed tasting events: members snap a photo of th
 | App | React Native + Expo (TypeScript), single codebase → PWA + iOS + Android |
 | Backend | Supabase (Postgres, Auth, Storage, Edge Functions) |
 | Label AI | Perplexity Sonar API via Supabase Edge Function |
-| Push | Expo Push (native), Web Push (PWA) |
+| Push | Expo Push (native), Web Push via VAPID (PWA) |
 | Hosting | Digital Ocean (PWA on droplet), GoDaddy (domain), EAS Build for native |
 
 ---
 
-## Development
+## Getting started
 
 1. **Clone and install**
    ```bash
    cd phina && npm install
    ```
-2. **Environment**
-   - Copy `.env.example` to `.env` and set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` from your [Supabase](https://supabase.com) project.
-   - Optional: set `EXPO_PUBLIC_APP_URL` (default `https://phina.appsmithery.co`).
-   - For label scanning (Scan label on Add wine): set `PERPLEXITY_API_KEY` in `.env` for local Edge Function runs, and `supabase secrets set PERPLEXITY_API_KEY=pplx-...` for deployed functions. Get a key at [Perplexity API](https://perplexity.ai/account/api).
-3. **Database**
-   - In Supabase: SQL Editor → run the migrations in `supabase/migrations/` in order (e.g. `001_initial.sql`).
-   - In Authentication → Providers, enable Email and optionally disable "Confirm email" for magic links during dev. **If you never receive the magic link email**, see [Auth setup](docs/AUTH_SETUP.md) (redirect URLs, SMTP, and team email limits).
-4. **Assets**
-   - Add app icon and splash images under `assets/` (see `assets/README.md`). If missing, you may need to point `app.config.ts` at placeholder assets to run.
-5. **Run**
+
+2. **Environment** — copy `.env.example` to `.env` and set:
+   - `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` from your [Supabase](https://supabase.com) project
+   - `EXPO_PUBLIC_APP_URL` (default `https://phina.appsmithery.co`)
+
+3. **Database** — in Supabase SQL Editor, run the migrations in `supabase/migrations/` in order.
+
+4. **Run**
    ```bash
    npx expo start
    ```
-   Then press `w` for web, or use **Expo Go** on your phone for native:
-   - **iPhone:** Install [Expo Go](https://apps.apple.com/app/expo-go/id982107779) from the App Store. Ensure your phone and computer are on the same Wi‑Fi, then scan the QR code from the terminal (or from the in-browser dev tools). If they're on different networks, run `npx expo start --tunnel` and scan the tunnel QR.
-   - **Android:** Install Expo Go from the Play Store and scan the QR code the same way.
-   - **Remote push notifications** are not supported in Expo Go (SDK 53+). To test "Start rating round" → push on device, use a [development build](docs/setup/DEVELOPMENT_BUILD.md) (`npx expo run:ios` or `run:android`, or EAS dev build).
-   - **“Expo user account required” / HTTP 500 with username/password assertion:** Log in **before** starting the dev server: run `npx expo login` in a separate terminal and sign in with your Expo account (email or username + password). On Windows, type the password manually (don’t paste) so the CLI receives it. Alternatively, create an **Expo** access token at [expo.dev](https://expo.dev) → your account → Access tokens (not a GitHub token), then set `EXPO_TOKEN` in your environment so the CLI doesn’t prompt. You do **not** need EAS build credentials to use Expo Go—only a normal Expo account.
+   Press `w` for web, or scan the QR with Expo Go on your phone (same Wi-Fi required; use `--tunnel` otherwise).
 
-**Edge Functions (label extraction)**
+5. **Edge Functions** — the "Scan label" feature requires the `extract-wine-label` function deployed and `PERPLEXITY_API_KEY` set. See [Edge Functions deploy guide](docs/setup/EDGE_FUNCTIONS_MANUAL_DEPLOY.md).
 
-The “Scan label” feature calls the `extract-wine-label` Edge Function. You can either run it locally (needs Docker) or deploy it to your hosted project (no Docker).
+---
 
-- **Local (requires [Docker Desktop](https://docs.docker.com/desktop))**
-  1. Start the local Supabase stack: `npx supabase start`
-  2. Serve the function: `npm run functions:serve` (or `npx supabase functions serve extract-wine-label`)
-  3. Point the app at local Supabase (e.g. set `EXPO_PUBLIC_SUPABASE_URL` to the URL from `supabase start`) so the app calls the local function.
-- **Deploy to hosted project (no Docker)**  
-  Use your existing Supabase project URL; the app will call the deployed function.
-  1. Link the CLI to your project: `npx supabase link --project-ref YOUR_REF` (ref from Supabase dashboard URL).
-  2. Deploy: `npx supabase functions deploy extract-wine-label`
-  3. Set the secret: `npx supabase secrets set PERPLEXITY_API_KEY=pplx-...`
-  Your app already uses `EXPO_PUBLIC_SUPABASE_URL`; once the function is deployed and the secret set, “Scan label” will use it.
-
-**Scripts**
+## Scripts
 
 | Command | Description |
 |--------|-------------|
 | `npm start` | Start Expo dev server |
 | `npm run web` | Start with web |
 | `npm run export:web` | Build PWA to `dist/` |
-| `npm run functions:serve` | Serve `extract-wine-label` locally (requires `supabase start` + Docker) |
+| `npm run functions:serve` | Serve Edge Functions locally (requires Docker + `supabase start`) |
 | `npm run typecheck` | TypeScript check |
 | `npm run lint` | Expo lint |
 | `npm test` | Run Jest tests |
 
-**Security:** We use `overrides` in `package.json` to pin patched versions of `minimatch` and `tar`. Most other audit findings are in transitive Expo/Jest/React Native deps; fixing them with `npm audit fix --force` would apply breaking version changes. Re-run `npm audit` after upgrading Expo (e.g. `npx expo install expo@latest`) when newer SDKs ship with updated dependencies.
+**Security:** `overrides` in `package.json` pin patched versions of `minimatch` and `tar`. Re-run `npm audit` after upgrading Expo.
 
 ---
 
 ## Docs
 
-- [Roadmap & architecture](docs/planning/ROADMAP.md) — Context, data model, screen flow, and implementation order.
-- [Development build](docs/setup/DEVELOPMENT_BUILD.md) — Native push testing (Expo Go does not support remote push); SecureStore warning.
+| Doc | Description |
+|-----|-------------|
+| [System Architecture](docs/architecture/system-architecture.md) | Data model, auth, realtime, cross-platform patterns, push, security |
+| [Roadmap](docs/planning/ROADMAP.md) | Product vision and release milestones |
+| [Taste Graph](docs/architecture/taste-graph.md) | Preference graph architecture (v0.5+) |
+| [Brand Guidelines](docs/brand-guidelines.md) | Palette, typography, UI principles |
+| [Auth Setup](docs/setup/AUTH_SETUP.md) | Magic links, email auth, SMTP, redirect URLs |
+| [Google OAuth Setup](docs/setup/GOOGLE_OAUTH_SETUP.md) | OAuth app config, deep link callback |
+| [Expo Go OAuth](docs/setup/EXPO_GO_OAUTH_SETUP.md) | OAuth in Expo Go during development |
+| [Edge Functions Deploy](docs/setup/EDGE_FUNCTIONS_MANUAL_DEPLOY.md) | Deploy via Supabase Dashboard (Windows CLI workaround) |
+| [Development Build](docs/setup/DEVELOPMENT_BUILD.md) | Native push testing; Expo Go limitations |
+| [Deploy (Digital Ocean)](docs/setup/DEPLOY_DIGITALOCEAN.md) | PWA deploy, nginx config, SSL |
+| [Rating Rounds Auto-close](docs/setup/RATING_ROUNDS_AUTO_CLOSE.md) | Scheduled round closure config |

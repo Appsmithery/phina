@@ -87,7 +87,7 @@ function SupabaseLayout() {
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
       const url = response.notification.request.content.data?.url;
       if (typeof url === "string" && url.startsWith("/")) {
-        router.push(url as any);
+        router.push(url as `/${string}`);
       }
     });
     return () => sub.remove();
@@ -187,6 +187,8 @@ function SupabaseLayout() {
       <Stack.Screen name="wine/[wineId]/index" />
       <Stack.Screen name="wine/[wineId]/edit" />
       <Stack.Screen name="wine/[wineId]/rate" />
+      <Stack.Screen name="privacy" />
+      <Stack.Screen name="terms" />
     </Stack>
   );
 }

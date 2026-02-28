@@ -9,7 +9,7 @@ import { useTheme } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
 import { useQueryClient } from "@tanstack/react-query";
 
-const MIN_PASSWORD_LENGTH = 6;
+const MIN_PASSWORD_LENGTH = 8;
 
 export default function ProfileScreen() {
   const { member, session, refreshMember } = useSupabase();
@@ -319,6 +319,15 @@ export default function ProfileScreen() {
         <TouchableOpacity style={[styles.signOut, { borderColor: theme.border }]} onPress={signOut}>
           <Text style={[styles.signOutText, { color: theme.textSecondary }]}>Sign out</Text>
         </TouchableOpacity>
+        <View style={styles.legalRow}>
+          <TouchableOpacity onPress={() => router.push("/privacy")}>
+            <Text style={[styles.legalLink, { color: theme.textMuted }]}>Privacy Policy</Text>
+          </TouchableOpacity>
+          <Text style={[styles.legalDot, { color: theme.textMuted }]}>&middot;</Text>
+          <TouchableOpacity onPress={() => router.push("/terms")}>
+            <Text style={[styles.legalLink, { color: theme.textMuted }]}>Terms of Service</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
@@ -348,6 +357,9 @@ const styles = StyleSheet.create({
   buttonText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   signOut: { borderWidth: 1, borderRadius: 12, padding: 14, alignItems: "center" },
   signOutText: { fontSize: 16, fontFamily: "Montserrat_400Regular" },
+  legalRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 16, gap: 8 },
+  legalLink: { fontSize: 13, fontFamily: "Montserrat_400Regular" },
+  legalDot: { fontSize: 13 },
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",

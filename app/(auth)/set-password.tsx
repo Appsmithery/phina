@@ -18,7 +18,7 @@ import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
 import { navigateAfterAuth } from "@/lib/post-auth-navigate";
 
-const MIN_PASSWORD_LENGTH = 6;
+const MIN_PASSWORD_LENGTH = 8;
 
 export default function SetPasswordScreen() {
   const { session, sessionLoaded } = useSupabase();

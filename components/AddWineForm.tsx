@@ -139,11 +139,11 @@ export function AddWineForm({
         drink_until: drinkUntil,
       }).select("id").single();
       if (error) {
-        console.error("[add-wine] insert error:", JSON.stringify(error));
+        if (__DEV__) console.error("[add-wine] insert error:", JSON.stringify(error));
         throw error;
       }
       if (!data?.id) throw new Error("Wine was not saved. Please try again.");
-      console.log("[add-wine] insert success, id:", data.id);
+      if (__DEV__) console.log("[add-wine] insert success, id:", data.id);
       onSuccess();
     } catch (e: unknown) {
       const message =

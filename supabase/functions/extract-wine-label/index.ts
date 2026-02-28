@@ -287,6 +287,9 @@ Deno.serve(async (req: Request) => {
     let label_photo_url: string | null = null;
     if (body.image) {
       const imageBytes = decodeBase64Image(body.image);
+      if (imageBytes && imageBytes.length > 10 * 1024 * 1024) {
+        return jsonResponse({ error: "Image too large (max 10 MB)" }, 413);
+      }
       if (imageBytes) label_photo_url = await uploadLabelPhoto(imageBytes);
     }
     const response: WineExtraction = { ...extracted, label_photo_url };
@@ -298,8 +301,9 @@ Deno.serve(async (req: Request) => {
 });
 
 function corsHeaders(): Record<string, string> {
+  const origin = Deno.env.get("APP_URL") || "https://phina.appsmithery.co";
   return {
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
   };
