@@ -1,4 +1,4 @@
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Linking } from "react-native";
 import { showAlert } from "@/lib/alert";
 import { useEffect, useMemo, useState } from "react";
 import { router } from "expo-router";
@@ -10,6 +10,12 @@ import { supabase } from "@/lib/supabase";
 import { useQueryClient } from "@tanstack/react-query";
 
 const MIN_PASSWORD_LENGTH = 8;
+
+const DONATION_LINKS: Record<number, string> = {
+  100: "https://buy.stripe.com/8x214p9RF4XRbCq2y64ZG00",
+  500: "https://buy.stripe.com/cNi5kFfbZ2PJ21Q3Ca4ZG01",
+  1000: "https://buy.stripe.com/aFaeVfbZNeyr21QdcK4ZG02",
+};
 
 export default function ProfileScreen() {
   const { member, session, refreshMember } = useSupabase();
@@ -146,6 +152,14 @@ export default function ProfileScreen() {
     }
   };
 
+  const openDonation = async (amountCents: number) => {
+    const base = DONATION_LINKS[amountCents];
+    const params: string[] = [];
+    if (session?.user?.email) params.push(`prefilled_email=${encodeURIComponent(session.user.email)}`);
+    if (member?.id) params.push(`client_reference_id=${encodeURIComponent(member.id)}`);
+    await Linking.openURL(params.length ? `${base}?${params.join("&")}` : base);
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     router.replace("/(auth)");
@@ -277,6 +291,26 @@ export default function ProfileScreen() {
             </View>
           </>
         ) : null}
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={styles.donateHeader}>
+            <Ionicons name="heart-outline" size={20} color={theme.primary} />
+            <Text style={[styles.donateTitle, { color: theme.text }]}>Support Development</Text>
+          </View>
+          <Text style={[styles.donateDescription, { color: theme.textSecondary }]}>
+            If you're enjoying the app and want to support ongoing development and operations.
+          </Text>
+          <View style={styles.donateButtons}>
+            {[100, 500, 1000].map((cents) => (
+              <TouchableOpacity
+                key={cents}
+                style={[styles.donateButton, { backgroundColor: theme.primary }]}
+                onPress={() => openDonation(cents)}
+              >
+                <Text style={styles.donateButtonText}>${cents / 100}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.label, { color: theme.textSecondary }]}>Email</Text>
           <Text style={[styles.value, { color: theme.text }]}>{session?.user?.email ?? "—"}</Text>
@@ -444,4 +478,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 4,
   },
+  donateHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
+  donateTitle: { fontSize: 16, fontFamily: "Montserrat_600SemiBold" },
+  donateDescription: { fontSize: 13, fontFamily: "Montserrat_400Regular", marginBottom: 16, lineHeight: 20 },
+  donateButtons: { flexDirection: "row", gap: 12 },
+  donateButton: { flex: 1, borderRadius: 12, padding: 14, alignItems: "center" },
+  donateButtonText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold", fontSize: 16 },
 });
