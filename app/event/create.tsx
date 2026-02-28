@@ -56,6 +56,7 @@ export default function CreateEventScreen() {
       if (memberError) console.warn("[create-event] host auto-join failed:", memberError.message);
 
       queryClient.invalidateQueries({ queryKey: ["events"] });
+      queryClient.invalidateQueries({ queryKey: ["profile", "event_members"] });
       router.replace(`/event/${data.id}`);
     } catch (e: unknown) {
       showAlert("Error", e instanceof Error ? e.message : "Could not create event");

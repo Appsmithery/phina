@@ -33,6 +33,7 @@ export default function JoinEventScreen() {
         );
         queryClient.invalidateQueries({ queryKey: ["events"] });
         queryClient.invalidateQueries({ queryKey: ["event", eventId] });
+        queryClient.invalidateQueries({ queryKey: ["profile", "event_members"] });
         setDone(true);
         router.replace(`/event/${eventId}`);
       } catch (e: unknown) {
