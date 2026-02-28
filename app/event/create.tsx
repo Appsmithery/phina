@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, ScrollView, Platform } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, ScrollView, Platform } from "react-native";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
+import { showAlert } from "@/lib/alert";
 import { useQueryClient } from "@tanstack/react-query";
 
 function formatDisplayDate(d: Date): string {
@@ -57,7 +58,7 @@ export default function CreateEventScreen() {
       queryClient.invalidateQueries({ queryKey: ["events"] });
       router.replace(`/event/${data.id}`);
     } catch (e: unknown) {
-      Alert.alert("Error", e instanceof Error ? e.message : "Could not create event");
+      showAlert("Error", e instanceof Error ? e.message : "Could not create event");
     } finally {
       setLoading(false);
     }

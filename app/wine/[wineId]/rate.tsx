@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ScrollView,
   Modal,
   Pressable,
@@ -17,6 +16,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
+import { showAlert } from "@/lib/alert";
 import type { WineWithPricePrivacy } from "@/types/database";
 import type { Rating } from "@/types/database";
 
@@ -104,15 +104,15 @@ export default function PersonalRateWineScreen() {
 
   const submit = async () => {
     if (!userId) {
-      Alert.alert("Sign in to rate", "You need to be signed in to rate this wine.");
+      showAlert("Sign in to rate", "You need to be signed in to rate this wine.");
       return;
     }
     if (vote === null) {
-      Alert.alert("Choose a rating", "Select Down, Meh, or Up before submitting.");
+      showAlert("Choose a rating", "Select Down, Meh, or Up before submitting.");
       return;
     }
     if (!wineId) {
-      Alert.alert("Error", "Wine not found.");
+      showAlert("Error", "Wine not found.");
       return;
     }
     setSubmitting(true);
@@ -140,7 +140,7 @@ export default function PersonalRateWineScreen() {
       queryClient.invalidateQueries({ queryKey: ["rating", wineId, userId] });
       queryClient.invalidateQueries({ queryKey: ["wine", wineId] });
       queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", member?.id] });
-      Alert.alert("Rating saved!", "Thanks for rating.", [{ text: "OK", onPress: () => router.back() }]);
+      showAlert("Rating saved!", "Thanks for rating.", [{ text: "OK", onPress: () => router.back() }]);
     } catch (e: unknown) {
       const message =
         e instanceof Error
@@ -148,7 +148,7 @@ export default function PersonalRateWineScreen() {
           : (e && typeof e === "object" && "message" in e)
             ? String((e as { message: unknown }).message)
             : "Could not submit rating";
-      Alert.alert("Error", message);
+      showAlert("Error", message);
     } finally {
       setSubmitting(false);
     }

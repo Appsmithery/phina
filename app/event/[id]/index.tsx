@@ -1,10 +1,12 @@
+import { useEffect } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, Share, Platform } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Share, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
+import { showAlert } from "@/lib/alert";
 import { useStartRatingRound, useEndRatingRound, useEndEvent } from "@/hooks/use-event-actions";
 import type { Event } from "@/types/database";
 import type { WineWithPricePrivacy } from "@/types/database";
@@ -87,6 +89,48 @@ export default function EventDetailScreen() {
     enabled: !!id && isAuthenticated,
   });
 
+  // ── Realtime subscriptions for live cross-platform sync ──
+  useEffect(() => {
+    if (!id || !isAuthenticated) return;
+
+    const channel = supabase
+      .channel(`event:${id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "events", filter: `id=eq.${id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["event", id] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "wines", filter: `event_id=eq.${id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["wines", id] });
+          queryClient.invalidateQueries({ queryKey: ["event_rating_summary", id] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "rating_rounds", filter: `event_id=eq.${id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["rating_rounds", id] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "event_members", filter: `event_id=eq.${id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["event_members_count", id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id, isAuthenticated, queryClient]);
+
   const isHost = event?.created_by === member?.id;
   const canSeeMetrics = isHost || member?.is_admin;
   const endEventMutation = useEndEvent(id!);
@@ -97,11 +141,22 @@ export default function EventDetailScreen() {
     const joinUrl = `${APP_BASE_URL}/join/${id}`;
     const message = `Join my wine tasting event: ${joinUrl}`;
     try {
-      await Share.share(
-        Platform.OS === "ios"
-          ? { url: joinUrl, message: `Join my wine tasting event` }
-          : { message }
-      );
+      if (Platform.OS === "web") {
+        if (navigator.share) {
+          await navigator.share({ title: event?.title ?? "Wine Tasting", url: joinUrl });
+        } else if (navigator.clipboard) {
+          await navigator.clipboard.writeText(joinUrl);
+          showAlert("Link copied", "The invite link has been copied to your clipboard.");
+        } else {
+          window.prompt("Copy the invite link:", joinUrl);
+        }
+      } else {
+        await Share.share(
+          Platform.OS === "ios"
+            ? { url: joinUrl, message: `Join my wine tasting event` }
+            : { message }
+        );
+      }
     } catch {
       // user cancelled or share failed silently
     }
@@ -110,7 +165,7 @@ export default function EventDetailScreen() {
   const canDeleteEvent = isHost || member?.is_admin;
 
   const handleDeleteEvent = () => {
-    Alert.alert(
+    showAlert(
       "Delete event?",
       "This will permanently delete the event and all wines, ratings, and member data.",
       [
@@ -121,7 +176,7 @@ export default function EventDetailScreen() {
           onPress: async () => {
             const { error } = await supabase.from("events").delete().eq("id", id!);
             if (error) {
-              Alert.alert("Error", error.message ?? "Could not delete event.");
+              showAlert("Error", error.message ?? "Could not delete event.");
               return;
             }
             queryClient.invalidateQueries({ queryKey: ["events"] });
@@ -133,7 +188,7 @@ export default function EventDetailScreen() {
   };
 
   const handleRemoveWine = (wine: WineWithPricePrivacy) => {
-    Alert.alert(
+    showAlert(
       "Remove wine",
       "Remove this wine from the event?",
       [
@@ -144,7 +199,7 @@ export default function EventDetailScreen() {
           onPress: async () => {
             const { error } = await supabase.from("wines").delete().eq("id", wine.id);
             if (error) {
-              Alert.alert("Error", error.message ?? "Could not remove wine.");
+              showAlert("Error", error.message ?? "Could not remove wine.");
               return;
             }
             queryClient.invalidateQueries({ queryKey: ["wines", id] });
@@ -231,7 +286,7 @@ export default function EventDetailScreen() {
             <TouchableOpacity
               style={[styles.endEventButton, { borderColor: theme.textMuted }]}
               onPress={() =>
-                Alert.alert("End event?", "Results will be revealed to everyone.", [
+                showAlert("End event?", "Results will be revealed to everyone.", [
                   { text: "Cancel", style: "cancel" },
                   { text: "End event", style: "destructive", onPress: () => endEventMutation.mutate() },
                 ])
@@ -393,14 +448,14 @@ function WineHostActions({
   const handleStartRound = () => {
     startRound.mutate(undefined, {
       onError: (err) =>
-        Alert.alert("Could not start round", err instanceof Error ? err.message : "Something went wrong. Try again."),
+        showAlert("Could not start round", err instanceof Error ? err.message : "Something went wrong. Try again."),
     });
   };
 
   const handleEndRound = () => {
     endRound.mutate(undefined, {
       onError: (err) =>
-        Alert.alert("Could not end round", err instanceof Error ? err.message : "Something went wrong. Try again."),
+        showAlert("Could not end round", err instanceof Error ? err.message : "Something went wrong. Try again."),
     });
   };
 
@@ -447,7 +502,7 @@ function WineAdminReopen({
   const handleReopen = () => {
     startRound.mutate(undefined, {
       onError: (err) =>
-        Alert.alert("Could not reopen round", err instanceof Error ? err.message : "Something went wrong. Try again."),
+        showAlert("Could not reopen round", err instanceof Error ? err.message : "Something went wrong. Try again."),
     });
   };
   return (

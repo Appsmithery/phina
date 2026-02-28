@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -13,6 +12,7 @@ import {
 import { useFocusEffect } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
+import { showAlert } from "@/lib/alert";
 import { takeLastLabelExtraction } from "@/lib/last-label-extraction";
 
 const QUANTITY_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
@@ -102,7 +102,7 @@ export function AddWineForm({
       !region.trim() &&
       !aiSummary.trim()
     ) {
-      Alert.alert(
+      showAlert(
         "Add at least one detail",
         "Enter producer, varietal, region, or background so the wine can be identified."
       );
@@ -152,7 +152,7 @@ export function AddWineForm({
           : (e && typeof e === "object" && "message" in e)
             ? String((e as { message: unknown }).message)
             : "Could not add wine";
-      Alert.alert("Error", message);
+      showAlert("Error", message);
     } finally {
       setLoading(false);
     }

@@ -1,18 +1,28 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useCallback } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Platform,
 } from "react-native";
 import { router } from "expo-router";
-import { CameraView, useCameraPermissions } from "expo-camera";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
+import { showAlert } from "@/lib/alert";
 import { setLastLabelExtraction } from "@/lib/last-label-extraction";
+
+// expo-camera is native-only; skip import on web to avoid bundler errors
+type CameraViewType = import("expo-camera").CameraView;
+let CameraView: typeof import("expo-camera").CameraView | undefined;
+let useCameraPermissions: typeof import("expo-camera").useCameraPermissions | undefined;
+if (Platform.OS !== "web") {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const cam = require("expo-camera") as typeof import("expo-camera");
+  CameraView = cam.CameraView;
+  useCameraPermissions = cam.useCameraPermissions;
+}
 
 async function getEdgeFunctionErrorMessage(error: unknown, data: unknown): Promise<string> {
   const dataObj = data && typeof data === "object" ? (data as Record<string, unknown>) : null;
@@ -55,13 +65,170 @@ async function getEdgeFunctionErrorMessage(error: unknown, data: unknown): Promi
   return "Label extraction failed. Check that the Edge Function is deployed and PERPLEXITY_API_KEY is set.";
 }
 
+type ExtractionResult = {
+  producer?: string | null;
+  varietal?: string | null;
+  vintage?: number | null;
+  region?: string | null;
+  ai_summary?: string | null;
+  label_photo_url?: string | null;
+  color?: "red" | "white" | "skin-contact" | null;
+  is_sparkling?: boolean | null;
+  ai_overview?: string | null;
+  ai_geography?: string | null;
+  ai_production?: string | null;
+  ai_tasting_notes?: string | null;
+  ai_pairings?: string | null;
+  drink_from?: number | null;
+  drink_until?: number | null;
+};
+
+async function extractLabel(imagePayload: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke("extract-wine-label", {
+    body: { image: imagePayload },
+  });
+  const err = (data as { error?: string })?.error;
+  if (err) throw new Error(err);
+  if (error) {
+    const message = await getEdgeFunctionErrorMessage(error, data);
+    throw new Error(message);
+  }
+  const extracted = data as ExtractionResult;
+  const color = extracted.color ?? null;
+  setLastLabelExtraction({
+    producer: extracted.producer ?? null,
+    varietal: extracted.varietal ?? null,
+    vintage: extracted.vintage ?? null,
+    region: extracted.region ?? null,
+    ai_summary: extracted.ai_summary ?? null,
+    label_photo_url: extracted.label_photo_url ?? null,
+    color: color === "red" || color === "white" || color === "skin-contact" ? color : null,
+    is_sparkling: extracted.is_sparkling ?? null,
+    ai_overview: extracted.ai_overview ?? null,
+    ai_geography: extracted.ai_geography ?? null,
+    ai_production: extracted.ai_production ?? null,
+    ai_tasting_notes: extracted.ai_tasting_notes ?? null,
+    ai_pairings: extracted.ai_pairings ?? null,
+    drink_from: extracted.drink_from ?? null,
+    drink_until: extracted.drink_until ?? null,
+  });
+  router.back();
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function SharedScanLabelScreen() {
   const theme = useTheme();
-  const [permission, requestPermission] = useCameraPermissions();
   const [extracting, setExtracting] = useState(false);
   const [photoCaptured, setPhotoCaptured] = useState(false);
+
+  // ── Web-specific: file upload fallback ──
+  if (Platform.OS === "web") {
+    return <WebScanLabel theme={theme} extracting={extracting} setExtracting={setExtracting} />;
+  }
+
+  // ── Native: camera-based scanning ──
+  return (
+    <NativeScanLabel
+      theme={theme}
+      extracting={extracting}
+      setExtracting={setExtracting}
+      photoCaptured={photoCaptured}
+      setPhotoCaptured={setPhotoCaptured}
+    />
+  );
+}
+
+function WebScanLabel({
+  theme,
+  extracting,
+  setExtracting,
+}: {
+  theme: ReturnType<typeof useTheme>;
+  extracting: boolean;
+  setExtracting: (v: boolean) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setExtracting(true);
+      try {
+        const dataUrl = await fileToBase64(file);
+        await extractLabel(dataUrl);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Label extraction failed.";
+        showAlert("Error", message);
+      } finally {
+        setExtracting(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    },
+    [setExtracting]
+  );
+
+  if (extracting) {
+    return (
+      <View style={[styles.center, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} style={styles.spinner} />
+        <Text style={[styles.analyzingTitle, { color: theme.text }]}>Analyzing label…</Text>
+        <Text style={[styles.analyzingHint, { color: theme.textSecondary }]}>
+          This may take a few seconds
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.center, { backgroundColor: theme.background }]}>
+      <Text style={[styles.analyzingTitle, { color: theme.text }]}>Scan wine label</Text>
+      <Text style={[styles.analyzingHint, { color: theme.textSecondary, marginBottom: 24 }]}>
+        Upload a photo of a wine label to extract its details
+      </Text>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleFileChange as unknown as React.ChangeEventHandler<HTMLInputElement>}
+        style={{ display: "none" }}
+      />
+      <TouchableOpacity
+        style={[styles.captureBtn, { backgroundColor: theme.primary }]}
+        onPress={() => fileInputRef.current?.click()}
+        disabled={extracting}
+      >
+        <Text style={styles.captureBtnText}>Choose photo</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function NativeScanLabel({
+  theme,
+  extracting,
+  setExtracting,
+  photoCaptured,
+  setPhotoCaptured,
+}: {
+  theme: ReturnType<typeof useTheme>;
+  extracting: boolean;
+  setExtracting: (v: boolean) => void;
+  photoCaptured: boolean;
+  setPhotoCaptured: (v: boolean) => void;
+}) {
+  const [permission, requestPermission] = useCameraPermissions!();
   const [cameraReady, setCameraReady] = useState(false);
-  const cameraRef = useRef<CameraView>(null);
+  const cameraRef = useRef<CameraViewType | null>(null);
 
   // NOTE: do not use router.replace() here — it duplicates the add-wine screen in the
   // navigation stack. router.back() returns to the exact add-wine instance that pushed
@@ -69,24 +236,24 @@ export default function SharedScanLabelScreen() {
 
   const captureAndExtract = async () => {
     if (!cameraRef.current) {
-      Alert.alert("Camera not ready", "Please wait a moment and try again.");
+      showAlert("Camera not ready", "Please wait a moment and try again.");
       return;
     }
     if (!permission?.granted) {
       const { granted } = await requestPermission();
       if (!granted) {
-        Alert.alert("Camera access", "Camera permission is needed to scan the label.");
+        showAlert("Camera access", "Camera permission is needed to scan the label.");
         return;
       }
     }
     setExtracting(true);
     try {
-      const photo = await cameraRef.current.takePictureAsync({
+      const photo = await (cameraRef.current as CameraViewType).takePictureAsync({
         base64: true,
         quality: 0.8,
       });
       if (!photo?.base64) {
-        Alert.alert("Error", "Could not capture image.");
+        showAlert("Error", "Could not capture image.");
         return;
       }
 
@@ -94,61 +261,11 @@ export default function SharedScanLabelScreen() {
       setPhotoCaptured(true);
 
       const imagePayload = `data:image/jpeg;base64,${photo.base64}`;
-      const { data, error } = await supabase.functions.invoke("extract-wine-label", {
-        body: { image: imagePayload },
-      });
-      const err = (data as { error?: string })?.error;
-      if (err) {
-        setPhotoCaptured(false);
-        Alert.alert("Extraction failed", err);
-        return;
-      }
-      if (error) {
-        const message = await getEdgeFunctionErrorMessage(error, data);
-        setPhotoCaptured(false);
-        Alert.alert("Label extraction failed", message);
-        return;
-      }
-      const extracted = data as {
-        producer?: string | null;
-        varietal?: string | null;
-        vintage?: number | null;
-        region?: string | null;
-        ai_summary?: string | null;
-        label_photo_url?: string | null;
-        color?: "red" | "white" | "skin-contact" | null;
-        is_sparkling?: boolean | null;
-        ai_overview?: string | null;
-        ai_geography?: string | null;
-        ai_production?: string | null;
-        ai_tasting_notes?: string | null;
-        ai_pairings?: string | null;
-        drink_from?: number | null;
-        drink_until?: number | null;
-      };
-      const color = extracted.color ?? null;
-      setLastLabelExtraction({
-        producer: extracted.producer ?? null,
-        varietal: extracted.varietal ?? null,
-        vintage: extracted.vintage ?? null,
-        region: extracted.region ?? null,
-        ai_summary: extracted.ai_summary ?? null,
-        label_photo_url: extracted.label_photo_url ?? null,
-        color: color === "red" || color === "white" || color === "skin-contact" ? color : null,
-        is_sparkling: extracted.is_sparkling ?? null,
-        ai_overview: extracted.ai_overview ?? null,
-        ai_geography: extracted.ai_geography ?? null,
-        ai_production: extracted.ai_production ?? null,
-        ai_tasting_notes: extracted.ai_tasting_notes ?? null,
-        ai_pairings: extracted.ai_pairings ?? null,
-        drink_from: extracted.drink_from ?? null,
-        drink_until: extracted.drink_until ?? null,
-      });
-      router.back();
+      await extractLabel(imagePayload);
     } catch (e) {
       const message = e instanceof Error ? e.message : "Label extraction failed.";
       setPhotoCaptured(false);
-      Alert.alert("Error", message);
+      showAlert("Error", message);
     } finally {
       setExtracting(false);
     }
@@ -184,11 +301,12 @@ export default function SharedScanLabelScreen() {
     );
   }
 
+  const CameraViewComponent = CameraView!;
   return (
     <View style={styles.container}>
-      <CameraView
+      <CameraViewComponent
         style={StyleSheet.absoluteFill}
-        ref={cameraRef}
+        ref={cameraRef as React.RefObject<CameraViewType>}
         pointerEvents="none"
         onCameraReady={() => setCameraReady(true)}
       />

@@ -1,10 +1,11 @@
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { View, Text, TouchableOpacity, StyleSheet, Image, Alert, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
+import { showAlert } from "@/lib/alert";
 import type { WineWithPricePrivacy } from "@/types/database";
 import type { Event } from "@/types/database";
 import type { Rating } from "@/types/database";
@@ -79,7 +80,7 @@ export default function WineDetailScreen() {
 
   const handleRemove = () => {
     if (!wine?.id || !eventId) return;
-    Alert.alert(
+    showAlert(
       "Remove from event",
       "Remove this wine from the event?",
       [
@@ -90,7 +91,7 @@ export default function WineDetailScreen() {
           onPress: async () => {
             const { error } = await supabase.from("wines").delete().eq("id", wine.id);
             if (error) {
-              Alert.alert("Error", error.message ?? "Could not remove wine.");
+              showAlert("Error", error.message ?? "Could not remove wine.");
               return;
             }
             queryClient.invalidateQueries({ queryKey: ["wines", eventId] });

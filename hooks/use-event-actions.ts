@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Alert } from "react-native";
 import { supabase } from "@/lib/supabase";
+import { showAlert } from "@/lib/alert";
 
 export function useStartRatingRound(eventId: string, wineId: string) {
   const qc = useQueryClient();
@@ -28,7 +28,7 @@ export function useStartRatingRound(eventId: string, wineId: string) {
           }
           if (error) {
             console.warn("Push notification send failed:", error);
-            Alert.alert(
+            showAlert(
               "Push notifications",
               "Round started, but we couldn't send push notifications. You can still share the link."
             );
@@ -38,7 +38,7 @@ export function useStartRatingRound(eventId: string, wineId: string) {
           if (__DEV__) {
             console.warn("Push notification send failed:", err);
           }
-          Alert.alert(
+          showAlert(
             "Push notifications",
             "Round started, but we couldn't send push notifications. You can still share the link."
           );

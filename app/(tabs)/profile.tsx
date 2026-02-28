@@ -1,4 +1,5 @@
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+import { showAlert } from "@/lib/alert";
 import { useEffect, useMemo, useState } from "react";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -139,7 +140,7 @@ export default function ProfileScreen() {
       await refreshMember();
       queryClient.invalidateQueries({ queryKey: ["members"] });
     } catch (e: unknown) {
-      Alert.alert("Error", e instanceof Error ? e.message : "Could not save");
+      showAlert("Error", e instanceof Error ? e.message : "Could not save");
     } finally {
       setSaving(false);
     }
@@ -152,22 +153,22 @@ export default function ProfileScreen() {
 
   const changePassword = async () => {
     if (newPassword.length < MIN_PASSWORD_LENGTH) {
-      Alert.alert("Error", `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      showAlert("Error", `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
       return;
     }
     if (newPassword !== confirmNewPassword) {
-      Alert.alert("Error", "Passwords do not match.");
+      showAlert("Error", "Passwords do not match.");
       return;
     }
     setChangingPassword(true);
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      Alert.alert("Success", "Your password has been updated.");
+      showAlert("Success", "Your password has been updated.");
       setNewPassword("");
       setConfirmNewPassword("");
     } catch (e: unknown) {
-      Alert.alert("Error", e instanceof Error ? e.message : "Could not update password.");
+      showAlert("Error", e instanceof Error ? e.message : "Could not update password.");
     } finally {
       setChangingPassword(false);
     }

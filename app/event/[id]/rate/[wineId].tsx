@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Modal, Pressable } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, Pressable } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -8,6 +8,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
+import { showAlert } from "@/lib/alert";
 import type { WineWithPricePrivacy } from "@/types/database";
 import type { RatingRound } from "@/types/database";
 import type { Rating } from "@/types/database";
@@ -147,21 +148,21 @@ export default function RateWineScreen() {
     } catch (e: unknown) {
       const msg =
         e instanceof Error ? e.message : (e && typeof e === "object" && "message" in e) ? String((e as { message: unknown }).message) : "Could not update favorite.";
-      Alert.alert("Error", msg);
+      showAlert("Error", msg);
     }
   };
 
   const submit = async () => {
     if (!userId) {
-      Alert.alert("Sign in to vote", "You need to be signed in to rate this wine.");
+      showAlert("Sign in to vote", "You need to be signed in to rate this wine.");
       return;
     }
     if (vote === null) {
-      Alert.alert("Choose a rating", "Select Down, Meh, or Up before submitting.");
+      showAlert("Choose a rating", "Select Down, Meh, or Up before submitting.");
       return;
     }
     if (!wineId || !round) {
-      Alert.alert(
+      showAlert(
         "Can't submit",
         round ? "Something went wrong — try going back and opening Rate again." : "This round is no longer active."
       );
@@ -184,11 +185,11 @@ export default function RateWineScreen() {
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["ratingRound", eventId, wineId] });
       queryClient.invalidateQueries({ queryKey: ["rating", wineId, userId] });
-      Alert.alert("Vote recorded!", "Thanks for rating.", [{ text: "OK", onPress: () => router.back() }]);
+      showAlert("Vote recorded!", "Thanks for rating.", [{ text: "OK", onPress: () => router.back() }]);
     } catch (e: unknown) {
       const message =
         e instanceof Error ? e.message : (e && typeof e === "object" && "message" in e) ? String((e as { message: unknown }).message) : "Could not submit vote";
-      Alert.alert("Error", message);
+      showAlert("Error", message);
     } finally {
       setSubmitting(false);
     }

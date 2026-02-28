@@ -7,7 +7,6 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   Image,
   useWindowDimensions,
   ScrollView,
@@ -15,6 +14,7 @@ import {
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
+import { showAlert } from "@/lib/alert";
 import { getRedirectUrl } from "@/lib/auth-redirect";
 import { setLastUsedEmail } from "@/lib/last-email";
 import { useSupabase } from "@/lib/supabase-context";
@@ -100,7 +100,7 @@ export default function AuthScreen() {
     setErrorHint(null);
     try {
       await sendMagicLink(trimmedEmail);
-      Alert.alert(
+      showAlert(
         "Check your email",
         "We sent you a magic link. Tap it to set your password and sign in.",
         [{ text: "OK" }]
@@ -109,7 +109,7 @@ export default function AuthScreen() {
       const message = e instanceof Error ? e.message : String(e);
       const is401 = message.includes("401") || message.toLowerCase().includes("unauthorized");
       setErrorHint(is401 ? UNAUTHORIZED_HINT : message);
-      Alert.alert("Error", is401 ? UNAUTHORIZED_HINT : message);
+      showAlert("Error", is401 ? UNAUTHORIZED_HINT : message);
     } finally {
       setLoading(false);
     }
@@ -121,7 +121,7 @@ export default function AuthScreen() {
     setErrorHint(null);
     try {
       await sendMagicLink(magicLinkSentTo);
-      Alert.alert("Link sent again", "Check your inbox for the magic link.", [{ text: "OK" }]);
+      showAlert("Link sent again", "Check your inbox for the magic link.", [{ text: "OK" }]);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
       setErrorHint(message);

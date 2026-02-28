@@ -1,11 +1,12 @@
 import { useEffect } from "react";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useMembers, useToggleAdmin } from "@/hooks/use-members";
 import { useTheme } from "@/lib/theme";
+import { showAlert } from "@/lib/alert";
 import type { Member } from "@/types/database";
 
 export default function AdminScreen() {
@@ -54,14 +55,14 @@ export default function AdminScreen() {
 
   const handleToggle = (m: Pick<Member, "id" | "name" | "email" | "is_admin">) => {
     if (m.id === currentMember?.id) {
-      Alert.alert("Cannot demote yourself", "An admin cannot remove their own admin status.");
+      showAlert("Cannot demote yourself", "An admin cannot remove their own admin status.");
       return;
     }
     const newVal = !m.is_admin;
     toggleAdmin.mutate(
       { memberId: m.id, isAdmin: newVal },
       {
-        onError: (e) => Alert.alert("Error", e instanceof Error ? e.message : "Could not update"),
+        onError: (e) => showAlert("Error", e instanceof Error ? e.message : "Could not update"),
       }
     );
   };

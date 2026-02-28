@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import { Session } from "@supabase/supabase-js";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "./supabase";
 import { registerPushTokenIfNeeded } from "./push-registration";
 import type { Member } from "@/types/database";
@@ -17,6 +18,7 @@ type SupabaseContextType = {
 const SupabaseContext = createContext<SupabaseContextType | undefined>(undefined);
 
 export function SupabaseProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
   const [member, setMember] = useState<Member | null>(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
@@ -83,11 +85,13 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
           if (s?.user?.id) fetchMember(s.user.id, s.user.email ?? undefined);
           else setMember(null);
         });
+        // Refresh all stale queries when app resumes from background
+        queryClient.invalidateQueries();
       }
     };
     const sub = AppState.addEventListener("change", handleAppStateChange);
     return () => sub.remove();
-  }, []);
+  }, [queryClient]);
 
   return (
     <SupabaseContext.Provider value={{ session, member, sessionLoaded, refreshMember, setSessionFromAuth }}>

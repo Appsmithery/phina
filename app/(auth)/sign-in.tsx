@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,6 +15,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
+import { showAlert } from "@/lib/alert";
 import { getRedirectUrl } from "@/lib/auth-redirect";
 import { setLastUsedEmail } from "@/lib/last-email";
 import { signInWithGoogle } from "@/lib/oauth-google";
@@ -92,7 +92,7 @@ export default function SignInScreen() {
           ? "Incorrect password or email. Please try again."
           : message;
       setErrorHint(userMessage);
-      Alert.alert("Sign in failed", userMessage);
+      showAlert("Sign in failed", userMessage);
     } finally {
       setLoading(false);
     }
@@ -110,7 +110,7 @@ export default function SignInScreen() {
       });
       if (error) throw error;
       setMagicLinkSent(true);
-      Alert.alert(
+      showAlert(
         "Check your email",
         `We sent a magic link to ${emailFromSplash}. Tap it to set your password and sign in.`,
         [{ text: "OK" }]
@@ -119,7 +119,7 @@ export default function SignInScreen() {
       const message = e instanceof Error ? e.message : String(e);
       const is401 = message.includes("401") || message.toLowerCase().includes("unauthorized");
       setErrorHint(is401 ? UNAUTHORIZED_HINT : message);
-      Alert.alert("Error", is401 ? UNAUTHORIZED_HINT : message);
+      showAlert("Error", is401 ? UNAUTHORIZED_HINT : message);
     } finally {
       setMagicLinkSending(false);
     }

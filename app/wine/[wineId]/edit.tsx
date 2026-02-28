@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   Modal,
   Pressable,
   KeyboardAvoidingView,
@@ -15,12 +14,19 @@ import {
 } from "react-native";
 import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import * as ImagePicker from "expo-image-picker";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
+import { showAlert } from "@/lib/alert";
 import { takeLastLabelExtraction } from "@/lib/last-label-extraction";
 import type { Wine } from "@/types/database";
+
+// expo-image-picker works on native only; conditionally import
+let ImagePicker: typeof import("expo-image-picker") | undefined;
+if (Platform.OS !== "web") {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  ImagePicker = require("expo-image-picker") as typeof import("expo-image-picker");
+}
 
 const LABEL_PHOTOS_BUCKET = "label-photos";
 
@@ -38,6 +44,7 @@ export default function EditWineScreen() {
   const { member } = useSupabase();
   const theme = useTheme();
   const queryClient = useQueryClient();
+  const webFileInputRef = useRef<HTMLInputElement | null>(null);
   const [producer, setProducer] = useState("");
   const [varietal, setVarietal] = useState("");
   const [vintage, setVintage] = useState("");
@@ -113,25 +120,10 @@ export default function EditWineScreen() {
 
   const displayPhotoUrl = localPhotoUrl ?? wine?.label_photo_url ?? null;
 
-  const replacePhoto = async () => {
+  const uploadPhotoBlob = async (blob: Blob) => {
     if (!wineId || !member?.id) return;
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission needed", "Allow access to your photos to choose a label image.");
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [3, 4],
-      quality: 0.8,
-    });
-    if (result.canceled || !result.assets[0]?.uri) return;
-    const uri = result.assets[0].uri;
     setReplacingPhoto(true);
     try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
       const path = `${member.id}/${wineId}-${Date.now()}.jpg`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from(LABEL_PHOTOS_BUCKET)
@@ -151,11 +143,51 @@ export default function EditWineScreen() {
       }
       queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", member.id] });
     } catch (e) {
-      Alert.alert("Error", e instanceof Error ? e.message : "Could not update photo");
+      showAlert("Error", e instanceof Error ? e.message : "Could not update photo");
     } finally {
       setReplacingPhoto(false);
     }
   };
+
+  const replacePhoto = async () => {
+    if (!wineId || !member?.id) return;
+
+    if (Platform.OS === "web") {
+      // On web, trigger hidden file input
+      webFileInputRef.current?.click();
+      return;
+    }
+
+    // Native: use expo-image-picker
+    if (!ImagePicker) return;
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      showAlert("Permission needed", "Allow access to your photos to choose a label image.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [3, 4],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets[0]?.uri) return;
+    const uri = result.assets[0].uri;
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    await uploadPhotoBlob(blob);
+  };
+
+  const handleWebFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      await uploadPhotoBlob(file);
+      if (webFileInputRef.current) webFileInputRef.current.value = "";
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [wineId, member?.id, wine?.event_id]
+  );
 
   const save = async () => {
     if (!wineId || !member?.id) return;
@@ -165,7 +197,7 @@ export default function EditWineScreen() {
       !region.trim() &&
       !aiSummary.trim()
     ) {
-      Alert.alert(
+      showAlert(
         "Add at least one detail",
         "Enter producer, varietal, region, or background so the wine can be identified."
       );
@@ -199,7 +231,7 @@ export default function EditWineScreen() {
       queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", member.id] });
       router.back();
     } catch (e: unknown) {
-      Alert.alert("Error", e instanceof Error ? e.message : "Could not save changes");
+      showAlert("Error", e instanceof Error ? e.message : "Could not save changes");
     } finally {
       setLoading(false);
     }
@@ -220,6 +252,15 @@ export default function EditWineScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {Platform.OS === "web" && (
+        <input
+          ref={webFileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleWebFileChange as unknown as React.ChangeEventHandler<HTMLInputElement>}
+          style={{ display: "none" }}
+        />
+      )}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}

@@ -19,7 +19,14 @@ import {
 
 SplashScreen.preventAutoHideAsync();
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      refetchOnWindowFocus: true,
+    },
+  },
+});
 
 const SPLASH_TIMEOUT_MS = 4000;
 
