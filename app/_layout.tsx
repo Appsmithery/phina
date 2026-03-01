@@ -2,8 +2,6 @@ import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Platform, Linking, TouchableOpacity } from "react-native";
 import { Stack, router } from "expo-router";
 import { initObservability, captureError, Sentry } from "@/lib/observability";
-
-initObservability();
 import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from "expo-notifications";
 import { useFonts } from "expo-font";
@@ -19,26 +17,8 @@ import {
   Montserrat_400Regular,
   Montserrat_600SemiBold,
 } from "@expo-google-fonts/montserrat";
-import * as Sentry from '@sentry/react-native';
 
-Sentry.init({
-  dsn: 'https://9d984076b54952d8e40ca2d8b6afe641@o4510248138375168.ingest.us.sentry.io/4510971018412032',
-
-  // Adds more context data to events (IP address, cookies, user, etc.)
-  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
-  sendDefaultPii: true,
-
-  // Enable Logs
-  enableLogs: true,
-
-  // Configure Session Replay
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1,
-  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
-
-  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
-  // spotlight: __DEV__,
-});
+initObservability();
 
 SplashScreen.preventAutoHideAsync();
 
