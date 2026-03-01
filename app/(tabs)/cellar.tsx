@@ -1,10 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
+import { trackEvent } from "@/lib/observability";
 import type { WineWithPricePrivacy } from "@/types/database";
 import type { Event } from "@/types/database";
 
@@ -20,6 +21,11 @@ export default function CellarScreen() {
   const params = useLocalSearchParams<{ tab?: string }>();
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<CellarTab>(params.tab === "history" ? "history" : "storage");
+
+  const memberId = member?.id;
+  useEffect(() => {
+    if (memberId) trackEvent("cellar_opened");
+  }, [memberId]);
 
   const { data: wines = [] } = useQuery({
     queryKey: ["cellar", "my-wines", member?.id],

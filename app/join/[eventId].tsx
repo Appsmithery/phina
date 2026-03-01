@@ -7,6 +7,7 @@ import { useTheme } from "@/lib/theme";
 import { useQueryClient } from "@tanstack/react-query";
 import { setPendingJoinEventId } from "@/lib/pending-join";
 import { showAlert } from "@/lib/alert";
+import { trackEvent } from "@/lib/observability";
 
 export default function JoinEventScreen() {
   const { eventId } = useLocalSearchParams<{ eventId: string }>();
@@ -35,6 +36,7 @@ export default function JoinEventScreen() {
         queryClient.invalidateQueries({ queryKey: ["event", eventId] });
         queryClient.invalidateQueries({ queryKey: ["profile", "event_members"] });
         setDone(true);
+        trackEvent("event_joined", { event_id: eventId });
         router.replace(`/event/${eventId}`);
       } catch (e: unknown) {
         showAlert("Error", e instanceof Error ? e.message : "Could not join event. Please try again.");

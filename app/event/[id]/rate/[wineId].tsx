@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
+import { trackEvent } from "@/lib/observability";
 import type { WineWithPricePrivacy } from "@/types/database";
 import type { RatingRound } from "@/types/database";
 import type { Rating } from "@/types/database";
@@ -186,6 +187,7 @@ export default function RateWineScreen() {
       queryClient.invalidateQueries({ queryKey: ["ratingRound", eventId, wineId] });
       queryClient.invalidateQueries({ queryKey: ["rating", wineId, userId] });
       queryClient.invalidateQueries({ queryKey: ["profile", "ratings"] });
+      trackEvent("wine_rated", { event_id: eventId, wine_id: wineId, value: vote });
       showAlert("Vote recorded!", "Thanks for rating.", [{ text: "OK", onPress: () => router.back() }]);
     } catch (e: unknown) {
       const message =

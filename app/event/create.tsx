@@ -7,6 +7,7 @@ import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
 import { useQueryClient } from "@tanstack/react-query";
+import { trackEvent } from "@/lib/observability";
 
 function formatDisplayDate(d: Date): string {
   return d.toLocaleDateString(undefined, { weekday: "short", month: "long", day: "numeric", year: "numeric" });
@@ -57,6 +58,7 @@ export default function CreateEventScreen() {
 
       queryClient.invalidateQueries({ queryKey: ["events"] });
       queryClient.invalidateQueries({ queryKey: ["profile", "event_members"] });
+      trackEvent("event_created", { event_id: data.id });
       router.replace(`/event/${data.id}`);
     } catch (e: unknown) {
       showAlert("Error", e instanceof Error ? e.message : "Could not create event");

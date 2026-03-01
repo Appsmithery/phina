@@ -4,6 +4,7 @@ import { Session } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "./supabase";
 import { registerPushTokenIfNeeded } from "./push-registration";
+import { identifyUser, clearUser, trackEvent } from "./observability";
 import type { Member } from "@/types/database";
 
 type SupabaseContextType = {
@@ -27,6 +28,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     const { data } = await supabase.from("members").select("*").eq("id", userId).single();
     if (data) {
       setMember(data);
+      identifyUser(userId);
       registerPushTokenIfNeeded(userId).catch(() => {});
       return;
     }
@@ -34,6 +36,8 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       await supabase.from("members").upsert({ id: userId, email }, { onConflict: "id" });
       const { data: created } = await supabase.from("members").select("*").eq("id", userId).single();
       setMember(created ?? null);
+      identifyUser(userId);
+      trackEvent("user_signed_up");
       registerPushTokenIfNeeded(userId).catch(() => {});
     } else {
       setMember(null);
@@ -70,7 +74,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       if (s?.user?.id) fetchMember(s.user.id, s.user.email ?? undefined);
-      else setMember(null);
+      else { setMember(null); clearUser(); }
       setSessionLoaded(true);
     });
 

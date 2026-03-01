@@ -54,7 +54,7 @@ export default function PrivacyScreen() {
           <Text style={styles.bold}>Within events.</Text> Other members of an event you join can see your display name and the wines you brought. Ratings are anonymous — other members see aggregate scores but not who rated what.
         </Text>
         <Text style={[styles.li, { color: theme.textSecondary }]}>
-          <Text style={styles.bold}>Service providers.</Text> We use Supabase (database and authentication), Expo (push notifications), and third-party AI services (label extraction). These providers process data on our behalf under their own privacy policies.
+          <Text style={styles.bold}>Service providers.</Text> We use Supabase (database and authentication), Expo (push notifications), third-party AI services (label extraction), Sentry (error monitoring), and PostHog (product analytics). These providers process data on our behalf under their own privacy policies. PostHog analytics captures anonymised usage events (e.g. "event created", "wine rated") — no personal identifiers such as email, name, or wine notes are included in these events.
         </Text>
         <Text style={[styles.li, { color: theme.textSecondary }]}>
           <Text style={styles.bold}>Legal requirements.</Text> We may disclose information if required by law or to protect our rights.

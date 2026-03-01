@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
 import { setLastLabelExtraction } from "@/lib/last-label-extraction";
+import { trackEvent, captureError } from "@/lib/observability";
 
 // expo-camera is native-only; skip import on web to avoid bundler errors
 type CameraViewType = import("expo-camera").CameraView;
@@ -112,6 +113,7 @@ async function extractLabel(imagePayload: string): Promise<void> {
     drink_from: extracted.drink_from ?? null,
     drink_until: extracted.drink_until ?? null,
   });
+  trackEvent("label_scanned", { platform: Platform.OS });
   router.back();
 }
 
@@ -166,6 +168,8 @@ function WebScanLabel({
         const dataUrl = await fileToBase64(file);
         await extractLabel(dataUrl);
       } catch (err) {
+        captureError(err);
+        trackEvent("label_scan_error");
         const message = err instanceof Error ? err.message : "Label extraction failed.";
         showAlert("Error", message);
       } finally {
@@ -263,6 +267,8 @@ function NativeScanLabel({
       const imagePayload = `data:image/jpeg;base64,${photo.base64}`;
       await extractLabel(imagePayload);
     } catch (e) {
+      captureError(e);
+      trackEvent("label_scan_error");
       const message = e instanceof Error ? e.message : "Label extraction failed.";
       setPhotoCaptured(false);
       showAlert("Error", message);

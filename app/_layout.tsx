@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Platform, Linking } from "react-native";
+import { View, Text, StyleSheet, Platform, Linking, TouchableOpacity } from "react-native";
 import { Stack, router } from "expo-router";
+import { initObservability, captureError, Sentry } from "@/lib/observability";
+
+initObservability();
 import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from "expo-notifications";
 import { useFonts } from "expo-font";
@@ -16,6 +19,26 @@ import {
   Montserrat_400Regular,
   Montserrat_600SemiBold,
 } from "@expo-google-fonts/montserrat";
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: 'https://9d984076b54952d8e40ca2d8b6afe641@o4510248138375168.ingest.us.sentry.io/4510971018412032',
+
+  // Adds more context data to events (IP address, cookies, user, etc.)
+  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
+  sendDefaultPii: true,
+
+  // Enable Logs
+  enableLogs: true,
+
+  // Configure Session Replay
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1,
+  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
+
+  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+  // spotlight: __DEV__,
+});
 
 SplashScreen.preventAutoHideAsync();
 
@@ -40,12 +63,20 @@ class ErrorBoundary extends React.Component<
     return { hasError: true, message: error instanceof Error ? error.message : String(error) };
   }
 
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    captureError(error, { componentStack: info.componentStack ?? undefined });
+  }
+
   render() {
     if (this.state.hasError) {
       return (
         <View style={errorStyles.container}>
           <Text style={errorStyles.title}>Something went wrong</Text>
           <Text style={errorStyles.message}>{this.state.message}</Text>
+          <TouchableOpacity style={errorStyles.button} onPress={() => router.replace("/")}>
+            <Text style={errorStyles.buttonText}>Try again</Text>
+          </TouchableOpacity>
+          <Text style={errorStyles.errorId}>Error ID: {Sentry.lastEventId()}</Text>
         </View>
       );
     }
@@ -57,9 +88,12 @@ const errorStyles = StyleSheet.create({
   container: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24 },
   title: { fontSize: 18, fontWeight: "600", marginBottom: 8 },
   message: { fontSize: 14, color: "#666", textAlign: "center" },
+  button: { marginTop: 16, paddingHorizontal: 24, paddingVertical: 10, backgroundColor: "#B58271", borderRadius: 8 },
+  buttonText: { color: "#fff", fontSize: 14, fontWeight: "600" },
+  errorId: { marginTop: 12, fontSize: 11, color: "#aaa" },
 });
 
-export default function RootLayout() {
+function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <ErrorBoundary>
@@ -192,3 +226,5 @@ function SupabaseLayout() {
     </Stack>
   );
 }
+
+export default Sentry.wrap(RootLayout);

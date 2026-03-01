@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { showAlert } from "@/lib/alert";
+import { trackEvent } from "@/lib/observability";
 
 export function useStartRatingRound(eventId: string, wineId: string) {
   const qc = useQueryClient();
@@ -75,6 +76,7 @@ export function useEndEvent(eventId: string) {
       if (error) throw error;
     },
     onSuccess: () => {
+      trackEvent("event_ended", { event_id: eventId });
       qc.invalidateQueries({ queryKey: ["event", eventId] });
       qc.invalidateQueries({ queryKey: ["events"] });
     },

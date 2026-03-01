@@ -20,6 +20,7 @@ import { getRedirectUrl } from "@/lib/auth-redirect";
 import { setLastUsedEmail } from "@/lib/last-email";
 import { signInWithGoogle } from "@/lib/oauth-google";
 import { navigateAfterAuth } from "@/lib/post-auth-navigate";
+import { trackEvent } from "@/lib/observability";
 
 const UNAUTHORIZED_HINT =
   "In Supabase: Authentication → Providers → turn Email ON. Check Project Settings → API: use the anon public key and project URL in .env, then restart the app.";
@@ -77,6 +78,7 @@ export default function SignInScreen() {
         }
         // Update context; the useEffect will handle navigation when session state changes
         setSessionFromAuth(data.session);
+        trackEvent("user_signed_in", { method: "password" });
       }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
@@ -133,6 +135,7 @@ export default function SignInScreen() {
       if (session) {
         // Update context; the useEffect will handle navigation when session state changes
         setSessionFromAuth(session);
+        trackEvent("user_signed_in", { method: "google" });
       } else {
         setErrorHint("Google sign-in was cancelled or failed");
       }

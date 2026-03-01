@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
+import { trackEvent } from "@/lib/observability";
 import { AddWineForm } from "@/components/AddWineForm";
 import { KeyboardAvoidingView, Platform } from "react-native";
 
@@ -13,6 +14,7 @@ export default function AddWineScreen() {
 
   const onSuccess = async () => {
     await queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", member?.id] });
+    trackEvent("wine_added_to_cellar");
     router.navigate("/(tabs)/cellar");
   };
 
