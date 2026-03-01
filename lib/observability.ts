@@ -13,7 +13,7 @@ export function initObservability() {
   if (sentryDsn) {
     Sentry.init({
       dsn: sentryDsn,
-      enabled: true, // TEMP: smoke test — revert to !__DEV__ before commit
+      enabled: !__DEV__,
       debug: false,
     });
   }

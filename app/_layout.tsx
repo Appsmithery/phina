@@ -19,7 +19,6 @@ import {
 } from "@expo-google-fonts/montserrat";
 
 initObservability();
-captureError(new Error("Sentry smoke test — delete me")); // TEMP: smoke test
 
 SplashScreen.preventAutoHideAsync();
 

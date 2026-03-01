@@ -17,6 +17,7 @@ Phína digitizes wine club tasting events: members photograph bottle labels, AI 
 | Wine label AI | Perplexity Sonar API (vision) via Edge Function |
 | Push (native) | Expo Push Notifications |
 | Push (web) | Web Push API via VAPID, via Edge Function |
+| Observability | Sentry (error monitoring) + PostHog (product analytics) |
 | PWA hosting | Digital Ocean (droplet + nginx), GoDaddy (domain) |
 | Native builds | EAS Build + EAS Submit |
 
@@ -29,7 +30,7 @@ Phína digitizes wine club tasting events: members photograph bottle labels, AI 
 - **Key directories:**
   - `app/` — screens (file-based routes)
   - `components/` — shared UI components
-  - `lib/` — utilities and context (`supabase.ts`, `supabase-context.tsx`, `theme.ts`, `alert.ts`, etc.)
+  - `lib/` — utilities and context (`supabase.ts`, `supabase-context.tsx`, `observability.ts`, `theme.ts`, `alert.ts`, etc.)
   - `hooks/` — React Query hooks (data fetching and mutations)
   - `types/` — TypeScript types, including `database.ts` (canonical DB schema)
   - `supabase/` — migrations, edge functions
@@ -247,12 +248,50 @@ See [DEVELOPMENT_BUILD.md](../setup/DEVELOPMENT_BUILD.md) for testing push on de
 
 ---
 
+## Observability
+
+Two SDKs are initialised at app startup via `lib/observability.ts` and are **disabled in development** (`!__DEV__`):
+
+| SDK | Role |
+|-----|------|
+| **Sentry** (`@sentry/react-native`) | Error monitoring and crash reporting |
+| **PostHog** (`posthog-react-native`) | Product analytics (event capture) |
+
+**Wiring:**
+
+- `metro.config.js` — uses `getSentryExpoConfig` so Metro uploads source maps to Sentry on every EAS build, enabling readable stack traces in production.
+- `app.config.ts` — includes the `@sentry/react-native/expo` plugin (injects the Sentry Gradle plugin on Android and the Sentry Xcode build phase on iOS).
+- `app/_layout.tsx` — calls `initObservability()` at module level (before React renders), wraps the root component with `Sentry.wrap()`, and wraps the tree in an `ErrorBoundary` that calls `captureError()` + surfaces `Sentry.lastEventId()` on crash screens.
+- `lib/supabase-context.tsx` — calls `identifyUser(userId)` on sign-in and `clearUser()` on sign-out, so Sentry issues and PostHog sessions are tagged with the authenticated user.
+
+**Tracked events (PostHog):**
+
+| Event | Fired when |
+|-------|-----------|
+| `user_signed_up` | New member row created on first sign-in |
+| `user_signed_in` | Successful sign-in (`method: "password"` or `"google"`) |
+| `event_created` | Host creates a new event |
+| `event_joined` | Member joins via invite link |
+| `event_ended` | Host ends an event |
+| `wine_rated` | Member submits a rating |
+| `wine_added_to_cellar` | Wine added to personal cellar |
+| `cellar_opened` | Cellar tab opened |
+| `label_scanned` | Successful label extraction |
+| `label_scan_error` | Label extraction failed |
+
+**Secrets:**
+
+- `EXPO_PUBLIC_SENTRY_DSN` / `EXPO_PUBLIC_POSTHOG_KEY` / `EXPO_PUBLIC_POSTHOG_HOST` — client-safe, embedded in the bundle (DSN and anon key are designed to be public).
+- `SENTRY_AUTH_TOKEN` — build-time only; set as an EAS environment variable in the Expo dashboard; never in the client bundle. Used by the Sentry Metro plugin to upload source maps.
+
+---
+
 ## Security
 
 - **RLS is the primary access control layer.** Every table has policies; the anon key grants only what RLS allows.
 - **Anon key** is intentionally public — embedded in the client bundle. This is Supabase's standard model; RLS replaces server-side auth middleware.
 - **Service role key** is server-only — used only inside Edge Functions via `Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")`. Never in client code.
-- **Secrets strategy:** `EXPO_PUBLIC_*` vars are client-safe (Supabase URL, anon key, app URL). All other secrets (service role key, Perplexity API key, VAPID key) are set via `supabase secrets set` and accessed only in Edge Functions.
+- **Secrets strategy:** `EXPO_PUBLIC_*` vars are client-safe (Supabase URL, anon key, app URL, Sentry DSN, PostHog key/host). Server-only secrets (service role key, Perplexity API key, VAPID key) are set via `supabase secrets set` and accessed only in Edge Functions. `SENTRY_AUTH_TOKEN` is an EAS-only build secret and never reaches the client bundle.
 - **`overrides` in `package.json`** pin patched versions of `minimatch` and `tar` to address known CVEs in transitive deps.
 
 ---

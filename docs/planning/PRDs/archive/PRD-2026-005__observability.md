@@ -1,7 +1,7 @@
 ---
 prd_id: PRD-2026-005
 title: "Observability — Error Tracking and Basic Analytics"
-status: Ready
+status: Shipped
 owner: TBD
 area: Observability
 target_release: "v0.3"
@@ -12,7 +12,7 @@ plans:
 
 # PRD-2026-005: Observability — Error Tracking and Basic Analytics
 
-> **Status:** ✅ Ready
+> **Status:** 🚀 Shipped
 > **Priority:** P1 (High)
 > **Owner:** TBD
 > **Target Release:** v0.3
@@ -287,3 +287,4 @@ None — observability is always-on in production builds.
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-03-01 | Claude | Initial draft — Sentry + PostHog, 10 product events, ErrorBoundary enhancement |
+| 2026-03-01 | Claude | Shipped — all 10 events instrumented, Sentry + PostHog confirmed in dev smoke tests (PostHog Live Events, Sentry issue capture). iOS preview build blocked pending Apple Developer account approval; full source map validation deferred to first iOS build. |

@@ -38,7 +38,7 @@ For technical architecture, data model, and infrastructure details see [System A
 - **User preferences and social data for wines** — Per-user preference graph from ranking metadata (tags, tasting notes, preferred contexts). Status: 🧠 — [PRD-2026-003](./PRDs/PRD-2026-003__user-preferences-social-data-wines.md).
 - **"Help me pick" (discovery)** — Wine shop photo, restaurant menu photo, cooking chat — all powered by the Taste Graph. Depends on PRD-2026-003. Status: 🧠 — [PRD-2026-004](./PRDs/PRD-2026-004__help-me-pick.md).
 - **Brand application** — Apply [Brand Guidelines](../brand-guidelines.md) consistently across the app. No PRD yet.
-- **Observability** — Error tracking (Sentry) + product analytics (PostHog). Status: ✅ Ready — [PRD-2026-005](./PRDs/PRD-2026-005__observability.md).
+- **Observability** — Error tracking (Sentry) + product analytics (PostHog). Status: 🚀 Shipped — [PRD-2026-005](./PRDs/archive/PRD-2026-005__observability.md).
 - **Native store builds** — Google Play / App Store when accounts are ready. Status: ✅ Ready — [PRD-2026-006](./PRDs/PRD-2026-006__native-store-builds.md).
 
 ## Releases (milestones)
@@ -142,7 +142,7 @@ Name, email, stats (events attended, wines rated, avg body/dryness), push notifi
 | Product     | — | Personal cellars | 🛠 In progress |
 | Monetization| — | Donations (event join) | 🚀 Shipped |
 | Monetization| — | Subscription ($2.99/mo cellar) | 🧠 Next |
-| Observability | PRD-2026-005 | [Observability — Error Tracking and Basic Analytics](./PRDs/PRD-2026-005__observability.md) | ✅ Ready |
+| Observability | PRD-2026-005 | [Observability — Error Tracking and Basic Analytics](./PRDs/archive/PRD-2026-005__observability.md) | 🚀 Shipped |
 | Infrastructure | PRD-2026-006 | [Native Store Builds — Google Play and Apple App Store](./PRDs/PRD-2026-006__native-store-builds.md) | ✅ Ready |
 | Preferences | PRD-2026-003 | [User preferences and social data for wines](./PRDs/PRD-2026-003__user-preferences-social-data-wines.md) | 🧠 Later |
 | Discovery   | PRD-2026-004 | ["Help me pick" — shop photo, menu photo, cooking chat](./PRDs/PRD-2026-004__help-me-pick.md) | 🧠 Draft |
