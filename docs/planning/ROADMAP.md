@@ -30,15 +30,16 @@ For technical architecture, data model, and infrastructure details see [System A
 ### Next (queued)
 
 - **Personal cellars** — Wine collections not tied to events: users can build, search, and manage their own cellar. Enables use outside event-only flow. Status: 🛠 — Target: TBD — No PRD yet. **Foundation shipped:** Profile stats; Add wine from My Wines (non-event); Rate personal wines anytime; optional label scan. Quantity (1–12) per [PRD-2026-002](./PRDs/archive/PRD-2026-002__quantity-events-cellar.md).
-- **Payments** — Donations (optional on event join) + Subscription ($2.99/mo for cellar users). Depends on Personal cellars. Status: 🧠 — No PRD yet.
+- **Donations** — Optional donation on event join. Status: 🚀 Shipped.
+- **Subscription** — $2.99/mo for cellar users. Depends on Personal cellars. Status: 🧠 — No PRD yet.
 
 ### Later (ideas)
 
 - **User preferences and social data for wines** — Per-user preference graph from ranking metadata (tags, tasting notes, preferred contexts). Status: 🧠 — [PRD-2026-003](./PRDs/PRD-2026-003__user-preferences-social-data-wines.md).
 - **"Help me pick" (discovery)** — Wine shop photo, restaurant menu photo, cooking chat — all powered by the Taste Graph. Depends on PRD-2026-003. Status: 🧠 — [PRD-2026-004](./PRDs/PRD-2026-004__help-me-pick.md).
 - **Brand application** — Apply [Brand Guidelines](../brand-guidelines.md) consistently across the app. No PRD yet.
-- **Observability** — Error tracking, basic analytics. No PRD yet.
-- **Native store builds** — Google Play / App Store when accounts are ready. No PRD yet.
+- **Observability** — Error tracking (Sentry) + product analytics (PostHog). Status: ✅ Ready — [PRD-2026-005](./PRDs/PRD-2026-005__observability.md).
+- **Native store builds** — Google Play / App Store when accounts are ready. Status: ✅ Ready — [PRD-2026-006](./PRDs/PRD-2026-006__native-store-builds.md).
 
 ## Releases (milestones)
 
@@ -60,7 +61,7 @@ Fix label extraction; add Google sign-in for lower friction; cross-platform audi
 
 ### v0.4 (personal cellars & monetization)
 
-Personal wine cellars (user-owned wine collections); payments (donate on event join; $2.99/mo for cellar users).
+Personal wine cellars (user-owned wine collections); donations on event join (🚀 Shipped); subscription ($2.99/mo for cellar users, 🧠 Next).
 
 ### v0.5 (user preferences & discovery foundation)
 
@@ -139,7 +140,10 @@ Name, email, stats (events attended, wines rated, avg body/dryness), push notifi
 | Auth        | — | Sign in/up with Google | 🚀 Shipped |
 | Product     | — | Profile stats, cellar add wine & rate personal wines | 🚀 Shipped |
 | Product     | — | Personal cellars | 🛠 In progress |
-| Monetization| — | Payments (donations + $2.99/mo cellar) | 🧠 Next |
+| Monetization| — | Donations (event join) | 🚀 Shipped |
+| Monetization| — | Subscription ($2.99/mo cellar) | 🧠 Next |
+| Observability | PRD-2026-005 | [Observability — Error Tracking and Basic Analytics](./PRDs/PRD-2026-005__observability.md) | ✅ Ready |
+| Infrastructure | PRD-2026-006 | [Native Store Builds — Google Play and Apple App Store](./PRDs/PRD-2026-006__native-store-builds.md) | ✅ Ready |
 | Preferences | PRD-2026-003 | [User preferences and social data for wines](./PRDs/PRD-2026-003__user-preferences-social-data-wines.md) | 🧠 Later |
 | Discovery   | PRD-2026-004 | ["Help me pick" — shop photo, menu photo, cooking chat](./PRDs/PRD-2026-004__help-me-pick.md) | 🧠 Draft |
 | *Add new*   | — | Use [PRD_Template](./PRDs/PRD_Template.md); assign ID and add here | — |
