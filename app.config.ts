@@ -4,6 +4,7 @@ const iosUrlScheme = process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME;
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
+  owner: "appsmithery",
   name: "Phína",
   slug: "phina",
   version: "1.0.0",
