@@ -23,6 +23,9 @@ web-build/
 .env.production
 *.env
 
+# Google Play service account key — never commit
+google-play-service-account.json
+
 # Supabase local
 supabase/.temp/
 supabase/.env

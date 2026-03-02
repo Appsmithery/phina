@@ -1,4 +1,4 @@
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Linking } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Linking, Platform } from "react-native";
 import { showAlert } from "@/lib/alert";
 import { useEffect, useMemo, useState } from "react";
 import { router } from "expo-router";
@@ -291,26 +291,28 @@ export default function ProfileScreen() {
             </View>
           </>
         ) : null}
-        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={styles.donateHeader}>
-            <Ionicons name="heart-outline" size={20} color={theme.primary} />
-            <Text style={[styles.donateTitle, { color: theme.text }]}>Support Development</Text>
+        {Platform.OS !== "ios" && (
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <View style={styles.donateHeader}>
+              <Ionicons name="heart-outline" size={20} color={theme.primary} />
+              <Text style={[styles.donateTitle, { color: theme.text }]}>Support Development</Text>
+            </View>
+            <Text style={[styles.donateDescription, { color: theme.textSecondary }]}>
+              If you're enjoying the app and want to support ongoing development and operations.
+            </Text>
+            <View style={styles.donateButtons}>
+              {[100, 500, 1000].map((cents) => (
+                <TouchableOpacity
+                  key={cents}
+                  style={[styles.donateButton, { backgroundColor: theme.primary }]}
+                  onPress={() => openDonation(cents)}
+                >
+                  <Text style={styles.donateButtonText}>${cents / 100}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
-          <Text style={[styles.donateDescription, { color: theme.textSecondary }]}>
-            If you're enjoying the app and want to support ongoing development and operations.
-          </Text>
-          <View style={styles.donateButtons}>
-            {[100, 500, 1000].map((cents) => (
-              <TouchableOpacity
-                key={cents}
-                style={[styles.donateButton, { backgroundColor: theme.primary }]}
-                onPress={() => openDonation(cents)}
-              >
-                <Text style={styles.donateButtonText}>${cents / 100}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+        )}
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.label, { color: theme.textSecondary }]}>Email</Text>
           <Text style={[styles.value, { color: theme.text }]}>{session?.user?.email ?? "—"}</Text>

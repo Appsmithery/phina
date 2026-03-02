@@ -39,7 +39,7 @@ For technical architecture, data model, and infrastructure details see [System A
 - **"Help me pick" (discovery)** — Wine shop photo, restaurant menu photo, cooking chat — all powered by the Taste Graph. Depends on PRD-2026-003. Status: 🧠 — [PRD-2026-004](./PRDs/PRD-2026-004__help-me-pick.md).
 - **Brand application** — Apply [Brand Guidelines](../brand-guidelines.md) consistently across the app. No PRD yet.
 - **Observability** — Error tracking (Sentry) + product analytics (PostHog). Status: 🚀 Shipped — [PRD-2026-005](./PRDs/archive/PRD-2026-005__observability.md).
-- **Native store builds** — Google Play / App Store when accounts are ready. Status: ✅ Ready — [PRD-2026-006](./PRDs/PRD-2026-006__native-store-builds.md).
+- **Native store builds** — Google Play / App Store when accounts are ready. Status: 🛠 In progress — [PRD-2026-006](./PRDs/PRD-2026-006__native-store-builds.md). Code prep done; gated on developer account enrollment. See [Android gap analysis](./Plans/Google%20Play_Targeted%20Recommendations.md) · [iOS gap analysis](./Plans/Targeted%20iOS%20Gap%20Analysis.md).
 
 ## Releases (milestones)
 
@@ -143,7 +143,7 @@ Name, email, stats (events attended, wines rated, avg body/dryness), push notifi
 | Monetization| — | Donations (event join) | 🚀 Shipped |
 | Monetization| — | Subscription ($2.99/mo cellar) | 🧠 Next |
 | Observability | PRD-2026-005 | [Observability — Error Tracking and Basic Analytics](./PRDs/archive/PRD-2026-005__observability.md) | 🚀 Shipped |
-| Infrastructure | PRD-2026-006 | [Native Store Builds — Google Play and Apple App Store](./PRDs/PRD-2026-006__native-store-builds.md) | ✅ Ready |
+| Infrastructure | PRD-2026-006 | [Native Store Builds — Google Play and Apple App Store](./PRDs/PRD-2026-006__native-store-builds.md) | 🛠 In progress |
 | Preferences | PRD-2026-003 | [User preferences and social data for wines](./PRDs/PRD-2026-003__user-preferences-social-data-wines.md) | 🧠 Later |
 | Discovery   | PRD-2026-004 | ["Help me pick" — shop photo, menu photo, cooking chat](./PRDs/PRD-2026-004__help-me-pick.md) | 🧠 Draft |
 | *Add new*   | — | Use [PRD_Template](./PRDs/PRD_Template.md); assign ID and add here | — |

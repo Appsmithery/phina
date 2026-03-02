@@ -1,18 +1,20 @@
 ---
 prd_id: PRD-2026-006
 title: "Native Store Builds — Google Play and Apple App Store"
-status: Ready
+status: In progress
 owner: TBD
 area: Infrastructure
 target_release: "v0.4"
 roadmap: "../ROADMAP.md"
 plans:
   claude: "../Plans/PRD-2026-006__claude-plan.md"
+  android_gap_analysis: "../Plans/Google Play_Targeted Recommendations.md"
+  ios_gap_analysis: "../Plans/Targeted iOS Gap Analysis.md"
 ---
 
 # PRD-2026-006: Native Store Builds — Google Play and Apple App Store
 
-> **Status:** ✅ Ready
+> **Status:** 🛠 In progress
 > **Priority:** P2 (Medium) — gated on developer account enrollment
 > **Owner:** TBD
 > **Target Release:** v0.4 (or when developer accounts are ready)
@@ -95,11 +97,13 @@ Use the existing EAS Build (`production` profile) and EAS Submit infrastructure 
 ### Relevant Files & Directories
 
 ```
-eas.json                     — EAS build profiles + submit configuration (needs population)
-app.config.ts                — Bundle IDs, plugins, associated domains, icon paths
-phina_favicon.png            — Source icon (verify 1024×1024, no alpha)
-app/privacy.tsx              — Privacy policy (already live at /privacy)
-app/terms.tsx                — Terms of service (already live at /terms)
+eas.json                                        — EAS build profiles + submit configuration
+app.config.ts                                   — Bundle IDs, plugins, associated domains, icon paths, permission strings
+phina_favicon.png                               — Source icon (verify 1024×1024, no alpha)
+app/(tabs)/profile.tsx                          — Donation card hidden on iOS via Platform.OS check
+app/privacy.tsx                                 — Privacy policy (already live at /privacy)
+app/terms.tsx                                   — Terms of service (already live at /terms)
+public/.well-known/apple-app-site-association   — AASA file for iOS universal links (Team ID placeholder — fill in post-enrollment)
 ```
 
 ### Key Dependencies
@@ -133,8 +137,8 @@ None.
 
 | File | Purpose | Key Changes |
 |------|---------|-------------|
-| `eas.json` | EAS build + submit config | Populate `submit.production.ios` and `submit.production.android` blocks with credentials |
-| `app.config.ts` | Expo config | Optionally add `runtimeVersion: { policy: "appVersion" }` for OTA-safe releases; verify icon path is correct |
+| `eas.json` | EAS build + submit config | ✅ Android submit block populated (`track: "internal"`, `serviceAccountKeyPath`); iOS stub added (credentials pending Apple account) |
+| `app.config.ts` | Expo config | ✅ `runtimeVersion: { policy: "appVersion" }` added |
 
 ### `eas.json` submit block (fill in after accounts are active)
 
@@ -177,7 +181,7 @@ Where:
 - [ ] Immediately back up the keystore: `eas credentials --platform android --profile production` → download keystore file → store securely offline
 - [ ] Create the app in Google Play Console: All apps → Create app → name "Phína", language English, app type "App", free
 - [ ] Create a Google Play service account: Play Console → Setup → API access → link to a Google Cloud project → create service account with "Release Manager" role → download JSON key
-- [ ] Add `google-play-service-account.json` to `.gitignore`
+- [x] Add `google-play-service-account.json` to `.gitignore`
 
 #### Google Sign-In (production)
 - [ ] In Google Cloud Console, add `co.appsmithery.phina` as an authorised bundle ID for the iOS OAuth 2.0 client
@@ -349,15 +353,19 @@ None — this is a distribution milestone, not a feature flag scenario.
 ## Open Questions
 
 - [ ] Are Apple Developer Program and Google Play Developer accounts enrolled? (Blocking gate)
-- [ ] Is `phina_favicon.png` 1024×1024 with no alpha? (Needs verification before build)
+- [ ] Individual vs. Organization Apple account? Organisation requires D-U-N-S number (5–10 day lead time through Dun & Bradstreet) — decide before enrolling.
+- [ ] Is `phina_favicon.png` 1024×1024 with no alpha? (Needs manual verification via ImageMagick or similar before first build)
 - [ ] Has the iOS Google OAuth client been created for the production bundle ID in Google Cloud Console?
-- [ ] Who will own the Apple Developer account (individual or organisation)? Organisation requires D-U-N-S number.
-- [ ] Should in-app purchase support (for the future subscription) be set up in App Store Connect and Google Play now, even if not active yet?
+- [ ] Has the Android OAuth 2.0 client been updated with the EAS keystore SHA-1? (Can only be done after first production build)
+- [ ] Should the personal cellar / subscription feature be completed before first App Store submission? (Recommended: yes — adding subscription billing post-launch requires updated App Privacy declarations and may trigger re-review)
+- [ ] AASA file `PLACEHOLDER_TEAM_ID` — fill in 10-character Team ID from Apple Developer → Account → Membership once enrolled, then configure nginx `Content-Type: application/json` and verify at Apple CDN.
 
 ---
 
 ## References
 
+- [Android Gap Analysis — Google Play Targeted Recommendations](../Plans/Google%20Play_Targeted%20Recommendations.md)
+- [iOS Gap Analysis — Targeted iOS Gap Analysis](../Plans/Targeted%20iOS%20Gap%20Analysis.md)
 - [EAS Build docs](https://docs.expo.dev/build/introduction/)
 - [EAS Submit docs](https://docs.expo.dev/submit/introduction/)
 - [EAS Credentials docs](https://docs.expo.dev/app-signing/managed-credentials/)
@@ -373,3 +381,5 @@ None — this is a distribution milestone, not a feature flag scenario.
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-03-01 | Claude | Initial draft — prerequisite checklist, EAS submit config, staged rollout, store asset requirements |
+| 2026-03-01 | Claude | Code prep (Android): `runtimeVersion: { policy: "appVersion" }` added to `app.config.ts`; `google-play-service-account.json` added to `.gitignore`; `eas.json` android submit block populated (`track: "internal"`); iOS submit stub added (credentials pending Apple account) |
+| 2026-03-01 | Claude | Code prep (iOS): `NSCameraUsageDescription` and `NSPhotoLibraryUsageDescription` added to `ios.infoPlist` in `app.config.ts`; donation card hidden on `Platform.OS === 'ios'` in `profile.tsx` to avoid App Store Guideline 3.1.1 rejection; `public/.well-known/apple-app-site-association` AASA file created (Team ID placeholder — fill in post-enrollment); cellar/subscription completion noted as pre-submission gate |

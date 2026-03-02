@@ -12,6 +12,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   scheme: "phina",
   userInterfaceStyle: "automatic",
   newArchEnabled: true,
+  runtimeVersion: { policy: "appVersion" },
   icon: "./phina_favicon.png",
   splash: {
     image: "./phina_logo.png",
@@ -24,6 +25,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     associatedDomains: ["applinks:phina.appsmithery.co"],
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
+      NSCameraUsageDescription: "Phína uses your camera to scan wine bottle labels and extract wine details automatically.",
+      NSPhotoLibraryUsageDescription: "Phína lets you select a photo from your library to update a wine's label image.",
     },
   },
   android: {

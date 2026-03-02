@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "PLACEHOLDER_TEAM_ID.co.appsmithery.phina",
+        "paths": ["*"]
+      }
+    ]
+  }
+}
