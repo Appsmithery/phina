@@ -1,6 +1,8 @@
 # Phína
 
-A wine club app that digitizes themed tasting events: members snap a photo of their bottle label, the app extracts wine details with AI, and hosts run live anonymous rating rounds via push notification. A persistent database keeps a searchable history of all events and bottles.
+**Run a blind tasting in minutes. Scan. Rate. Reveal.**
+
+Phína turns any wine club night, themed tasting, or dinner party into a smooth, memorable experience. A host creates an event and shows a QR code at the venue. Members snap their bottle label — AI extracts the wine details instantly. The host opens rating rounds: everyone votes 👍 / 😐 / 👎 blind, ratings lock, and the full anonymous results reveal together at the end. No sign-in sheets. No paper scorecards. No bias.
 
 **Live at:** [phina.appsmithery.co](https://phina.appsmithery.co)
 
@@ -8,12 +10,19 @@ A wine club app that digitizes themed tasting events: members snap a photo of th
 
 ## What it does
 
+**The live group experience** — what no other wine app has
 - **Events** — Host creates an event with a theme and shows a QR code at the venue.
-- **Join in person** — Members scan the QR to join (no remote voting).
+- **Join in person** — Members scan the QR to join (physical presence required; no remote voting).
+- **Live rating rounds** — Host starts a round → push notification → everyone votes blind. Ratings lock when the host ends the round.
+- **Results reveal** — Host ends the event → all wines show anonymous aggregate scores simultaneously. No individual votes are ever exposed.
+
+**The knowledge layer** — for the curious drinker
 - **Wine entry** — Camera captures the label; AI (Perplexity Sonar) extracts producer, varietal, vintage, region, tasting notes, and more.
-- **Check-in** — Name, email, and wine details (auto-filled from the photo).
-- **Live rating rounds** — Host starts a round → push notification → everyone rates 👍 / 😐 / 👎. Ratings are blind until the host ends the event; then anonymous aggregates are revealed.
-- **History** — Searchable repository of past events, wines, and ratings (read-only after an event ends).
+- **Wine detail** — Full AI-extracted profile per bottle: producer, varietal, vintage, region, AI tasting summary, drink window.
+
+**The personal data layer** — the blind-tasting data moat
+- **History** — Searchable repository of past events, wines, and anonymous ratings (read-only after an event ends).
+- **Taste profile** — Preferences accumulated across events from genuinely blind rounds: no label bias, no price anchoring.
 
 ---
 
@@ -49,37 +58,3 @@ A wine club app that digitizes themed tasting events: members snap a photo of th
    Press `w` for web, or scan the QR with Expo Go on your phone (same Wi-Fi required; use `--tunnel` otherwise).
 
 5. **Edge Functions** — the "Scan label" feature requires the `extract-wine-label` function deployed and `PERPLEXITY_API_KEY` set. See [Edge Functions deploy guide](docs/setup/EDGE_FUNCTIONS_MANUAL_DEPLOY.md).
-
----
-
-## Scripts
-
-| Command | Description |
-|--------|-------------|
-| `npm start` | Start Expo dev server |
-| `npm run web` | Start with web |
-| `npm run export:web` | Build PWA to `dist/` |
-| `npm run functions:serve` | Serve Edge Functions locally (requires Docker + `supabase start`) |
-| `npm run typecheck` | TypeScript check |
-| `npm run lint` | Expo lint |
-| `npm test` | Run Jest tests |
-
-**Security:** `overrides` in `package.json` pin patched versions of `minimatch` and `tar`. Re-run `npm audit` after upgrading Expo.
-
----
-
-## Docs
-
-| Doc | Description |
-|-----|-------------|
-| [System Architecture](docs/architecture/system-architecture.md) | Data model, auth, realtime, cross-platform patterns, push, security |
-| [Roadmap](docs/planning/ROADMAP.md) | Product vision and release milestones |
-| [Taste Graph](docs/architecture/taste-graph.md) | Preference graph architecture (v0.5+) |
-| [Brand Guidelines](docs/brand-guidelines.md) | Palette, typography, UI principles |
-| [Auth Setup](docs/setup/AUTH_SETUP.md) | Magic links, email auth, SMTP, redirect URLs |
-| [Google OAuth Setup](docs/setup/GOOGLE_OAUTH_SETUP.md) | OAuth app config, deep link callback |
-| [Expo Go OAuth](docs/setup/EXPO_GO_OAUTH_SETUP.md) | OAuth in Expo Go during development |
-| [Edge Functions Deploy](docs/setup/EDGE_FUNCTIONS_MANUAL_DEPLOY.md) | Deploy via Supabase Dashboard (Windows CLI workaround) |
-| [Development Build](docs/setup/DEVELOPMENT_BUILD.md) | Native push testing; Expo Go limitations |
-| [Deploy (Digital Ocean)](docs/setup/DEPLOY_DIGITALOCEAN.md) | PWA deploy, nginx config, SSL |
-| [Rating Rounds Auto-close](docs/setup/RATING_ROUNDS_AUTO_CLOSE.md) | Scheduled round closure config |
