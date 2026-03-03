@@ -37,7 +37,7 @@ export default function ProfileScreen() {
       if (!member?.id) return [];
       const { data, error } = await supabase
         .from("ratings")
-        .select("value, body, sweetness, wine_id, wines!ratings_wine_id_fkey(color)")
+        .select("value, body, sweetness, tags, wine_id, wines!ratings_wine_id_fkey(color)")
         .eq("member_id", member.id);
       if (error) throw error;
       return data ?? [];
@@ -116,6 +116,19 @@ export default function ProfileScreen() {
       colorToNum,
     );
 
+    const ALL_TAGS = ["minerality", "fruit", "spice", "tannic"] as const;
+    const likedRatings = ownRatings.filter((r) => r.value === 1);
+    const tagCounts: Record<string, number> = {};
+    for (const r of likedRatings) {
+      for (const tag of (r.tags ?? [])) {
+        tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
+      }
+    }
+    const preferredTags = ALL_TAGS
+      .filter((t) => (tagCounts[t] ?? 0) > 0)
+      .sort((a, b) => (tagCounts[b] ?? 0) - (tagCounts[a] ?? 0));
+    const hasEnoughTagData = likedRatings.some((r) => r.tags && r.tags.length > 0);
+
     return {
       totalRatings: total,
       liked,
@@ -125,6 +138,8 @@ export default function ProfileScreen() {
       prefBody,
       prefDryness,
       prefColor,
+      preferredTags,
+      hasEnoughTagData,
     };
   }, [ownRatings, eventsCount, favoritesCount]);
 
@@ -285,6 +300,27 @@ export default function ProfileScreen() {
                   <Text style={[styles.scaleExtreme, { color: theme.textMuted }]}>White</Text>
                 </View>
                 {stats.prefColor == null && (
+                  <Text style={[styles.noDataText, { color: theme.textMuted }]}>Not enough data</Text>
+                )}
+              </View>
+
+              <View style={styles.scaleContainer}>
+                <Text style={[styles.scaleLabel, { color: theme.textSecondary }]}>Preferred notes</Text>
+                {stats.hasEnoughTagData ? (
+                  stats.preferredTags.length > 0 ? (
+                    <View style={styles.tagRow}>
+                      {stats.preferredTags.map((tag) => (
+                        <View key={tag} style={[styles.tagChip, { backgroundColor: theme.primary + "20", borderColor: theme.primary }]}>
+                          <Text style={[styles.tagChipText, { color: theme.primary }]}>
+                            {tag.charAt(0).toUpperCase() + tag.slice(1)}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={[styles.noDataText, { color: theme.textMuted }]}>No tags on liked wines yet</Text>
+                  )
+                ) : (
                   <Text style={[styles.noDataText, { color: theme.textMuted }]}>Not enough data</Text>
                 )}
               </View>
@@ -486,4 +522,7 @@ const styles = StyleSheet.create({
   donateButtons: { flexDirection: "row", gap: 12 },
   donateButton: { flex: 1, borderRadius: 12, padding: 14, alignItems: "center" },
   donateButtonText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold", fontSize: 16 },
+  tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
+  tagChip: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
+  tagChipText: { fontSize: 12, fontFamily: "Montserrat_600SemiBold" },
 });

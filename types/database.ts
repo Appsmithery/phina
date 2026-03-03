@@ -168,6 +168,8 @@ export interface Database {
           body: "light" | "medium" | "full" | null;
           sweetness: "dry" | "off-dry" | "sweet" | null;
           confidence: number | null;
+          tags: string[];
+          note: string | null;
           created_at: string;
         };
         Insert: {
@@ -178,6 +180,8 @@ export interface Database {
           body?: "light" | "medium" | "full" | null;
           sweetness?: "dry" | "off-dry" | "sweet" | null;
           confidence?: number | null;
+          tags?: string[];
+          note?: string | null;
           created_at?: string;
         };
         Update: {
@@ -188,6 +192,8 @@ export interface Database {
           body?: "light" | "medium" | "full" | null;
           sweetness?: "dry" | "off-dry" | "sweet" | null;
           confidence?: number | null;
+          tags?: string[];
+          note?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -301,6 +307,10 @@ export interface Database {
       get_event_wine_ratings: {
         Args: { p_event_id: string };
         Returns: { wine_id: string; thumbs_up: number; meh: number; thumbs_down: number }[];
+      };
+      get_event_wine_tag_summary: {
+        Args: { p_event_id: string };
+        Returns: { wine_id: string; tag: string; tag_count: number }[];
       };
     };
     Enums: Record<string, never>;

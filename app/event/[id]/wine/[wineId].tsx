@@ -72,6 +72,28 @@ export default function WineDetailScreen() {
     enabled: !!eventId && !!wineId,
   });
 
+  const { data: voteSummaries } = useQuery({
+    queryKey: ["eventWineRatings", eventId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_event_wine_ratings", { p_event_id: eventId! });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!eventId && event?.status === "ended",
+  });
+  const voteSummary = voteSummaries?.find((s) => s.wine_id === wineId);
+
+  const { data: tagRows } = useQuery({
+    queryKey: ["eventWineTagSummary", eventId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_event_wine_tag_summary", { p_event_id: eventId! });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!eventId && event?.status === "ended",
+  });
+  const wineTags = tagRows?.filter((r) => r.wine_id === wineId) ?? [];
+
   const canRemove = Boolean(
     wine &&
       eventId &&
@@ -151,6 +173,31 @@ export default function WineDetailScreen() {
         </Text>
       )}
 
+      {event?.status === "ended" && voteSummary && (
+        <View style={[styles.ratingBlock, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.ratingBlockTitle, { color: theme.text, marginBottom: 8 }]}>Event results</Text>
+          <Text style={[styles.voteRow, { color: theme.text }]}>
+            👍 {voteSummary.thumbs_up}{"  "}😐 {voteSummary.meh}{"  "}👎 {voteSummary.thumbs_down}
+          </Text>
+          {wineTags.length > 0 && (
+            <>
+              <Text style={[styles.ratingScaleLabel, { color: theme.textSecondary, marginTop: 10, marginBottom: 6 }]}>
+                Tasting notes from attendees
+              </Text>
+              <View style={styles.tagRow}>
+                {wineTags.map((t) => (
+                  <View key={t.tag} style={[styles.tagBadge, { backgroundColor: theme.primary + "20", borderColor: theme.primary }]}>
+                    <Text style={[styles.tagBadgeText, { color: theme.primary }]}>
+                      {t.tag.charAt(0).toUpperCase() + t.tag.slice(1)} ×{t.tag_count}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
+        </View>
+      )}
+
       {rating != null && (
         <View style={[styles.ratingBlock, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.ratingHeaderRow}>
@@ -210,6 +257,20 @@ export default function WineDetailScreen() {
               Confidence: {Math.round(rating.confidence * 100)}%
             </Text>
           )}
+          {rating.tags != null && rating.tags.length > 0 && (
+            <View style={[styles.tagRow, { marginTop: 8 }]}>
+              {rating.tags.map((tag) => (
+                <View key={tag} style={[styles.tagBadge, { backgroundColor: theme.primary + "20", borderColor: theme.primary }]}>
+                  <Text style={[styles.tagBadgeText, { color: theme.primary }]}>
+                    {tag.charAt(0).toUpperCase() + tag.slice(1)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+          {rating.note ? (
+            <Text style={[styles.ratingMeta, { color: theme.textSecondary, marginTop: 6 }]}>"{rating.note}"</Text>
+          ) : null}
         </View>
       )}
       {!ratingPending && rating == null && userId && (
@@ -316,4 +377,8 @@ const styles = StyleSheet.create({
   badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
   badge: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   badgeText: { fontSize: 12, fontWeight: "600" },
+  voteRow: { fontSize: 18, fontFamily: "Montserrat_600SemiBold", letterSpacing: 1 },
+  tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  tagBadge: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
+  tagBadgeText: { fontSize: 12, fontFamily: "Montserrat_600SemiBold" },
 });

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, Pressable } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, Pressable, TextInput } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -17,6 +17,14 @@ import type { Rating } from "@/types/database";
 type Vote = -1 | 0 | 1;
 type BodyOption = "light" | "medium" | "full";
 type SweetnessOption = "dry" | "off-dry" | "sweet";
+type RatingTag = "minerality" | "fruit" | "spice" | "tannic";
+
+const RATING_TAGS: { label: string; value: RatingTag }[] = [
+  { label: "Minerality", value: "minerality" },
+  { label: "Fruit", value: "fruit" },
+  { label: "Spice", value: "spice" },
+  { label: "Tannic", value: "tannic" },
+];
 
 const BODY_OPTIONS: { label: string; value: BodyOption }[] = [
   { label: "Light", value: "light" },
@@ -49,6 +57,8 @@ export default function RateWineScreen() {
   const [body, setBody] = useState<BodyOption | null>(null);
   const [sweetness, setSweetness] = useState<SweetnessOption | null>(null);
   const [confidence, setConfidence] = useState<number | null>(null);
+  const [selectedTags, setSelectedTags] = useState<RatingTag[]>([]);
+  const [note, setNote] = useState("");
   const [bodyModalVisible, setBodyModalVisible] = useState(false);
   const [sweetnessModalVisible, setSweetnessModalVisible] = useState(false);
   const [expandedHelp, setExpandedHelp] = useState<HelpKey | null>(null);
@@ -122,6 +132,8 @@ export default function RateWineScreen() {
       if (existingRating.body) setBody(existingRating.body as BodyOption);
       if (existingRating.sweetness) setSweetness(existingRating.sweetness as SweetnessOption);
       if (existingRating.confidence != null) setConfidence(existingRating.confidence);
+      if (existingRating.tags?.length) setSelectedTags(existingRating.tags as RatingTag[]);
+      if (existingRating.note) setNote(existingRating.note);
     }
   }, [existingRating]);
 
@@ -180,6 +192,8 @@ export default function RateWineScreen() {
           body: body ?? null,
           sweetness: sweetness ?? null,
           confidence: confidence != null ? Math.round(confidence * 100) / 100 : null,
+          tags: selectedTags,
+          note: note.trim() || null,
         },
         { onConflict: "wine_id,member_id" }
       );
@@ -426,6 +440,41 @@ export default function RateWineScreen() {
             </TouchableOpacity>
           </View>
 
+          <Text style={[styles.metaLabel, { color: theme.textSecondary, marginBottom: 10 }]}>Tasting notes (optional)</Text>
+          <View style={styles.tagGrid}>
+            {RATING_TAGS.map((tag) => {
+              const selected = selectedTags.includes(tag.value);
+              return (
+                <TouchableOpacity
+                  key={tag.value}
+                  style={[
+                    styles.tagChip,
+                    { borderColor: theme.primary },
+                    selected && { backgroundColor: theme.primary },
+                  ]}
+                  onPress={() =>
+                    setSelectedTags((prev) =>
+                      prev.includes(tag.value) ? prev.filter((t) => t !== tag.value) : [...prev, tag.value]
+                    )
+                  }
+                >
+                  <Text style={[styles.tagChipText, { color: selected ? "#fff" : theme.primary }]}>
+                    {tag.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          <TextInput
+            style={[styles.noteInput, { borderColor: theme.border, color: theme.text, backgroundColor: theme.surface }]}
+            placeholder="Any notes…"
+            placeholderTextColor={theme.textMuted}
+            value={note}
+            onChangeText={setNote}
+            maxLength={200}
+            multiline
+          />
+
           <TouchableOpacity
             style={[
               styles.submitButton,
@@ -474,4 +523,8 @@ const styles = StyleSheet.create({
   confidenceNoneText: { fontSize: 14, fontFamily: "Montserrat_400Regular" },
   hint: { textAlign: "center", fontSize: 16, fontFamily: "Montserrat_400Regular" },
   placeholder: { textAlign: "center", fontFamily: "Montserrat_400Regular" },
+  tagGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  tagChip: { borderWidth: 1.5, borderRadius: 20, paddingVertical: 6, paddingHorizontal: 14 },
+  tagChipText: { fontSize: 13, fontFamily: "Montserrat_600SemiBold" },
+  noteInput: { borderWidth: 1, borderRadius: 12, padding: 12, fontSize: 15, fontFamily: "Montserrat_400Regular", minHeight: 56, marginBottom: 16, textAlignVertical: "top" },
 });
