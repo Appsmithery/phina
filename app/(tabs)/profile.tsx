@@ -9,8 +9,6 @@ import { useTheme } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
 import { useQueryClient } from "@tanstack/react-query";
 
-const MIN_PASSWORD_LENGTH = 8;
-
 const DONATION_LINKS: Record<number, string> = {
   100: "https://buy.stripe.com/8x214p9RF4XRbCq2y64ZG00",
   500: "https://buy.stripe.com/cNi5kFfbZ2PJ21Q3Ca4ZG01",
@@ -20,16 +18,25 @@ const DONATION_LINKS: Record<number, string> = {
 export default function ProfileScreen() {
   const { member, session, refreshMember } = useSupabase();
   const theme = useTheme();
+  const queryClient = useQueryClient();
+
+  // Personal Info edit mode
+  const [editingInfo, setEditingInfo] = useState(false);
   const [name, setName] = useState(member?.name ?? "");
+  const [phone, setPhone] = useState(member?.phone ?? "");
+  const [saving, setSaving] = useState(false);
+
+  // Change password (collapsible inline form)
+  const [pwExpanded, setPwExpanded] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     setName(member?.name ?? "");
-  }, [member?.name]);
-  const [saving, setSaving] = useState(false);
-  const queryClient = useQueryClient();
+    setPhone(member?.phone ?? "");
+  }, [member?.name, member?.phone]);
 
   const { data: ownRatings = [] } = useQuery({
     queryKey: ["profile", "ratings", member?.id],
@@ -117,17 +124,18 @@ export default function ProfileScreen() {
     );
 
     const ALL_TAGS = ["minerality", "fruit", "spice", "tannic"] as const;
-    const likedRatings = ownRatings.filter((r) => r.value === 1);
-    const tagCounts: Record<string, number> = {};
-    for (const r of likedRatings) {
+    const tagScores: Record<string, number> = {};
+    for (const r of ownRatings) {
+      const w = PREF_WEIGHT[r.value] ?? 0;
+      if (w === 0) continue;
       for (const tag of (r.tags ?? [])) {
-        tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
+        tagScores[tag] = (tagScores[tag] ?? 0) + w;
       }
     }
     const preferredTags = ALL_TAGS
-      .filter((t) => (tagCounts[t] ?? 0) > 0)
-      .sort((a, b) => (tagCounts[b] ?? 0) - (tagCounts[a] ?? 0));
-    const hasEnoughTagData = likedRatings.some((r) => r.tags && r.tags.length > 0);
+      .filter((t) => (tagScores[t] ?? 0) > 0)
+      .sort((a, b) => (tagScores[b] ?? 0) - (tagScores[a] ?? 0));
+    const hasEnoughTagData = ownRatings.some((r) => (PREF_WEIGHT[r.value] ?? 0) > 0 && r.tags && r.tags.length > 0);
 
     return {
       totalRatings: total,
@@ -154,12 +162,14 @@ export default function ProfileScreen() {
             id: session.user.id,
             email: session.user.email!,
             name: name.trim() || null,
+            phone: phone.trim() || null,
           },
           { onConflict: "id" }
         );
       if (error) throw error;
       await refreshMember();
       queryClient.invalidateQueries({ queryKey: ["members"] });
+      setEditingInfo(false);
     } catch (e: unknown) {
       showAlert("Error", e instanceof Error ? e.message : "Could not save");
     } finally {
@@ -181,21 +191,36 @@ export default function ProfileScreen() {
   };
 
   const changePassword = async () => {
-    if (newPassword.length < MIN_PASSWORD_LENGTH) {
-      showAlert("Error", `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+    if (!session?.user?.email) return;
+    if (currentPassword.length === 0) {
+      showAlert("Error", "Enter your current password.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      showAlert("Error", "New password must be at least 8 characters.");
       return;
     }
     if (newPassword !== confirmNewPassword) {
-      showAlert("Error", "Passwords do not match.");
+      showAlert("Error", "New passwords do not match.");
       return;
     }
     setChangingPassword(true);
     try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: session.user.email,
+        password: currentPassword,
+      });
+      if (signInError) {
+        showAlert("Error", "Current password is incorrect.");
+        return;
+      }
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
       showAlert("Success", "Your password has been updated.");
+      setCurrentPassword("");
       setNewPassword("");
       setConfirmNewPassword("");
+      setPwExpanded(false);
     } catch (e: unknown) {
       showAlert("Error", e instanceof Error ? e.message : "Could not update password.");
     } finally {
@@ -251,8 +276,8 @@ export default function ProfileScreen() {
               </View>
             </View>
             <View style={[styles.card, styles.preferencesCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <Text style={[styles.preferencesTitle, { color: theme.text }]}>Preferences</Text>
-              
+              <Text style={[styles.cardTitle, { color: theme.text, marginBottom: 16 }]}>Preferences</Text>
+
               <View style={styles.scaleContainer}>
                 <Text style={[styles.scaleLabel, { color: theme.textSecondary }]}>Body</Text>
                 <View style={styles.scaleTrackRow}>
@@ -327,11 +352,12 @@ export default function ProfileScreen() {
             </View>
           </>
         ) : null}
+
         {Platform.OS !== "ios" && (
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={styles.donateHeader}>
               <Ionicons name="heart-outline" size={20} color={theme.primary} />
-              <Text style={[styles.donateTitle, { color: theme.text }]}>Support Development</Text>
+              <Text style={[styles.cardTitle, { color: theme.text }]}>Support Development</Text>
             </View>
             <Text style={[styles.donateDescription, { color: theme.textSecondary }]}>
               If you're enjoying the app and want to support ongoing development and operations.
@@ -349,51 +375,123 @@ export default function ProfileScreen() {
             </View>
           </View>
         )}
+
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.label, { color: theme.textSecondary }]}>Email</Text>
-          <Text style={[styles.value, { color: theme.text }]}>{session?.user?.email ?? "—"}</Text>
-          <Text style={[styles.label, { color: theme.textSecondary }]}>Name</Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-            value={name}
-            onChangeText={setName}
-            placeholder="Your name"
-            placeholderTextColor={theme.textMuted}
-          />
+          {/* Header row */}
+          <View style={styles.infoHeader}>
+            <Text style={[styles.cardTitle, { color: theme.text }]}>Personal Info</Text>
+            {!editingInfo ? (
+              <TouchableOpacity onPress={() => setEditingInfo(true)}>
+                <Ionicons name="create-outline" size={20} color={theme.primary} />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={() => {
+                setName(member?.name ?? "");
+                setPhone(member?.phone ?? "");
+                setEditingInfo(false);
+              }}>
+                <Text style={[styles.cancelText, { color: theme.textSecondary }]}>Cancel</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Email — always read-only */}
+          <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Email</Text>
+          <Text style={[styles.infoValue, { color: theme.text }]}>{session?.user?.email ?? "—"}</Text>
+
+          {/* Name */}
+          <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Name</Text>
+          {editingInfo ? (
+            <TextInput
+              style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+              value={name}
+              onChangeText={setName}
+              placeholder="Your name"
+              placeholderTextColor={theme.textMuted}
+            />
+          ) : (
+            <Text style={[styles.infoValue, { color: theme.text }]}>{member?.name || "—"}</Text>
+          )}
+
+          {/* Phone */}
+          <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Phone</Text>
+          {editingInfo ? (
+            <TextInput
+              style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="Your phone number"
+              placeholderTextColor={theme.textMuted}
+              keyboardType="phone-pad"
+            />
+          ) : (
+            <Text style={[styles.infoValue, { color: theme.text }]}>{member?.phone || "—"}</Text>
+          )}
+
+          {/* Save button (edit mode only) */}
+          {editingInfo && (
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: theme.primary, marginTop: 4 }]}
+              onPress={saveProfile}
+              disabled={saving}
+            >
+              <Text style={styles.buttonText}>{saving ? "Saving…" : "Save"}</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Divider */}
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+          {/* Change password toggle row */}
           <TouchableOpacity
-            style={[styles.button, { backgroundColor: theme.primary }]}
-            onPress={saveProfile}
-            disabled={saving}
+            style={styles.pwToggleRow}
+            onPress={() => setPwExpanded((v) => !v)}
           >
-            <Text style={styles.buttonText}>{saving ? "Saving…" : "Save"}</Text>
+            <Text style={[styles.pwToggleText, { color: theme.text }]}>Change password</Text>
+            <Ionicons
+              name={pwExpanded ? "chevron-up" : "chevron-forward"}
+              size={18}
+              color={theme.textSecondary}
+            />
           </TouchableOpacity>
+
+          {pwExpanded && (
+            <View style={styles.pwForm}>
+              <TextInput
+                style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                placeholder="Current password"
+                placeholderTextColor={theme.textMuted}
+                secureTextEntry
+              />
+              <TextInput
+                style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+                value={newPassword}
+                onChangeText={setNewPassword}
+                placeholder="New password"
+                placeholderTextColor={theme.textMuted}
+                secureTextEntry
+              />
+              <TextInput
+                style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+                value={confirmNewPassword}
+                onChangeText={setConfirmNewPassword}
+                placeholder="Confirm new password"
+                placeholderTextColor={theme.textMuted}
+                secureTextEntry
+              />
+              <TouchableOpacity
+                style={[styles.button, { backgroundColor: theme.primary }]}
+                onPress={changePassword}
+                disabled={changingPassword}
+              >
+                <Text style={styles.buttonText}>{changingPassword ? "Updating…" : "Update password"}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
-        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.label, { color: theme.textSecondary }]}>Change password</Text>
-          <TextInput
-            style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-            value={newPassword}
-            onChangeText={setNewPassword}
-            placeholder="New password"
-            placeholderTextColor={theme.textMuted}
-            secureTextEntry
-          />
-          <TextInput
-            style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-            value={confirmNewPassword}
-            onChangeText={setConfirmNewPassword}
-            placeholder="Confirm new password"
-            placeholderTextColor={theme.textMuted}
-            secureTextEntry
-          />
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: theme.primary }]}
-            onPress={changePassword}
-            disabled={changingPassword}
-          >
-            <Text style={styles.buttonText}>{changingPassword ? "Updating…" : "Change password"}</Text>
-          </TouchableOpacity>
-        </View>
+
         <TouchableOpacity style={[styles.signOut, { borderColor: theme.border }]} onPress={signOut}>
           <Text style={[styles.signOutText, { color: theme.textSecondary }]}>Sign out</Text>
         </TouchableOpacity>
@@ -421,8 +519,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 24,
   },
-  label: { fontSize: 12, marginBottom: 4, fontFamily: "Montserrat_400Regular" },
-  value: { fontSize: 16, marginBottom: 16, fontFamily: "Montserrat_400Regular" },
+  cardTitle: { fontFamily: "Montserrat_600SemiBold", fontSize: 16 },
   input: {
     borderWidth: 1,
     borderRadius: 12,
@@ -469,11 +566,6 @@ const styles = StyleSheet.create({
   preferencesCard: {
     marginBottom: 24,
   },
-  preferencesTitle: {
-    fontFamily: "Montserrat_600SemiBold",
-    fontSize: 16,
-    marginBottom: 16,
-  },
   scaleContainer: {
     marginBottom: 16,
   },
@@ -517,7 +609,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   donateHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
-  donateTitle: { fontSize: 16, fontFamily: "Montserrat_600SemiBold" },
   donateDescription: { fontSize: 13, fontFamily: "Montserrat_400Regular", marginBottom: 16, lineHeight: 20 },
   donateButtons: { flexDirection: "row", gap: 12 },
   donateButton: { flex: 1, borderRadius: 12, padding: 14, alignItems: "center" },
@@ -525,4 +616,13 @@ const styles = StyleSheet.create({
   tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
   tagChip: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
   tagChipText: { fontSize: 12, fontFamily: "Montserrat_600SemiBold" },
+  // Personal Info
+  infoHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  infoLabel: { fontSize: 12, fontFamily: "Montserrat_400Regular", marginBottom: 2 },
+  infoValue: { fontSize: 15, fontFamily: "Montserrat_400Regular", marginBottom: 12 },
+  cancelText: { fontSize: 14, fontFamily: "Montserrat_400Regular" },
+  divider: { height: 1, marginVertical: 16 },
+  pwToggleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  pwToggleText: { fontFamily: "Montserrat_400Regular", fontSize: 15 },
+  pwForm: { marginTop: 16 },
 });
