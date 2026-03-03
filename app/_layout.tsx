@@ -18,7 +18,11 @@ import {
   Montserrat_600SemiBold,
 } from "@expo-google-fonts/montserrat";
 
-initObservability();
+try {
+  initObservability();
+} catch (e) {
+  console.warn("Observability init failed", e);
+}
 
 SplashScreen.preventAutoHideAsync();
 
