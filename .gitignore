@@ -56,3 +56,7 @@ yarn-error.log*
 *.tsbuildinfo
 
 .env.local
+
+# Internal docs — strategy, planning, architecture (not for public repo)
+docs/planning/
+docs/architecture/
