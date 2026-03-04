@@ -17,7 +17,7 @@ Phína turns any wine club night, themed tasting, or dinner party into a smooth,
 - **Results reveal** — Host ends the event → all wines show anonymous aggregate scores simultaneously. No individual votes are ever exposed.
 
 **The knowledge layer** — for the curious drinker
-- **Wine entry** — Camera captures the label; AI (Perplexity Sonar) extracts producer, varietal, vintage, region, tasting notes, and more.
+- **Wine entry** — Camera captures the label; AI extracts producer, varietal, vintage, region, tasting notes, and more.
 - **Wine detail** — Full AI-extracted profile per bottle: producer, varietal, vintage, region, AI tasting summary, drink window.
 
 **The personal data layer** — the blind-tasting data moat
