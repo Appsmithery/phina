@@ -229,14 +229,8 @@ export default function PersonalWineDetailScreen() {
         </TouchableOpacity>
       )}
 
-      {(wine.ai_overview || wine.ai_geography || wine.ai_production || wine.ai_tasting_notes || wine.ai_pairings) ? (
+      {(wine.ai_geography || wine.ai_production || wine.ai_tasting_notes || wine.ai_pairings) ? (
         <>
-          {wine.ai_overview && (
-            <>
-              <Text style={[styles.sectionHeader, { color: theme.text }]}>Overview</Text>
-              <Text style={[styles.sectionBody, { color: theme.text }]}>{wine.ai_overview}</Text>
-            </>
-          )}
           {wine.ai_geography && (
             <>
               <Text style={[styles.sectionHeader, { color: theme.text }]}>Geography</Text>

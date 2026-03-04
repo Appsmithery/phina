@@ -11,7 +11,7 @@ import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
-import { setLastLabelExtraction } from "@/lib/last-label-extraction";
+import { setLastLabelExtraction, type WineAttributes } from "@/lib/last-label-extraction";
 import { trackEvent, captureError } from "@/lib/observability";
 
 // expo-camera is native-only; skip import on web to avoid bundler errors
@@ -75,13 +75,13 @@ type ExtractionResult = {
   label_photo_url?: string | null;
   color?: "red" | "white" | "skin-contact" | null;
   is_sparkling?: boolean | null;
-  ai_overview?: string | null;
   ai_geography?: string | null;
   ai_production?: string | null;
   ai_tasting_notes?: string | null;
   ai_pairings?: string | null;
   drink_from?: number | null;
   drink_until?: number | null;
+  wine_attributes?: WineAttributes | null;
 };
 
 async function extractLabel(imagePayload: string): Promise<void> {
@@ -105,13 +105,13 @@ async function extractLabel(imagePayload: string): Promise<void> {
     label_photo_url: extracted.label_photo_url ?? null,
     color: color === "red" || color === "white" || color === "skin-contact" ? color : null,
     is_sparkling: extracted.is_sparkling ?? null,
-    ai_overview: extracted.ai_overview ?? null,
     ai_geography: extracted.ai_geography ?? null,
     ai_production: extracted.ai_production ?? null,
     ai_tasting_notes: extracted.ai_tasting_notes ?? null,
     ai_pairings: extracted.ai_pairings ?? null,
     drink_from: extracted.drink_from ?? null,
     drink_until: extracted.drink_until ?? null,
+    wine_attributes: extracted.wine_attributes ?? null,
   });
   trackEvent("label_scanned", { platform: Platform.OS });
   router.back();

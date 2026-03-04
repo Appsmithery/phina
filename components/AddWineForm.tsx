@@ -13,7 +13,7 @@ import { useFocusEffect } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
-import { takeLastLabelExtraction } from "@/lib/last-label-extraction";
+import { takeLastLabelExtraction, type WineAttributes } from "@/lib/last-label-extraction";
 
 const QUANTITY_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
 
@@ -63,7 +63,7 @@ export function AddWineForm({
   const [colorModalVisible, setColorModalVisible] = useState(false);
   const [isSparkling, setIsSparkling] = useState(false);
   const [pendingLabelPhotoUrl, setPendingLabelPhotoUrl] = useState<string | null>(null);
-  const [aiOverview, setAiOverview] = useState("");
+  const [wineAttributes, setWineAttributes] = useState<WineAttributes | null>(null);
   const [aiGeography, setAiGeography] = useState("");
   const [aiProduction, setAiProduction] = useState("");
   const [aiTastingNotes, setAiTastingNotes] = useState("");
@@ -83,7 +83,7 @@ export function AddWineForm({
         setPendingLabelPhotoUrl(extracted.label_photo_url ?? null);
         if (extracted.color != null) setColor(extracted.color);
         if (extracted.is_sparkling != null) setIsSparkling(extracted.is_sparkling);
-        setAiOverview(extracted.ai_overview ?? "");
+        setWineAttributes(extracted.wine_attributes ?? null);
         setAiGeography(extracted.ai_geography ?? "");
         setAiProduction(extracted.ai_production ?? "");
         setAiTastingNotes(extracted.ai_tasting_notes ?? "");
@@ -130,11 +130,11 @@ export function AddWineForm({
         label_photo_url: pendingLabelPhotoUrl || null,
         price_range: priceRange || null,
         price_cents: priceCentsValue,
-        ai_overview: aiOverview.trim() || null,
         ai_geography: aiGeography.trim() || null,
         ai_production: aiProduction.trim() || null,
         ai_tasting_notes: aiTastingNotes.trim() || null,
         ai_pairings: aiPairings.trim() || null,
+        wine_attributes: wineAttributes,
         drink_from: drinkFrom,
         drink_until: drinkUntil,
       }).select("id").single();

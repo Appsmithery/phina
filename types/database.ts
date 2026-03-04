@@ -95,11 +95,19 @@ export interface Database {
           quantity: number;
           color: "red" | "white" | "skin-contact" | null;
           is_sparkling: boolean;
-          ai_overview: string | null;
           ai_geography: string | null;
           ai_production: string | null;
           ai_tasting_notes: string | null;
           ai_pairings: string | null;
+          wine_attributes: {
+            oak: "oaked" | "unoaked" | "stainless" | null;
+            oak_intensity: "new" | "neutral" | null;
+            climate: "cool" | "moderate" | "warm" | null;
+            body_inferred: "light" | "medium" | "full" | null;
+            tannin_inferred: "low" | "medium" | "high" | null;
+            acidity_inferred: "low" | "medium" | "high" | null;
+            style: "conventional" | "natural" | "biodynamic" | "organic" | null;
+          } | null;
           price_range: string | null;
           price_cents: number | null;
           status: "storage" | "consumed";
@@ -121,11 +129,19 @@ export interface Database {
           quantity?: number;
           color?: "red" | "white" | "skin-contact" | null;
           is_sparkling?: boolean;
-          ai_overview?: string | null;
           ai_geography?: string | null;
           ai_production?: string | null;
           ai_tasting_notes?: string | null;
           ai_pairings?: string | null;
+          wine_attributes?: {
+            oak: "oaked" | "unoaked" | "stainless" | null;
+            oak_intensity: "new" | "neutral" | null;
+            climate: "cool" | "moderate" | "warm" | null;
+            body_inferred: "light" | "medium" | "full" | null;
+            tannin_inferred: "low" | "medium" | "high" | null;
+            acidity_inferred: "low" | "medium" | "high" | null;
+            style: "conventional" | "natural" | "biodynamic" | "organic" | null;
+          } | null;
           price_range?: string | null;
           price_cents?: number | null;
           status?: "storage" | "consumed";
@@ -147,11 +163,19 @@ export interface Database {
           quantity?: number;
           color?: "red" | "white" | "skin-contact" | null;
           is_sparkling?: boolean;
-          ai_overview?: string | null;
           ai_geography?: string | null;
           ai_production?: string | null;
           ai_tasting_notes?: string | null;
           ai_pairings?: string | null;
+          wine_attributes?: {
+            oak: "oaked" | "unoaked" | "stainless" | null;
+            oak_intensity: "new" | "neutral" | null;
+            climate: "cool" | "moderate" | "warm" | null;
+            body_inferred: "light" | "medium" | "full" | null;
+            tannin_inferred: "low" | "medium" | "high" | null;
+            acidity_inferred: "low" | "medium" | "high" | null;
+            style: "conventional" | "natural" | "biodynamic" | "organic" | null;
+          } | null;
           price_range?: string | null;
           price_cents?: number | null;
           status?: "storage" | "consumed";
@@ -290,11 +314,19 @@ export interface Database {
           quantity: number;
           color: "red" | "white" | "skin-contact" | null;
           is_sparkling: boolean;
-          ai_overview: string | null;
           ai_geography: string | null;
           ai_production: string | null;
           ai_tasting_notes: string | null;
           ai_pairings: string | null;
+          wine_attributes: {
+            oak: "oaked" | "unoaked" | "stainless" | null;
+            oak_intensity: "new" | "neutral" | null;
+            climate: "cool" | "moderate" | "warm" | null;
+            body_inferred: "light" | "medium" | "full" | null;
+            tannin_inferred: "low" | "medium" | "high" | null;
+            acidity_inferred: "low" | "medium" | "high" | null;
+            style: "conventional" | "natural" | "biodynamic" | "organic" | null;
+          } | null;
           status: "storage" | "consumed";
           date_consumed: string | null;
           drink_from: number | null;

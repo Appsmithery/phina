@@ -18,7 +18,7 @@ import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
-import { takeLastLabelExtraction } from "@/lib/last-label-extraction";
+import { takeLastLabelExtraction, type WineAttributes } from "@/lib/last-label-extraction";
 import type { Wine } from "@/types/database";
 
 // expo-image-picker works on native only; conditionally import
@@ -58,7 +58,7 @@ export default function EditWineScreen() {
   const [loading, setLoading] = useState(false);
   const [replacingPhoto, setReplacingPhoto] = useState(false);
   const [localPhotoUrl, setLocalPhotoUrl] = useState<string | null>(null);
-  const [aiOverview, setAiOverview] = useState("");
+  const [wineAttributes, setWineAttributes] = useState<WineAttributes | null>(null);
   const [aiGeography, setAiGeography] = useState("");
   const [aiProduction, setAiProduction] = useState("");
   const [aiTastingNotes, setAiTastingNotes] = useState("");
@@ -89,7 +89,7 @@ export default function EditWineScreen() {
       setColor(wine.color ?? null);
       setIsSparkling(wine.is_sparkling ?? false);
       setLocalPhotoUrl(wine.label_photo_url ?? null);
-      setAiOverview(wine.ai_overview ?? "");
+      setWineAttributes(wine.wine_attributes ?? null);
       setAiGeography(wine.ai_geography ?? "");
       setAiProduction(wine.ai_production ?? "");
       setAiTastingNotes(wine.ai_tasting_notes ?? "");
@@ -109,7 +109,7 @@ export default function EditWineScreen() {
         if (extracted.label_photo_url != null) setLocalPhotoUrl(extracted.label_photo_url);
         if (extracted.color != null) setColor(extracted.color);
         if (extracted.is_sparkling != null) setIsSparkling(extracted.is_sparkling);
-        if (extracted.ai_overview != null) setAiOverview(extracted.ai_overview);
+        if (extracted.wine_attributes != null) setWineAttributes(extracted.wine_attributes);
         if (extracted.ai_geography != null) setAiGeography(extracted.ai_geography);
         if (extracted.ai_production != null) setAiProduction(extracted.ai_production);
         if (extracted.ai_tasting_notes != null) setAiTastingNotes(extracted.ai_tasting_notes);
@@ -216,11 +216,11 @@ export default function EditWineScreen() {
           quantity,
           color,
           is_sparkling: isSparkling,
-          ai_overview: aiOverview.trim() || null,
           ai_geography: aiGeography.trim() || null,
           ai_production: aiProduction.trim() || null,
           ai_tasting_notes: aiTastingNotes.trim() || null,
           ai_pairings: aiPairings.trim() || null,
+          wine_attributes: wineAttributes,
         })
         .eq("id", wineId);
       if (error) throw error;

@@ -39,13 +39,20 @@ Return a JSON object with exactly these keys (use null for missing/unclear value
 - region: string (e.g. Burgundy, Napa Valley)
 - color: "red", "white", or "skin-contact" (for rosé/orange wines). Infer from label color, varietal, or region if not explicit.
 - is_sparkling: boolean (true if champagne, prosecco, cava, crémant, pét-nat, or any sparkling wine; false otherwise)
-- ai_overview: string (1-2 sentences: who makes this wine and one fun fact or point of acclaim. Keep it conversational.)
 - ai_geography: string (1-2 sentences: where it's from and what makes that place great for this style of wine. No jargon.)
 - ai_production: string (1-2 sentences: how it's made in plain language. Briefly explain any technical terms used.)
 - ai_tasting_notes: string (1-2 sentences: what it tastes and smells like, using everyday words like fruits, spices, or textures.)
 - ai_pairings: string (1-2 sentences: specific food pairings a friend might suggest, like dishes or cuisines.)
 - drink_from: number or null (the year this wine should start being at its best for drinking. For wines that are ready now, use the current year or the vintage year. For age-worthy wines, estimate when they'll hit their stride. Use null only if no vintage is available.)
-- drink_until: number or null (the year by which this wine should ideally be consumed. Consider the varietal, region, and quality level. Light whites and rosés: 1-3 years from vintage. Bold reds and quality wines: 5-15+ years. Use null only if no vintage is available.)`;
+- drink_until: number or null (the year by which this wine should ideally be consumed. Consider the varietal, region, and quality level. Light whites and rosés: 1-3 years from vintage. Bold reds and quality wines: 5-15+ years. Use null only if no vintage is available.)
+- wine_attributes: object with these keys (use null for each key when uncertain):
+    - oak: "oaked", "unoaked", or "stainless" (was it aged in oak barrels, or in stainless steel / neutral vessels?)
+    - oak_intensity: "new" (new oak barrels, strong flavor impact), "neutral" (old barrels, subtle), or null (unoaked/unknown)
+    - climate: "cool", "moderate", or "warm" (growing climate of the region — cool climates = higher acidity/lighter body)
+    - body_inferred: "light", "medium", or "full" (infer from varietal, region, and production style)
+    - tannin_inferred: "low", "medium", or "high" (for reds; null for whites/sparkling)
+    - acidity_inferred: "low", "medium", or "high"
+    - style: "conventional", "natural", "biodynamic", or "organic" (use null if unknown)\``;
 
 const jsonSchema = {
   type: "object",
@@ -57,21 +64,43 @@ const jsonSchema = {
     color: { type: ["string", "null"], enum: ["red", "white", "skin-contact", null] },
     is_sparkling: { type: ["boolean", "null"] },
     ai_summary: { type: ["string", "null"], maxLength: 300 },
-    ai_overview: { type: ["string", "null"], maxLength: 300 },
     ai_geography: { type: ["string", "null"], maxLength: 300 },
     ai_production: { type: ["string", "null"], maxLength: 300 },
     ai_tasting_notes: { type: ["string", "null"], maxLength: 300 },
     ai_pairings: { type: ["string", "null"], maxLength: 300 },
     drink_from: { type: ["integer", "null"] },
     drink_until: { type: ["integer", "null"] },
+    wine_attributes: {
+      type: ["object", "null"],
+      properties: {
+        oak: { type: ["string", "null"], enum: ["oaked", "unoaked", "stainless", null] },
+        oak_intensity: { type: ["string", "null"], enum: ["new", "neutral", null] },
+        climate: { type: ["string", "null"], enum: ["cool", "moderate", "warm", null] },
+        body_inferred: { type: ["string", "null"], enum: ["light", "medium", "full", null] },
+        tannin_inferred: { type: ["string", "null"], enum: ["low", "medium", "high", null] },
+        acidity_inferred: { type: ["string", "null"], enum: ["low", "medium", "high", null] },
+        style: { type: ["string", "null"], enum: ["conventional", "natural", "biodynamic", "organic", null] },
+      },
+      additionalProperties: false,
+    },
   },
-  required: ["producer", "varietal", "vintage", "region", "color", "is_sparkling", "ai_overview", "ai_geography", "ai_production", "ai_tasting_notes", "ai_pairings", "drink_from", "drink_until"],
+  required: ["producer", "varietal", "vintage", "region", "color", "is_sparkling", "ai_geography", "ai_production", "ai_tasting_notes", "ai_pairings", "drink_from", "drink_until", "wine_attributes"],
   additionalProperties: false,
 };
 
 interface ReqBody {
   image?: string; // data:image/...;base64,... or base64 only
   image_url?: string; // public HTTPS URL
+}
+
+interface WineAttributes {
+  oak: "oaked" | "unoaked" | "stainless" | null;
+  oak_intensity: "new" | "neutral" | null;
+  climate: "cool" | "moderate" | "warm" | null;
+  body_inferred: "light" | "medium" | "full" | null;
+  tannin_inferred: "low" | "medium" | "high" | null;
+  acidity_inferred: "low" | "medium" | "high" | null;
+  style: "conventional" | "natural" | "biodynamic" | "organic" | null;
 }
 
 interface WineExtraction {
@@ -82,13 +111,13 @@ interface WineExtraction {
   ai_summary: string | null;
   color: "red" | "white" | "skin-contact" | null;
   is_sparkling: boolean | null;
-  ai_overview: string | null;
   ai_geography: string | null;
   ai_production: string | null;
   ai_tasting_notes: string | null;
   ai_pairings: string | null;
   drink_from: number | null;
   drink_until: number | null;
+  wine_attributes: WineAttributes | null;
   label_photo_url: string | null;
 }
 
@@ -104,10 +133,26 @@ function cleanAiText(text: string): string {
   return lastPeriod > 0 ? truncated.slice(0, lastPeriod + 1).trim() : truncated.trim() + "…";
 }
 
+function normalizeWineAttributes(raw: unknown): WineAttributes | null {
+  if (!raw || typeof raw !== "object") return null;
+  const a = raw as Record<string, unknown>;
+  const pick = <T extends string>(val: unknown, allowed: T[]): T | null =>
+    typeof val === "string" && (allowed as string[]).includes(val) ? val as T : null;
+  return {
+    oak: pick(a.oak, ["oaked", "unoaked", "stainless"]),
+    oak_intensity: pick(a.oak_intensity, ["new", "neutral"]),
+    climate: pick(a.climate, ["cool", "moderate", "warm"]),
+    body_inferred: pick(a.body_inferred, ["light", "medium", "full"]),
+    tannin_inferred: pick(a.tannin_inferred, ["low", "medium", "high"]),
+    acidity_inferred: pick(a.acidity_inferred, ["low", "medium", "high"]),
+    style: pick(a.style, ["conventional", "natural", "biodynamic", "organic"]),
+  };
+}
+
 function normalizeWineExtraction(obj: unknown): Omit<WineExtraction, "label_photo_url"> {
   const o = obj && typeof obj === "object" ? obj as Record<string, unknown> : {};
-  const color = typeof o.color === "string" && ["red", "white", "skin-contact"].includes(o.color) 
-    ? o.color as "red" | "white" | "skin-contact" 
+  const color = typeof o.color === "string" && ["red", "white", "skin-contact"].includes(o.color)
+    ? o.color as "red" | "white" | "skin-contact"
     : null;
   return {
     producer: typeof o.producer === "string" ? o.producer : null,
@@ -117,13 +162,13 @@ function normalizeWineExtraction(obj: unknown): Omit<WineExtraction, "label_phot
     ai_summary: typeof o.ai_summary === "string" ? cleanAiText(o.ai_summary) : null,
     color,
     is_sparkling: typeof o.is_sparkling === "boolean" ? o.is_sparkling : null,
-    ai_overview: typeof o.ai_overview === "string" ? cleanAiText(o.ai_overview) : null,
     ai_geography: typeof o.ai_geography === "string" ? cleanAiText(o.ai_geography) : null,
     ai_production: typeof o.ai_production === "string" ? cleanAiText(o.ai_production) : null,
     ai_tasting_notes: typeof o.ai_tasting_notes === "string" ? cleanAiText(o.ai_tasting_notes) : null,
     ai_pairings: typeof o.ai_pairings === "string" ? cleanAiText(o.ai_pairings) : null,
     drink_from: typeof o.drink_from === "number" && Number.isInteger(o.drink_from) ? o.drink_from : null,
     drink_until: typeof o.drink_until === "number" && Number.isInteger(o.drink_until) ? o.drink_until : null,
+    wine_attributes: normalizeWineAttributes(o.wine_attributes),
   };
 }
 
