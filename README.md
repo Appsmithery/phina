@@ -1,4 +1,4 @@
-# Phína
+# phína
 
 **Run a blind tasting in minutes. Scan. Rate. Reveal.**
 
