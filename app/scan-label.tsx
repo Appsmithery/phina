@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
 import { setLastLabelExtraction, type WineAttributes } from "@/lib/last-label-extraction";
+import { generateBottleImage } from "@/lib/image-generation";
 import { trackEvent, captureError } from "@/lib/observability";
 
 // expo-camera is native-only; skip import on web to avoid bundler errors
@@ -84,7 +85,12 @@ type ExtractionResult = {
   wine_attributes?: WineAttributes | null;
 };
 
-async function extractLabel(imagePayload: string): Promise<void> {
+/** Calls extract-wine-label, stores result in memory, then calls generate-bottle-image.
+ *  Updates loading text via setLoadingText. Calls router.back() on completion. */
+async function extractAndEnhanceLabel(
+  imagePayload: string,
+  setLoadingText: (text: string) => void
+): Promise<void> {
   const { data, error } = await supabase.functions.invoke("extract-wine-label", {
     body: { image: imagePayload },
   });
@@ -96,14 +102,22 @@ async function extractLabel(imagePayload: string): Promise<void> {
   }
   const extracted = data as ExtractionResult;
   const color = extracted.color ?? null;
+  const normalizedColor = color === "red" || color === "white" || color === "skin-contact" ? color : null;
+  const labelPhotoUrl = extracted.label_photo_url ?? null;
+
+  // Store extraction immediately so add-wine can access it if image gen is skipped
   setLastLabelExtraction({
     producer: extracted.producer ?? null,
     varietal: extracted.varietal ?? null,
     vintage: extracted.vintage ?? null,
     region: extracted.region ?? null,
     ai_summary: extracted.ai_summary ?? null,
-    label_photo_url: extracted.label_photo_url ?? null,
-    color: color === "red" || color === "white" || color === "skin-contact" ? color : null,
+    label_photo_url: labelPhotoUrl,
+    display_photo_url: null,
+    image_confidence_score: null,
+    image_generation_status: null,
+    image_generation_metadata: null,
+    color: normalizedColor,
     is_sparkling: extracted.is_sparkling ?? null,
     ai_geography: extracted.ai_geography ?? null,
     ai_production: extracted.ai_production ?? null,
@@ -114,6 +128,46 @@ async function extractLabel(imagePayload: string): Promise<void> {
     wine_attributes: extracted.wine_attributes ?? null,
   });
   trackEvent("label_scanned", { platform: Platform.OS });
+
+  // ── Image enhancement (non-blocking for UX; ~2-4s) ──
+  if (labelPhotoUrl) {
+    setLoadingText("Generating display image\u2026");
+    const imgResult = await generateBottleImage(
+      "", // wine not yet saved; wine_id is optional in the edge function
+      labelPhotoUrl,
+      {
+        producer: extracted.producer ?? null,
+        varietal: extracted.varietal ?? null,
+        vintage: extracted.vintage ?? null,
+        region: extracted.region ?? null,
+        color: normalizedColor,
+        is_sparkling: extracted.is_sparkling ?? null,
+      }
+    );
+    // Merge image gen result into stored extraction
+    setLastLabelExtraction({
+      producer: extracted.producer ?? null,
+      varietal: extracted.varietal ?? null,
+      vintage: extracted.vintage ?? null,
+      region: extracted.region ?? null,
+      ai_summary: extracted.ai_summary ?? null,
+      label_photo_url: labelPhotoUrl,
+      display_photo_url: imgResult.display_photo_url,
+      image_confidence_score: imgResult.confidence_score,
+      image_generation_status: imgResult.generation_status,
+      image_generation_metadata: (imgResult.metadata as Record<string, unknown>) ?? null,
+      color: normalizedColor,
+      is_sparkling: extracted.is_sparkling ?? null,
+      ai_geography: extracted.ai_geography ?? null,
+      ai_production: extracted.ai_production ?? null,
+      ai_tasting_notes: extracted.ai_tasting_notes ?? null,
+      ai_pairings: extracted.ai_pairings ?? null,
+      drink_from: extracted.drink_from ?? null,
+      drink_until: extracted.drink_until ?? null,
+      wine_attributes: extracted.wine_attributes ?? null,
+    });
+  }
+
   router.back();
 }
 
@@ -130,10 +184,19 @@ export default function SharedScanLabelScreen() {
   const theme = useTheme();
   const [extracting, setExtracting] = useState(false);
   const [photoCaptured, setPhotoCaptured] = useState(false);
+  const [loadingText, setLoadingText] = useState("Analyzing label\u2026");
 
   // ── Web-specific: file upload fallback ──
   if (Platform.OS === "web") {
-    return <WebScanLabel theme={theme} extracting={extracting} setExtracting={setExtracting} />;
+    return (
+      <WebScanLabel
+        theme={theme}
+        extracting={extracting}
+        setExtracting={setExtracting}
+        loadingText={loadingText}
+        setLoadingText={setLoadingText}
+      />
+    );
   }
 
   // ── Native: camera-based scanning ──
@@ -144,6 +207,8 @@ export default function SharedScanLabelScreen() {
       setExtracting={setExtracting}
       photoCaptured={photoCaptured}
       setPhotoCaptured={setPhotoCaptured}
+      loadingText={loadingText}
+      setLoadingText={setLoadingText}
     />
   );
 }
@@ -152,10 +217,14 @@ function WebScanLabel({
   theme,
   extracting,
   setExtracting,
+  loadingText,
+  setLoadingText,
 }: {
   theme: ReturnType<typeof useTheme>;
   extracting: boolean;
   setExtracting: (v: boolean) => void;
+  loadingText: string;
+  setLoadingText: (v: string) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -164,9 +233,10 @@ function WebScanLabel({
       const file = e.target.files?.[0];
       if (!file) return;
       setExtracting(true);
+      setLoadingText("Analyzing label\u2026");
       try {
         const dataUrl = await fileToBase64(file);
-        await extractLabel(dataUrl);
+        await extractAndEnhanceLabel(dataUrl, setLoadingText);
       } catch (err) {
         captureError(err);
         trackEvent("label_scan_error");
@@ -177,14 +247,14 @@ function WebScanLabel({
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
     },
-    [setExtracting]
+    [setExtracting, setLoadingText]
   );
 
   if (extracting) {
     return (
       <View style={[styles.center, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} style={styles.spinner} />
-        <Text style={[styles.analyzingTitle, { color: theme.text }]}>Analyzing label…</Text>
+        <Text style={[styles.analyzingTitle, { color: theme.text }]}>{loadingText}</Text>
         <Text style={[styles.analyzingHint, { color: theme.textSecondary }]}>
           This may take a few seconds
         </Text>
@@ -223,12 +293,16 @@ function NativeScanLabel({
   setExtracting,
   photoCaptured,
   setPhotoCaptured,
+  loadingText,
+  setLoadingText,
 }: {
   theme: ReturnType<typeof useTheme>;
   extracting: boolean;
   setExtracting: (v: boolean) => void;
   photoCaptured: boolean;
   setPhotoCaptured: (v: boolean) => void;
+  loadingText: string;
+  setLoadingText: (v: string) => void;
 }) {
   const [permission, requestPermission] = useCameraPermissions!();
   const [cameraReady, setCameraReady] = useState(false);
@@ -251,6 +325,7 @@ function NativeScanLabel({
       }
     }
     setExtracting(true);
+    setLoadingText("Analyzing label\u2026");
     try {
       const photo = await (cameraRef.current as CameraViewType).takePictureAsync({
         base64: true,
@@ -265,7 +340,7 @@ function NativeScanLabel({
       setPhotoCaptured(true);
 
       const imagePayload = `data:image/jpeg;base64,${photo.base64}`;
-      await extractLabel(imagePayload);
+      await extractAndEnhanceLabel(imagePayload, setLoadingText);
     } catch (e) {
       captureError(e);
       trackEvent("label_scan_error");
@@ -299,7 +374,7 @@ function NativeScanLabel({
     return (
       <View style={[styles.center, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} style={styles.spinner} />
-        <Text style={[styles.analyzingTitle, { color: theme.text }]}>Analyzing label…</Text>
+        <Text style={[styles.analyzingTitle, { color: theme.text }]}>{loadingText}</Text>
         <Text style={[styles.analyzingHint, { color: theme.textSecondary }]}>
           This may take a few seconds
         </Text>

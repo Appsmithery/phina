@@ -252,17 +252,26 @@ export default function EventDetailScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Text style={[styles.title, { color: theme.text }]}>{event.title}</Text>
-      <Text style={[styles.meta, { color: theme.textSecondary }]}>
-        {event.theme} · {new Date(event.date).toLocaleDateString()} · {event.status}
-      </Text>
+      <View style={styles.metaRow}>
+        <View style={[styles.statusBadge, { backgroundColor: theme.primary + "20" }]}>
+          <Text style={[styles.statusBadgeText, { color: theme.primary }]}>
+            {event.status === "active" ? "ACTIVE EVENT" : "PAST EVENT"}
+          </Text>
+        </View>
+        <Text style={[styles.meta, { color: theme.textSecondary }]}>
+          {event.theme} · {new Date(event.date).toLocaleDateString()}
+        </Text>
+      </View>
 
       {canSeeMetrics && (
         <View style={styles.metricsRow}>
           <View style={[styles.metricTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Ionicons name="people-outline" size={22} color={theme.textSecondary} />
             <Text style={[styles.metricValue, { color: theme.text }]}>{guestCount ?? "—"}</Text>
             <Text style={[styles.metricLabel, { color: theme.textMuted }]}>Guests</Text>
           </View>
           <View style={[styles.metricTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Ionicons name="wine-outline" size={22} color={theme.textSecondary} />
             <Text style={[styles.metricValue, { color: theme.text }]}>{wines.length}</Text>
             <Text style={[styles.metricLabel, { color: theme.textMuted }]}>Wines</Text>
           </View>
@@ -272,21 +281,24 @@ export default function EventDetailScreen() {
       {isHost && (
         <>
           <TouchableOpacity
-            style={[styles.primaryButton, { backgroundColor: theme.primary }]}
+            style={[styles.actionRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
             onPress={() => router.push(`/event/${id}/qr`)}
           >
-            <Text style={styles.primaryButtonText}>Show QR code</Text>
+            <Ionicons name="qr-code-outline" size={20} color={theme.text} />
+            <Text style={[styles.actionLabel, { color: theme.text }]}>Show QR code</Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.shareButton, { borderColor: theme.primary }]}
+            style={[styles.actionRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
             onPress={handleShareInvite}
           >
-            <Ionicons name="share-outline" size={18} color={theme.primary} style={{ marginRight: 6 }} />
-            <Text style={[styles.shareButtonText, { color: theme.primary }]}>Share invite link</Text>
+            <Ionicons name="share-outline" size={20} color={theme.text} />
+            <Text style={[styles.actionLabel, { color: theme.text }]}>Share invite link</Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
           </TouchableOpacity>
           {event.status === "active" && (
             <TouchableOpacity
-              style={[styles.endEventButton, { borderColor: theme.textMuted }]}
+              style={[styles.actionRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
               onPress={() =>
                 showAlert("End event?", "Results will be revealed to everyone.", [
                   { text: "Cancel", style: "cancel" },
@@ -295,7 +307,9 @@ export default function EventDetailScreen() {
               }
               disabled={endEventMutation.isPending}
             >
-              <Text style={[styles.endEventText, { color: theme.textMuted }]}>End event</Text>
+              <Ionicons name="flag-outline" size={20} color={theme.textMuted} />
+              <Text style={[styles.actionLabel, { color: theme.textMuted }]}>End event</Text>
+              <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
             </TouchableOpacity>
           )}
         </>
@@ -303,22 +317,31 @@ export default function EventDetailScreen() {
 
       {canDeleteEvent && (
         <TouchableOpacity
-          style={[styles.deleteEventButton, { borderColor: "#B55A5A" }]}
+          style={[styles.actionRow, { backgroundColor: theme.surface, borderColor: "#B55A5A30" }]}
           onPress={handleDeleteEvent}
         >
-          <Text style={[styles.deleteEventText, { color: "#B55A5A" }]}>Delete event</Text>
+          <Ionicons name="trash-outline" size={20} color="#B55A5A" />
+          <Text style={[styles.actionLabel, { color: "#B55A5A" }]}>Delete event</Text>
+          <Ionicons name="chevron-forward" size={18} color="#B55A5A60" />
         </TouchableOpacity>
       )}
 
       <TouchableOpacity
-          style={[styles.addWineButton, { borderColor: theme.primary }]}
-          onPress={() => router.push(`/event/${id}/add-wine`)}
-        >
-          <Text style={[styles.addWineText, { color: theme.primary }]}>+ Add wine</Text>
-        </TouchableOpacity>
+        style={[styles.actionRow, { backgroundColor: theme.primary + "15", borderColor: theme.primary + "40" }]}
+        onPress={() => router.push(`/event/${id}/add-wine`)}
+      >
+        <Ionicons name="add-circle-outline" size={20} color={theme.primary} />
+        <Text style={[styles.actionLabel, { color: theme.primary }]}>Add wine</Text>
+        <Ionicons name="chevron-forward" size={18} color={theme.primary + "80"} />
+      </TouchableOpacity>
+
       <Text style={[styles.sectionTitle, { color: theme.text }]}>Wines</Text>
       {wines.length === 0 ? (
-        <Text style={[styles.placeholder, { color: theme.textMuted }]}>No wines yet.</Text>
+        <View style={[styles.emptyWinesContainer, { borderColor: theme.border }]}>
+          <Ionicons name="wine-outline" size={40} color={theme.textMuted} style={styles.emptyIcon} />
+          <Text style={[styles.emptyTitle, { color: theme.text }]}>No wines added yet</Text>
+          <Text style={[styles.emptySubtitle, { color: theme.textMuted }]}>Tap "Add wine" above to get started</Text>
+        </View>
       ) : (
         <FlatList
           data={wines}
@@ -395,17 +418,28 @@ export default function EventDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
-  title: { fontSize: 24, fontWeight: "700", marginBottom: 4, fontFamily: "PlayfairDisplay_700Bold" },
-  meta: { fontSize: 14, marginBottom: 12, fontFamily: "Montserrat_400Regular" },
+  title: { fontSize: 28, fontWeight: "700", marginBottom: 8, fontFamily: "PlayfairDisplay_700Bold" },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" },
+  statusBadge: { borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 },
+  statusBadgeText: { fontFamily: "Montserrat_600SemiBold", fontSize: 10, letterSpacing: 0.5 },
+  meta: { fontSize: 13, fontFamily: "Montserrat_400Regular" },
   metricsRow: { flexDirection: "row", gap: 12, marginBottom: 16 },
-  metricTile: { flex: 1, borderWidth: 1, borderRadius: 14, padding: 12, alignItems: "center" },
-  metricValue: { fontSize: 22, fontWeight: "700", fontFamily: "PlayfairDisplay_700Bold" },
+  metricTile: { flex: 1, borderWidth: 1, borderRadius: 14, padding: 14, alignItems: "center", gap: 4 },
+  metricValue: { fontSize: 26, fontWeight: "700", fontFamily: "PlayfairDisplay_700Bold", marginTop: 4 },
   metricLabel: { fontSize: 12, marginTop: 2, fontFamily: "Montserrat_400Regular" },
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+  },
+  actionLabel: { flex: 1, fontFamily: "Montserrat_600SemiBold", fontSize: 15 },
   primaryButton: { borderRadius: 14, padding: 16, alignItems: "center", marginBottom: 24 },
   primaryButtonText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
-  addWineButton: { borderWidth: 1, borderRadius: 14, padding: 12, alignItems: "center", marginBottom: 16 },
-  addWineText: { fontSize: 16, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
-  sectionTitle: { fontSize: 18, fontWeight: "600", marginBottom: 12, fontFamily: "PlayfairDisplay_600SemiBold" },
+  sectionTitle: { fontSize: 18, fontWeight: "600", marginBottom: 12, marginTop: 4, fontFamily: "PlayfairDisplay_600SemiBold" },
   card: {
     borderWidth: 1,
     borderRadius: 14,
@@ -417,12 +451,17 @@ const styles = StyleSheet.create({
   favoriteStar: { marginLeft: 4 },
   wineMeta: { fontSize: 14, marginTop: 4, fontFamily: "Montserrat_400Regular" },
   placeholder: { padding: 16, fontFamily: "Montserrat_400Regular" },
-  shareButton: { borderWidth: 1, borderRadius: 14, padding: 12, alignItems: "center", marginBottom: 16, flexDirection: "row", justifyContent: "center" },
-  shareButtonText: { fontSize: 16, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
-  endEventButton: { borderWidth: 1, borderRadius: 14, padding: 12, alignItems: "center", marginBottom: 16 },
-  endEventText: { fontSize: 16, fontFamily: "Montserrat_400Regular" },
-  deleteEventButton: { borderWidth: 1, borderRadius: 14, padding: 12, alignItems: "center", marginBottom: 16 },
-  deleteEventText: { fontSize: 16, fontFamily: "Montserrat_400Regular" },
+  emptyWinesContainer: {
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderRadius: 14,
+    padding: 32,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  emptyIcon: { marginBottom: 12 },
+  emptyTitle: { fontFamily: "Montserrat_600SemiBold", fontSize: 16, marginBottom: 6 },
+  emptySubtitle: { fontFamily: "Montserrat_400Regular", fontSize: 13, textAlign: "center" },
   rateButton: { borderRadius: 12, padding: 10, alignItems: "center", marginTop: 12 },
   rateButtonText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   removeButton: { borderWidth: 1, borderRadius: 10, padding: 8, alignItems: "center", marginTop: 8, alignSelf: "flex-start" },

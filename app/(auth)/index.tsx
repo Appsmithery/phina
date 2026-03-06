@@ -189,10 +189,13 @@ export default function AuthScreen() {
             accessibilityLabel="Phína logo"
           />
         </View>
-        <Text style={[styles.subtitle, { color: theme.text }]}>
+        <Text style={[styles.heading, { color: theme.text }]}>
+          {magicLinkSentTo ? "Check your email" : "Welcome to the Club"}
+        </Text>
+        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
           {magicLinkSentTo
-            ? "Check your email"
-            : "Enter your email to get a sign-in link"}
+            ? ""
+            : "Enter your email to receive a secure sign-in magic link."}
         </Text>
         {magicLinkSentTo ? (
           <>
@@ -239,6 +242,7 @@ export default function AuthScreen() {
           </>
         ) : (
           <>
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>EMAIL ADDRESS</Text>
             <TextInput
               style={inputStyle}
               placeholder="you@example.com"
@@ -369,11 +373,25 @@ const styles = StyleSheet.create({
   logo: {
     alignSelf: "center",
   },
+  heading: {
+    fontFamily: "PlayfairDisplay_700Bold",
+    fontSize: 28,
+    textAlign: "center",
+    marginBottom: 8,
+  },
   subtitle: {
     fontFamily: "Montserrat_400Regular",
-    fontSize: 16,
+    fontSize: 15,
     textAlign: "center",
-    marginBottom: 16,
+    marginBottom: 20,
+    paddingHorizontal: 8,
+    lineHeight: 22,
+  },
+  inputLabel: {
+    fontFamily: "Montserrat_600SemiBold",
+    fontSize: 11,
+    letterSpacing: 0.8,
+    marginBottom: 6,
   },
   input: {
     borderWidth: 1,

@@ -170,7 +170,7 @@ export default function SignInScreen() {
       >
       <View style={styles.content}>
         <Text style={[styles.title, { color: theme.text }]}>Sign In</Text>
-        <Text style={[styles.subtitle, { color: theme.text }]}>
+        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
           Enter your password for {emailFromSplash}
         </Text>
         <View style={styles.passwordRow}>
@@ -296,11 +296,12 @@ const styles = StyleSheet.create({
     width: "100%",
     alignSelf: "center",
   },
-  title: { fontFamily: "Montserrat_600SemiBold", fontSize: 24, marginBottom: 8 },
+  title: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 28, marginBottom: 8 },
   subtitle: {
     fontFamily: "Montserrat_400Regular",
-    fontSize: 16,
-    marginBottom: 16,
+    fontSize: 15,
+    marginBottom: 20,
+    lineHeight: 22,
   },
   input: {
     borderWidth: 1,

@@ -1,6 +1,7 @@
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
@@ -106,12 +107,28 @@ export default function PersonalWineDetailScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
       contentContainerStyle={styles.content}
     >
-      {wine.label_photo_url ? (
-        <Image
-          source={{ uri: wine.label_photo_url }}
-          style={styles.photo}
-          resizeMode="contain"
-        />
+      {(wine.display_photo_url ?? wine.label_photo_url) ? (
+        <View style={styles.heroContainer}>
+          <Image
+            source={{ uri: wine.display_photo_url ?? wine.label_photo_url ?? "" }}
+            style={styles.photo}
+            resizeMode="cover"
+            onError={wine.display_photo_url && wine.label_photo_url
+              ? () => { /* fallback handled below via priority logic */ }
+              : undefined}
+          />
+          <LinearGradient
+            colors={["transparent", "transparent", theme.background]}
+            locations={[0, 0.5, 1]}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
+          {wine.image_generation_status === "generated" && (
+            <View style={[styles.enhancedBadge, { backgroundColor: theme.primary + "20" }]}>
+              <Text style={[styles.enhancedBadgeText, { color: theme.primary }]}>Enhanced from scan</Text>
+            </View>
+          )}
+        </View>
       ) : null}
       <Text style={[styles.producer, { color: theme.text }]}>{wine.producer ?? "Unknown producer"}</Text>
       <Text style={[styles.meta, { color: theme.textSecondary }]}>
@@ -141,6 +158,54 @@ export default function PersonalWineDetailScreen() {
           Price: {wine.price_cents != null ? `$${wine.price_cents / 100}` : wine.price_range ?? ""}
         </Text>
       )}
+      {wine.wine_attributes && (wine.wine_attributes.body_inferred || wine.wine_attributes.acidity_inferred) && (
+        <View style={[styles.characteristicsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.characteristicsTitle, { color: theme.textSecondary }]}>CHARACTERISTICS</Text>
+          {wine.wine_attributes.body_inferred && (
+            <View style={styles.ratingScaleContainer}>
+              <Text style={[styles.ratingScaleLabel, { color: theme.textSecondary }]}>Body</Text>
+              <View style={styles.ratingScaleTrackRow}>
+                <Text style={[styles.ratingScaleExtreme, { color: theme.textMuted }]}>Light</Text>
+                <View style={styles.ratingScaleTrackWrapper}>
+                  <View style={[styles.ratingScaleTrack, { backgroundColor: theme.border }]} />
+                  <View
+                    style={[
+                      styles.ratingScaleMarker,
+                      {
+                        backgroundColor: theme.primary,
+                        left: `${wine.wine_attributes.body_inferred === "light" ? 0 : wine.wine_attributes.body_inferred === "medium" ? 50 : 100}%`,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.ratingScaleExtreme, { color: theme.textMuted }]}>Full</Text>
+              </View>
+            </View>
+          )}
+          {wine.wine_attributes.acidity_inferred && (
+            <View style={styles.ratingScaleContainer}>
+              <Text style={[styles.ratingScaleLabel, { color: theme.textSecondary }]}>Dryness</Text>
+              <View style={styles.ratingScaleTrackRow}>
+                <Text style={[styles.ratingScaleExtreme, { color: theme.textMuted }]}>Sweet</Text>
+                <View style={styles.ratingScaleTrackWrapper}>
+                  <View style={[styles.ratingScaleTrack, { backgroundColor: theme.border }]} />
+                  <View
+                    style={[
+                      styles.ratingScaleMarker,
+                      {
+                        backgroundColor: theme.primary,
+                        left: `${wine.wine_attributes.acidity_inferred === "low" ? 0 : wine.wine_attributes.acidity_inferred === "medium" ? 50 : 100}%`,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.ratingScaleExtreme, { color: theme.textMuted }]}>Bone Dry</Text>
+              </View>
+            </View>
+          )}
+        </View>
+      )}
+
       {(wine.drink_from != null || wine.drink_until != null) && (
         <View style={[styles.drinkingWindow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.drinkingWindowLabel, { color: theme.textSecondary }]}>Drinking window</Text>
@@ -233,25 +298,37 @@ export default function PersonalWineDetailScreen() {
         <>
           {wine.ai_geography && (
             <>
-              <Text style={[styles.sectionHeader, { color: theme.text }]}>Geography</Text>
+              <View style={styles.sectionHeaderRow}>
+                <Ionicons name="location-outline" size={16} color={theme.primary} style={styles.sectionIcon} />
+                <Text style={[styles.sectionHeader, { color: theme.text }]}>Geography</Text>
+              </View>
               <Text style={[styles.sectionBody, { color: theme.text }]}>{wine.ai_geography}</Text>
             </>
           )}
           {wine.ai_production && (
             <>
-              <Text style={[styles.sectionHeader, { color: theme.text }]}>Production</Text>
+              <View style={styles.sectionHeaderRow}>
+                <Ionicons name="flask-outline" size={16} color={theme.primary} style={styles.sectionIcon} />
+                <Text style={[styles.sectionHeader, { color: theme.text }]}>Production</Text>
+              </View>
               <Text style={[styles.sectionBody, { color: theme.text }]}>{wine.ai_production}</Text>
             </>
           )}
           {wine.ai_tasting_notes && (
             <>
-              <Text style={[styles.sectionHeader, { color: theme.text }]}>Tasting Notes</Text>
+              <View style={styles.sectionHeaderRow}>
+                <Ionicons name="wine-outline" size={16} color={theme.primary} style={styles.sectionIcon} />
+                <Text style={[styles.sectionHeader, { color: theme.text }]}>Tasting Notes</Text>
+              </View>
               <Text style={[styles.sectionBody, { color: theme.text }]}>{wine.ai_tasting_notes}</Text>
             </>
           )}
           {wine.ai_pairings && (
             <>
-              <Text style={[styles.sectionHeader, { color: theme.text }]}>Suggested Pairings</Text>
+              <View style={styles.sectionHeaderRow}>
+                <Ionicons name="restaurant-outline" size={16} color={theme.primary} style={styles.sectionIcon} />
+                <Text style={[styles.sectionHeader, { color: theme.text }]}>Suggested Pairings</Text>
+              </View>
               <Text style={[styles.sectionBody, { color: theme.text }]}>{wine.ai_pairings}</Text>
             </>
           )}
@@ -305,7 +382,31 @@ export default function PersonalWineDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 16, paddingBottom: 32 },
-  photo: { width: "100%", height: 200, borderRadius: 14, marginBottom: 16 },
+  heroContainer: { width: "100%", height: 280, marginBottom: 16, borderRadius: 14, overflow: "hidden" },
+  photo: { width: "100%", height: 280 },
+  enhancedBadge: {
+    position: "absolute",
+    bottom: 12,
+    right: 12,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  enhancedBadgeText: { fontSize: 10, fontFamily: "Montserrat_600SemiBold" },
+  characteristicsCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+  },
+  characteristicsTitle: {
+    fontSize: 11,
+    fontFamily: "Montserrat_600SemiBold",
+    letterSpacing: 0.8,
+    marginBottom: 12,
+  },
+  sectionHeaderRow: { flexDirection: "row", alignItems: "center", marginTop: 16, marginBottom: 4 },
+  sectionIcon: { marginRight: 6 },
   producer: { fontSize: 22, fontWeight: "700", marginBottom: 4, fontFamily: "PlayfairDisplay_700Bold" },
   meta: { fontSize: 16, marginBottom: 8, fontFamily: "Montserrat_400Regular" },
   quantityText: { fontSize: 14, marginBottom: 16, fontFamily: "Montserrat_400Regular" },

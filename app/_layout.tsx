@@ -11,6 +11,7 @@ import { createSessionFromUrl } from "@/lib/oauth-google";
 import {
   PlayfairDisplay_600SemiBold,
   PlayfairDisplay_700Bold,
+  PlayfairDisplay_700BoldItalic,
 } from "@expo-google-fonts/playfair-display";
 import {
   Montserrat_300Light,
@@ -95,6 +96,7 @@ function SupabaseLayout() {
   const [fontsLoaded, fontError] = useFonts({
     PlayfairDisplay_600SemiBold,
     PlayfairDisplay_700Bold,
+    PlayfairDisplay_700BoldItalic,
     Montserrat_300Light,
     Montserrat_400Regular,
     Montserrat_600SemiBold,

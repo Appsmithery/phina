@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Image } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
@@ -100,14 +101,16 @@ export default function CellarScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.titleRow}>
+        <Ionicons name="wine-outline" size={22} color={theme.primary} />
         <Text style={[styles.title, { color: theme.text }]}>My Cellar</Text>
-        <TouchableOpacity
-          style={[styles.addButton, { backgroundColor: theme.primary }]}
-          onPress={() => router.push("/add-wine")}
-        >
-          <Text style={styles.addButtonText}>+ Add</Text>
-        </TouchableOpacity>
+        <Ionicons name="notifications-outline" size={22} color={theme.textMuted} />
       </View>
+      <TouchableOpacity
+        style={[styles.addButton, { backgroundColor: theme.primary }]}
+        onPress={() => router.push("/add-wine")}
+      >
+        <Text style={styles.addButtonText}>+ Add Wine</Text>
+      </TouchableOpacity>
       <View style={styles.tabRow}>
         <TouchableOpacity
           style={[
@@ -142,13 +145,16 @@ export default function CellarScreen() {
           </Text>
         </TouchableOpacity>
       </View>
-      <TextInput
-        style={[styles.search, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
-        placeholder="Search by producer, varietal, event…"
-        placeholderTextColor={theme.textMuted}
-        value={search}
-        onChangeText={setSearch}
-      />
+      <View style={[styles.searchWrapper, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <Ionicons name="search-outline" size={16} color={theme.textMuted} style={styles.searchIcon} />
+        <TextInput
+          style={[styles.search, { color: theme.text }]}
+          placeholder="Search your collection…"
+          placeholderTextColor={theme.textMuted}
+          value={search}
+          onChangeText={setSearch}
+        />
+      </View>
       {filtered.length === 0 ? (
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>
           {wines.length === 0
@@ -185,43 +191,65 @@ export default function CellarScreen() {
                 ? `Drink until ${item.drink_until}`
                 : null;
             const isPastWindow = item.drink_until != null && item.drink_until < new Date().getFullYear();
-            const cardContent = (
-              <>
-                <Text style={[styles.cardTitle, { color: theme.text }]}>{wineLine.trim() || "Unnamed wine"}</Text>
-                {item.region ? (
-                  <Text style={[styles.cardMeta, { color: theme.textSecondary }]}>{item.region}</Text>
-                ) : null}
-                {drinkWindow && (
-                  <Text style={[styles.cardMeta, { color: isPastWindow ? "#B55A5A" : theme.textSecondary }]}>
-                    {drinkWindow}{isPastWindow ? " (past window)" : ""}
-                  </Text>
-                )}
-                {(item.price_cents != null || item.price_range != null) && (
-                  <Text style={[styles.cardMeta, { color: theme.textSecondary }]}>
-                    {item.price_cents != null ? `$${item.price_cents / 100}` : item.price_range ?? ""}
-                  </Text>
-                )}
-                <Text style={[styles.cardEvent, { color: theme.textMuted }]}>
-                  {eventTitle != null ? `${eventTitle}${eventDate ? ` · ${eventDate}` : ""}` : "Personal cellar"}
-                </Text>
-              </>
-            );
-            if (isEventWine) {
-              return (
-                <TouchableOpacity
-                  style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
-                  onPress={() => router.push(`/event/${item.event_id}/wine/${item.id}`)}
-                >
-                  {cardContent}
-                </TouchableOpacity>
-              );
-            }
+            const photoUrl = item.display_photo_url ?? item.label_photo_url ?? null;
+            const destination = isEventWine
+              ? `/event/${item.event_id}/wine/${item.id}`
+              : `/wine/${item.id}`;
+
             return (
               <TouchableOpacity
                 style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
-                onPress={() => router.push(`/wine/${item.id}`)}
+                onPress={() => router.push(destination)}
               >
-                {cardContent}
+                <View style={styles.cardRow}>
+                  <View style={[styles.thumbnail, { backgroundColor: theme.border }]}>
+                    {photoUrl ? (
+                      <Image
+                        source={{ uri: photoUrl }}
+                        style={styles.thumbnailImage}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Ionicons name="wine-outline" size={20} color={theme.textMuted} />
+                    )}
+                  </View>
+                  <View style={styles.cardContent}>
+                    {item.region ? (
+                      <Text style={[styles.cardRegion, { color: theme.primary }]}>
+                        {item.region.toUpperCase()}
+                      </Text>
+                    ) : null}
+                    <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={2}>
+                      {wineLine.trim() || "Unnamed wine"}
+                    </Text>
+                    {item.producer ? (
+                      <Text style={[styles.cardProducer, { color: theme.textSecondary }]}>
+                        Producer: {item.producer}
+                      </Text>
+                    ) : null}
+                    {drinkWindow && (
+                      <View style={styles.drinkRow}>
+                        <Ionicons name="calendar-outline" size={12} color={isPastWindow ? "#B55A5A" : theme.textMuted} style={styles.drinkIcon} />
+                        <Text style={[styles.cardMeta, { color: isPastWindow ? "#B55A5A" : theme.textSecondary }]}>
+                          {drinkWindow}{isPastWindow ? " (past window)" : ""}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={styles.cardFooter}>
+                      {item.quantity != null && item.quantity >= 1 && (
+                        <Text style={[styles.cardBottleCount, { color: theme.textMuted }]}>
+                          {item.quantity} bottle{item.quantity !== 1 ? "s" : ""} left
+                        </Text>
+                      )}
+                      <TouchableOpacity
+                        style={[styles.manageButton, { backgroundColor: theme.primary }]}
+                        onPress={() => router.push(destination)}
+                      >
+                        <Text style={styles.manageButtonText}>Manage</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
               </TouchableOpacity>
             );
           }}
@@ -233,31 +261,64 @@ export default function CellarScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginHorizontal: 16, marginTop: 16, marginBottom: 8 },
-  title: { fontSize: 22, fontWeight: "700", fontFamily: "PlayfairDisplay_700Bold" },
-  addButton: { borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16 },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  title: { fontSize: 20, fontWeight: "700", fontFamily: "PlayfairDisplay_700Bold" },
+  addButton: { borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16, marginHorizontal: 16, marginBottom: 12, alignItems: "center" },
   addButtonText: { color: "#fff", fontSize: 15, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   tabRow: { flexDirection: "row", marginHorizontal: 16, marginBottom: 12 },
   tab: { flex: 1, alignItems: "center", paddingVertical: 8, borderBottomWidth: 2, borderBottomColor: "transparent" },
   tabText: { fontSize: 14, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
-  search: {
+  searchWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
     borderRadius: 12,
-    padding: 12,
-    fontSize: 16,
     marginHorizontal: 16,
     marginBottom: 16,
+    paddingHorizontal: 12,
+  },
+  searchIcon: { marginRight: 8 },
+  search: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 15,
     fontFamily: "Montserrat_400Regular",
   },
   list: { padding: 16, paddingTop: 0 },
   card: {
     borderWidth: 1,
     borderRadius: 14,
-    padding: 16,
+    padding: 12,
     marginBottom: 12,
   },
-  cardTitle: { fontSize: 18, fontWeight: "600", marginBottom: 4, fontFamily: "PlayfairDisplay_600SemiBold" },
-  cardMeta: { fontSize: 14, marginBottom: 2, fontFamily: "Montserrat_400Regular" },
-  cardEvent: { fontSize: 12, fontFamily: "Montserrat_300Light" },
+  cardRow: { flexDirection: "row", gap: 12 },
+  thumbnail: {
+    width: 64,
+    height: 80,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+    flexShrink: 0,
+  },
+  thumbnailImage: { width: "100%", height: "100%" },
+  cardContent: { flex: 1 },
+  cardRegion: { fontSize: 11, fontFamily: "Montserrat_600SemiBold", letterSpacing: 0.5, marginBottom: 2 },
+  cardTitle: { fontSize: 16, fontWeight: "600", marginBottom: 2, fontFamily: "PlayfairDisplay_600SemiBold" },
+  cardProducer: { fontSize: 13, marginBottom: 4, fontFamily: "Montserrat_400Regular" },
+  drinkRow: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
+  drinkIcon: { marginRight: 4 },
+  cardMeta: { fontSize: 13, fontFamily: "Montserrat_400Regular" },
+  cardFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 },
+  cardBottleCount: { fontSize: 12, fontFamily: "Montserrat_400Regular" },
+  manageButton: { borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
+  manageButtonText: { color: "#fff", fontSize: 12, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   placeholder: { padding: 24, textAlign: "center", fontFamily: "Montserrat_400Regular" },
 });

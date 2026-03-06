@@ -1,4 +1,5 @@
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Linking, Platform } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { showAlert } from "@/lib/alert";
 import { useEffect, useMemo, useState } from "react";
 import { router } from "expo-router";
@@ -230,6 +231,15 @@ export default function ProfileScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.profileHeader, { backgroundColor: theme.background, borderBottomColor: theme.border }]}>
+        <TouchableOpacity style={styles.profileHeaderIcon} onPress={() => {}}>
+          <Ionicons name="settings-outline" size={22} color={theme.textSecondary} />
+        </TouchableOpacity>
+        <Text style={[styles.profileHeaderTitle, { color: theme.text }]}>phína</Text>
+        <TouchableOpacity style={styles.profileHeaderIcon} onPress={() => {}}>
+          <Ionicons name="share-outline" size={22} color={theme.textSecondary} />
+        </TouchableOpacity>
+      </View>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: 32 }]}
@@ -276,7 +286,10 @@ export default function ProfileScreen() {
               </View>
             </View>
             <View style={[styles.card, styles.preferencesCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <Text style={[styles.cardTitle, { color: theme.text, marginBottom: 16 }]}>Preferences</Text>
+              <View style={[styles.tasteGraphHeader, { marginBottom: 16 }]}>
+                <Ionicons name="bar-chart-outline" size={18} color={theme.primary} />
+                <Text style={[styles.cardTitle, { color: theme.text }]}>Your Taste Graph</Text>
+              </View>
 
               <View style={styles.scaleContainer}>
                 <Text style={[styles.scaleLabel, { color: theme.textSecondary }]}>Body</Text>
@@ -313,16 +326,21 @@ export default function ProfileScreen() {
               </View>
 
               <View style={styles.scaleContainer}>
-                <Text style={[styles.scaleLabel, { color: theme.textSecondary }]}>Color</Text>
+                <Text style={[styles.scaleLabel, { color: theme.textSecondary }]}>Palette</Text>
                 <View style={styles.scaleTrackRow}>
-                  <Text style={[styles.scaleExtreme, { color: theme.textMuted }]}>Red</Text>
+                  <Text style={[styles.scaleExtreme, { color: theme.textMuted }]}>Deep Red</Text>
                   <View style={styles.scaleTrackWrapper}>
-                    <View style={[styles.scaleTrack, { backgroundColor: theme.border }]} />
+                    <LinearGradient
+                      colors={["#8B2035", "#C4956A", "#F0EBE3"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.scaleTrack}
+                    />
                     {stats.prefColor != null && (
                       <View style={[styles.scaleMarker, { backgroundColor: theme.primary, left: `${((stats.prefColor - 1) / 2) * 100}%` }]} />
                     )}
                   </View>
-                  <Text style={[styles.scaleExtreme, { color: theme.textMuted }]}>White</Text>
+                  <Text style={[styles.scaleExtremeRight, { color: theme.textMuted }]}>Vibrant White</Text>
                 </View>
                 {stats.prefColor == null && (
                   <Text style={[styles.noDataText, { color: theme.textMuted }]}>Not enough data</Text>
@@ -334,9 +352,17 @@ export default function ProfileScreen() {
                 {stats.hasEnoughTagData ? (
                   stats.preferredTags.length > 0 ? (
                     <View style={styles.tagRow}>
-                      {stats.preferredTags.map((tag) => (
-                        <View key={tag} style={[styles.tagChip, { backgroundColor: theme.primary + "20", borderColor: theme.primary }]}>
-                          <Text style={[styles.tagChipText, { color: theme.primary }]}>
+                      {stats.preferredTags.map((tag, idx) => (
+                        <View
+                          key={tag}
+                          style={[
+                            styles.tagChip,
+                            idx === 0
+                              ? { backgroundColor: theme.primary, borderColor: theme.primary }
+                              : { backgroundColor: theme.primary + "20", borderColor: theme.primary },
+                          ]}
+                        >
+                          <Text style={[styles.tagChipText, { color: idx === 0 ? "#fff" : theme.primary }]}>
                             {tag.charAt(0).toUpperCase() + tag.slice(1)}
                           </Text>
                         </View>
@@ -357,10 +383,10 @@ export default function ProfileScreen() {
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={styles.donateHeader}>
               <Ionicons name="heart-outline" size={20} color={theme.primary} />
-              <Text style={[styles.cardTitle, { color: theme.text }]}>Support Development</Text>
+              <Text style={[styles.cardTitle, { color: theme.text }]}>Support phína</Text>
             </View>
             <Text style={[styles.donateDescription, { color: theme.textSecondary }]}>
-              If you're enjoying the app and want to support ongoing development and operations.
+              Help us keep the cellar growing.
             </Text>
             <View style={styles.donateButtons}>
               {[100, 500, 1000].map((cents) => (
@@ -625,4 +651,33 @@ const styles = StyleSheet.create({
   pwToggleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   pwToggleText: { fontFamily: "Montserrat_400Regular", fontSize: 15 },
   pwForm: { marginTop: 16 },
+  profileHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+  },
+  profileHeaderTitle: {
+    fontFamily: "PlayfairDisplay_700BoldItalic",
+    fontSize: 22,
+    letterSpacing: 0.5,
+  },
+  profileHeaderIcon: {
+    width: 36,
+    alignItems: "center",
+  },
+  tasteGraphHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  scaleExtremeRight: {
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 11,
+    width: 52,
+    textAlign: "right",
+  },
 });

@@ -114,6 +114,10 @@ export interface Database {
           date_consumed: string | null;
           drink_from: number | null;
           drink_until: number | null;
+          display_photo_url: string | null;
+          image_confidence_score: number | null;
+          image_generation_status: "pending" | "generated" | "fallback_cleaned" | "fallback_raw" | "failed" | null;
+          image_generation_metadata: Record<string, unknown> | null;
           created_at: string;
         };
         Insert: {
@@ -148,6 +152,10 @@ export interface Database {
           date_consumed?: string | null;
           drink_from?: number | null;
           drink_until?: number | null;
+          display_photo_url?: string | null;
+          image_confidence_score?: number | null;
+          image_generation_status?: "pending" | "generated" | "fallback_cleaned" | "fallback_raw" | "failed" | null;
+          image_generation_metadata?: Record<string, unknown> | null;
           created_at?: string;
         };
         Update: {
@@ -182,6 +190,10 @@ export interface Database {
           date_consumed?: string | null;
           drink_from?: number | null;
           drink_until?: number | null;
+          display_photo_url?: string | null;
+          image_confidence_score?: number | null;
+          image_generation_status?: "pending" | "generated" | "fallback_cleaned" | "fallback_raw" | "failed" | null;
+          image_generation_metadata?: Record<string, unknown> | null;
           created_at?: string;
         };
         Relationships: [];
@@ -331,6 +343,10 @@ export interface Database {
           date_consumed: string | null;
           drink_from: number | null;
           drink_until: number | null;
+          display_photo_url: string | null;
+          image_confidence_score: number | null;
+          image_generation_status: "pending" | "generated" | "fallback_cleaned" | "fallback_raw" | "failed" | null;
+          image_generation_metadata: Record<string, unknown> | null;
           created_at: string;
           price_range: string | null;
           price_cents: number | null;

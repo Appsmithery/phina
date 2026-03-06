@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /d/APPS/phina/app/\\\\\\(tabs\\\\\\)/)",
+      "Bash(ls -la /d/APPS/phina/app/\\\\\\(auth\\\\\\)/)"
+    ]
+  }
+}

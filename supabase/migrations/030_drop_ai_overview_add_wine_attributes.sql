@@ -16,12 +16,12 @@
 -- haven't filled in explicit rating fields.
 -- ============================================================
 
+-- DROP view first (depends on ai_overview column)
+DROP VIEW IF EXISTS wines_with_price_privacy;
+
 ALTER TABLE wines
   DROP COLUMN IF EXISTS ai_overview,
   ADD COLUMN IF NOT EXISTS wine_attributes jsonb;
-
--- DROP + recreate view (cannot remove a column with CREATE OR REPLACE)
-DROP VIEW IF EXISTS wines_with_price_privacy;
 
 CREATE VIEW wines_with_price_privacy AS
 SELECT
@@ -46,6 +46,10 @@ SELECT
   w.date_consumed,
   w.drink_from,
   w.drink_until,
+  w.display_photo_url,
+  w.image_confidence_score,
+  w.image_generation_status,
+  w.image_generation_metadata,
   w.created_at,
   CASE
     WHEN w.brought_by = auth.uid()

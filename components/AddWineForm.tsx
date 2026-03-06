@@ -14,6 +14,7 @@ import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
 import { takeLastLabelExtraction, type WineAttributes } from "@/lib/last-label-extraction";
+import { useQueryClient } from "@tanstack/react-query";
 
 const QUANTITY_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
 
@@ -32,6 +33,69 @@ const COLOR_OPTIONS: { label: string; value: "red" | "white" | "skin-contact" | 
   { label: "Rose / Orange", value: "skin-contact" },
 ];
 
+interface EnrichParams {
+  wineId: string;
+  producer: string | null;
+  varietal: string | null;
+  vintage: number | null;
+  region: string | null;
+  color: "red" | "white" | "skin-contact" | null;
+  isSparkling: boolean;
+  queryClient: ReturnType<typeof useQueryClient>;
+}
+
+function enrichWineInBackground({
+  wineId,
+  producer,
+  varietal,
+  vintage,
+  region,
+  color,
+  isSparkling,
+  queryClient,
+}: EnrichParams): void {
+  (async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-wine-summary", {
+        body: { producer, varietal, vintage, region, color, is_sparkling: isSparkling },
+      });
+      if (error || !data) {
+        if (__DEV__) console.warn("[add-wine] generate-wine-summary error:", error);
+        return;
+      }
+      const summary = data as {
+        ai_geography?: string | null;
+        ai_production?: string | null;
+        ai_tasting_notes?: string | null;
+        ai_pairings?: string | null;
+        drink_from?: number | null;
+        drink_until?: number | null;
+        wine_attributes?: WineAttributes | null;
+      };
+      const { error: patchError } = await supabase
+        .from("wines")
+        .update({
+          ai_geography: summary.ai_geography ?? null,
+          ai_production: summary.ai_production ?? null,
+          ai_tasting_notes: summary.ai_tasting_notes ?? null,
+          ai_pairings: summary.ai_pairings ?? null,
+          drink_from: summary.drink_from ?? null,
+          drink_until: summary.drink_until ?? null,
+          wine_attributes: summary.wine_attributes ?? null,
+        })
+        .eq("id", wineId);
+      if (patchError) {
+        if (__DEV__) console.warn("[add-wine] patch AI fields error:", patchError);
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ["wine", wineId] });
+      if (__DEV__) console.log("[add-wine] background AI enrichment complete for", wineId);
+    } catch (e) {
+      if (__DEV__) console.warn("[add-wine] enrichWineInBackground error:", e);
+    }
+  })();
+}
+
 export type AddWineFormProps = {
   eventId: string | null;
   memberId: string;
@@ -48,6 +112,7 @@ export function AddWineForm({
   submitButtonLabel = "Add wine",
 }: AddWineFormProps) {
   const theme = useTheme();
+  const queryClient = useQueryClient();
   const [producer, setProducer] = useState("");
   const [varietal, setVarietal] = useState("");
   const [vintage, setVintage] = useState("");
@@ -63,6 +128,10 @@ export function AddWineForm({
   const [colorModalVisible, setColorModalVisible] = useState(false);
   const [isSparkling, setIsSparkling] = useState(false);
   const [pendingLabelPhotoUrl, setPendingLabelPhotoUrl] = useState<string | null>(null);
+  const [pendingDisplayPhotoUrl, setPendingDisplayPhotoUrl] = useState<string | null>(null);
+  const [pendingImageConfidenceScore, setPendingImageConfidenceScore] = useState<number | null>(null);
+  const [pendingImageGenerationStatus, setPendingImageGenerationStatus] = useState<"generated" | "fallback_raw" | "failed" | null>(null);
+  const [pendingImageGenerationMetadata, setPendingImageGenerationMetadata] = useState<Record<string, unknown> | null>(null);
   const [wineAttributes, setWineAttributes] = useState<WineAttributes | null>(null);
   const [aiGeography, setAiGeography] = useState("");
   const [aiProduction, setAiProduction] = useState("");
@@ -81,6 +150,10 @@ export function AddWineForm({
         setRegion(extracted.region ?? "");
         setAiSummary(extracted.ai_summary ?? "");
         setPendingLabelPhotoUrl(extracted.label_photo_url ?? null);
+        setPendingDisplayPhotoUrl(extracted.display_photo_url ?? null);
+        setPendingImageConfidenceScore(extracted.image_confidence_score ?? null);
+        setPendingImageGenerationStatus(extracted.image_generation_status ?? null);
+        setPendingImageGenerationMetadata(extracted.image_generation_metadata ?? null);
         if (extracted.color != null) setColor(extracted.color);
         if (extracted.is_sparkling != null) setIsSparkling(extracted.is_sparkling);
         setWineAttributes(extracted.wine_attributes ?? null);
@@ -128,6 +201,10 @@ export function AddWineForm({
         color: color,
         is_sparkling: isSparkling,
         label_photo_url: pendingLabelPhotoUrl || null,
+        display_photo_url: pendingDisplayPhotoUrl || null,
+        image_confidence_score: pendingImageConfidenceScore,
+        image_generation_status: pendingImageGenerationStatus,
+        image_generation_metadata: pendingImageGenerationMetadata,
         price_range: priceRange || null,
         price_cents: priceCentsValue,
         ai_geography: aiGeography.trim() || null,
@@ -144,7 +221,25 @@ export function AddWineForm({
       }
       if (!data?.id) throw new Error("Wine was not saved. Please try again.");
       if (__DEV__) console.log("[add-wine] insert success, id:", data.id);
+
+      // Navigate immediately; background enrichment patches AI fields after
       onSuccess();
+
+      // For manually-added wines (no label scan), auto-enrich AI fields in background
+      const isManualEntry = !pendingLabelPhotoUrl;
+      const hasEnoughData = !!(producer.trim() || varietal.trim() || region.trim());
+      if (isManualEntry && hasEnoughData) {
+        enrichWineInBackground({
+          wineId: data.id,
+          producer: producer.trim() || null,
+          varietal: varietal.trim() || null,
+          vintage: vintage ? parseInt(vintage, 10) : null,
+          region: region.trim() || null,
+          color,
+          isSparkling,
+          queryClient,
+        });
+      }
     } catch (e: unknown) {
       const message =
         e instanceof Error
