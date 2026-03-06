@@ -661,7 +661,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   profileHeaderTitle: {
-    fontFamily: "PlayfairDisplay_700BoldItalic",
+    fontFamily: "PlayfairDisplay_700Bold_Italic",
     fontSize: 22,
     letterSpacing: 0.5,
   },
