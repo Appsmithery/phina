@@ -57,4 +57,11 @@ Phína turns any wine club night, themed tasting, or dinner party into a smooth,
    ```
    Press `w` for web, or scan the QR with Expo Go on your phone (same Wi-Fi required; use `--tunnel` otherwise).
 
-5. **Edge Functions** — the "Scan label" feature requires the `extract-wine-label` function deployed and `PERPLEXITY_API_KEY` set. See [Edge Functions deploy guide](docs/setup/EDGE_FUNCTIONS_MANUAL_DEPLOY.md).
+5. **Edge Functions**
+   - The "Scan label" flow requires `extract-wine-label` deployed with `PERPLEXITY_API_KEY` set.
+   - The bottle image flow requires `generate-bottle-image` deployed with `GEMINI_API_KEY` set.
+   - The JWT-protected AI functions in this repo must be deployed with gateway JWT verification disabled because they verify the user JWT internally via JWKS:
+     - `npm run functions:deploy:extract-wine-label`
+     - `npm run functions:deploy:generate-bottle-image`
+     - `npm run functions:deploy:generate-wine-summary`
+   - If you deploy from the Supabase Dashboard instead of the CLI, turn off **Verify JWT** / **Verify JWT with legacy secret** for those three functions.

@@ -13,7 +13,11 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "supabase": "supabase",
-    "functions:serve": "supabase functions serve extract-wine-label"
+    "functions:serve": "supabase functions serve extract-wine-label",
+    "functions:deploy:extract-wine-label": "supabase functions deploy extract-wine-label --no-verify-jwt --use-api",
+    "functions:deploy:generate-bottle-image": "supabase functions deploy generate-bottle-image --no-verify-jwt --use-api",
+    "functions:deploy:generate-wine-summary": "supabase functions deploy generate-wine-summary --no-verify-jwt --use-api",
+    "functions:deploy:send-rating-round-push": "supabase functions deploy send-rating-round-push --use-api"
   },
   "dependencies": {
     "@expo-google-fonts/montserrat": "^0.4.2",
