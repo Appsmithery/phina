@@ -134,6 +134,8 @@ export default function EventDetailScreen() {
   }, [id, isAuthenticated, queryClient]);
 
   const isHost = event?.created_by === member?.id;
+  const isDoubleBlind = event?.tasting_mode === "double_blind" && event?.status === "active";
+  const hideWineDetails = isDoubleBlind && !isHost;
   const canSeeMetrics = isHost || member?.is_admin;
   const endEventMutation = useEndEvent(id!);
 
@@ -258,6 +260,13 @@ export default function EventDetailScreen() {
             {event.status === "active" ? "ACTIVE EVENT" : "PAST EVENT"}
           </Text>
         </View>
+        {event.tasting_mode && (
+          <View style={[styles.statusBadge, { backgroundColor: event.tasting_mode === "double_blind" ? "#6B4C8A20" : theme.textSecondary + "15" }]}>
+            <Text style={[styles.statusBadgeText, { color: event.tasting_mode === "double_blind" ? "#6B4C8A" : theme.textSecondary }]}>
+              {event.tasting_mode === "double_blind" ? "DOUBLE BLIND" : "SINGLE BLIND"}
+            </Text>
+          </View>
+        )}
         <Text style={[styles.meta, { color: theme.textSecondary }]}>
           {event.theme} · {new Date(event.date).toLocaleDateString()}
         </Text>
@@ -346,27 +355,27 @@ export default function EventDetailScreen() {
         <FlatList
           data={wines}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const activeRound = rounds.find((r) => r.wine_id === item.id && r.is_active);
             const round = activeRound ?? rounds.find((r) => r.wine_id === item.id);
             const summary = ratingSummaries.find((s) => s.wine_id === item.id);
             const canRemove = isHost || item.brought_by === member?.id;
+            const wineLabel = hideWineDetails ? `Wine #${index + 1}` : null;
             return (
               <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                 <TouchableOpacity onPress={() => router.push(`/event/${id}/wine/${item.id}`)}>
                   <View style={styles.wineNameRow}>
                     <Text style={[styles.wineName, { color: theme.text }]}>
-                      {item.quantity != null && item.quantity > 1 ? `${item.quantity}× ` : ""}
-                      {item.producer ?? "Unknown"} {item.varietal ?? ""} {item.vintage ?? ""}
+                      {wineLabel ?? `${item.quantity != null && item.quantity > 1 ? `${item.quantity}× ` : ""}${item.producer ?? "Unknown"} ${item.varietal ?? ""} ${item.vintage ?? ""}`}
                     </Text>
                     {eventFavorite?.wine_id === item.id && (
                       <Ionicons name="star" size={18} color={theme.primary} style={styles.favoriteStar} />
                     )}
                   </View>
-                  {item.region && (
+                  {!hideWineDetails && item.region && (
                     <Text style={[styles.wineMeta, { color: theme.textSecondary }]}>{item.region}</Text>
                   )}
-                  {(item.price_cents != null || item.price_range != null) && (
+                  {!hideWineDetails && (item.price_cents != null || item.price_range != null) && (
                     <Text style={[styles.wineMeta, { color: theme.textSecondary }]}>
                       {item.price_cents != null ? `$${item.price_cents / 100}` : item.price_range ?? ""}
                     </Text>

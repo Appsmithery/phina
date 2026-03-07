@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { createSessionFromUrl } from "@/lib/oauth-google";
+import { captureError } from "@/lib/observability";
 
 const ALLOWED_NATIVE_SCHEMES = ["exp://", "phina://"];
 
@@ -64,6 +65,19 @@ export default function CallbackScreen() {
     window.location.href = targetUrl;
   }
 
+  function safeNavigate(retries = 20, delay = 150) {
+    try {
+      router.replace("/(tabs)");
+    } catch (e) {
+      if (retries > 0) {
+        setTimeout(() => safeNavigate(retries - 1, delay), delay);
+      } else {
+        captureError(e instanceof Error ? e : new Error(String(e)));
+        setError("Navigation failed — please refresh the page.");
+      }
+    }
+  }
+
   async function handleWebCallback() {
     try {
       const url = typeof window !== "undefined" ? window.location.href : "";
@@ -77,9 +91,7 @@ export default function CallbackScreen() {
 
       if (session) {
         setSessionFromAuth(session);
-        setTimeout(() => {
-          router.replace("/(tabs)");
-        }, 100);
+        safeNavigate();
       } else {
         setError("Failed to create session from callback");
       }

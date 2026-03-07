@@ -40,6 +40,7 @@ export interface Database {
           theme: string;
           date: string;
           status: "active" | "ended";
+          tasting_mode: "single_blind" | "double_blind";
           created_by: string;
           created_at: string;
         };
@@ -49,6 +50,7 @@ export interface Database {
           theme: string;
           date: string;
           status?: "active" | "ended";
+          tasting_mode?: "single_blind" | "double_blind";
           created_by: string;
           created_at?: string;
         };
@@ -58,6 +60,7 @@ export interface Database {
           theme?: string;
           date?: string;
           status?: "active" | "ended";
+          tasting_mode?: "single_blind" | "double_blind";
           created_by?: string;
           created_at?: string;
         };

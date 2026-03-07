@@ -22,6 +22,7 @@ export default function CreateEventScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [tastingMode, setTastingMode] = useState<"single_blind" | "double_blind">("single_blind");
 
   const date = selectedDate.toISOString().slice(0, 10);
 
@@ -42,6 +43,7 @@ export default function CreateEventScreen() {
           date,
           status: "active",
           created_by: session.user.id,
+          tasting_mode: tastingMode,
         })
         .select("id")
         .single();
@@ -118,6 +120,37 @@ export default function CreateEventScreen() {
             <Text style={styles.doneButtonText}>Done</Text>
           </TouchableOpacity>
         )}
+        <Text style={[styles.label, { color: theme.textSecondary }]}>Tasting Mode</Text>
+        <View style={[styles.modeRow, { borderColor: theme.border }]}>          {(["single_blind", "double_blind"] as const).map((mode) => {
+            const active = tastingMode === mode;
+            return (
+              <TouchableOpacity
+                key={mode}
+                style={[
+                  styles.modePill,
+                  active && { backgroundColor: theme.primary },
+                  !active && { backgroundColor: "transparent" },
+                ]}
+                onPress={() => setTastingMode(mode)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.modePillText,
+                    { color: active ? "#fff" : theme.text },
+                  ]}
+                >
+                  {mode === "single_blind" ? "Single Blind" : "Double Blind"}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        <Text style={[styles.modeHint, { color: theme.textSecondary }]}>
+          {tastingMode === "single_blind"
+            ? "Guests see wine details but not results until the event ends."
+            : "Guests see only wine numbers — details are revealed when the event ends."}
+        </Text>
         <TouchableOpacity
           style={[styles.button, { backgroundColor: theme.primary }]}
           onPress={create}
@@ -154,4 +187,8 @@ const styles = StyleSheet.create({
   dateText: { fontSize: 16, fontFamily: "Montserrat_400Regular" },
   doneButton: { borderRadius: 10, padding: 12, alignItems: "center", marginBottom: 16 },
   doneButtonText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
+  modeRow: { flexDirection: "row", borderWidth: 1, borderRadius: 12, overflow: "hidden", marginBottom: 8 },
+  modePill: { flex: 1, paddingVertical: 10, alignItems: "center" },
+  modePillText: { fontSize: 14, fontFamily: "Montserrat_600SemiBold" },
+  modeHint: { fontSize: 12, fontFamily: "Montserrat_400Regular", marginBottom: 16, lineHeight: 16 },
 });

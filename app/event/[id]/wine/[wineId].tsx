@@ -94,6 +94,23 @@ export default function WineDetailScreen() {
   });
   const wineTags = tagRows?.filter((r) => r.wine_id === wineId) ?? [];
 
+  // Fetch all event wines to determine wine index for double blind
+  const { data: eventWines = [] } = useQuery({
+    queryKey: ["wines", eventId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("wines_with_price_privacy").select("*").eq("event_id", eventId!).order("created_at", { ascending: true });
+      if (error) throw error;
+      return data as WineWithPricePrivacy[];
+    },
+    enabled: !!eventId,
+  });
+
+  const isHost = event?.created_by === member?.id;
+  const isDoubleBlind = event?.tasting_mode === "double_blind" && event?.status === "active";
+  const hideDetails = isDoubleBlind && !isHost;
+  const wineIndex = eventWines.findIndex((w) => w.id === wineId);
+  const blindLabel = wineIndex >= 0 ? `Wine #${wineIndex + 1}` : "Wine";
+
   const canRemove = Boolean(
     wine &&
       eventId &&
@@ -137,40 +154,49 @@ export default function WineDetailScreen() {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]} contentContainerStyle={styles.content}>
-      {wine.label_photo_url ? (
-        <Image
-          source={{ uri: wine.label_photo_url }}
-          style={styles.photo}
-          resizeMode="contain"
-        />
-      ) : null}
-      <Text style={[styles.producer, { color: theme.text }]}>{wine.producer ?? "Unknown producer"}</Text>
-      <Text style={[styles.meta, { color: theme.textSecondary }]}>
-        {[wine.varietal, wine.vintage?.toString(), wine.region].filter(Boolean).join(" · ")}
-      </Text>
-      {(wine.color || wine.is_sparkling) && (
-        <View style={styles.badgeRow}>
-          {wine.color && (
-            <View style={[styles.badge, { backgroundColor: wine.color === "red" ? "#B55A5A20" : wine.color === "white" ? "#F2EFE920" : "#D9BBAE20", borderColor: wine.color === "red" ? "#B55A5A" : wine.color === "white" ? "#9A8B82" : "#D9BBAE" }]}>
-              <Text style={[styles.badgeText, { color: wine.color === "red" ? "#B55A5A" : wine.color === "white" ? "#6B5B54" : "#B58271" }]}>
-                {wine.color === "red" ? "Red" : wine.color === "white" ? "White" : "Rose / Orange"}
-              </Text>
+      {hideDetails ? (
+        <>
+          <Text style={[styles.producer, { color: theme.text }]}>{blindLabel}</Text>
+          <Text style={[styles.meta, { color: theme.textSecondary }]}>Details hidden until the event ends</Text>
+        </>
+      ) : (
+        <>
+          {wine.label_photo_url ? (
+            <Image
+              source={{ uri: wine.label_photo_url }}
+              style={styles.photo}
+              resizeMode="contain"
+            />
+          ) : null}
+          <Text style={[styles.producer, { color: theme.text }]}>{wine.producer ?? "Unknown producer"}</Text>
+          <Text style={[styles.meta, { color: theme.textSecondary }]}>
+            {[wine.varietal, wine.vintage?.toString(), wine.region].filter(Boolean).join(" · ")}
+          </Text>
+          {(wine.color || wine.is_sparkling) && (
+            <View style={styles.badgeRow}>
+              {wine.color && (
+                <View style={[styles.badge, { backgroundColor: wine.color === "red" ? "#B55A5A20" : wine.color === "white" ? "#F2EFE920" : "#D9BBAE20", borderColor: wine.color === "red" ? "#B55A5A" : wine.color === "white" ? "#9A8B82" : "#D9BBAE" }]}>
+                  <Text style={[styles.badgeText, { color: wine.color === "red" ? "#B55A5A" : wine.color === "white" ? "#6B5B54" : "#B58271" }]}>
+                    {wine.color === "red" ? "Red" : wine.color === "white" ? "White" : "Rose / Orange"}
+                  </Text>
+                </View>
+              )}
+              {wine.is_sparkling && (
+                <View style={[styles.badge, { backgroundColor: theme.primary + "20", borderColor: theme.primary }]}>
+                  <Text style={[styles.badgeText, { color: theme.primary }]}>Sparkling</Text>
+                </View>
+              )}
             </View>
           )}
-          {wine.is_sparkling && (
-            <View style={[styles.badge, { backgroundColor: theme.primary + "20", borderColor: theme.primary }]}>
-              <Text style={[styles.badgeText, { color: theme.primary }]}>Sparkling</Text>
-            </View>
+          {(wine.quantity != null && wine.quantity >= 1) && (
+            <Text style={[styles.quantityText, { color: theme.textSecondary }]}>Quantity: {wine.quantity}</Text>
           )}
-        </View>
-      )}
-      {(wine.quantity != null && wine.quantity >= 1) && (
-        <Text style={[styles.quantityText, { color: theme.textSecondary }]}>Quantity: {wine.quantity}</Text>
-      )}
-      {(wine.price_cents != null || wine.price_range != null) && (
-        <Text style={[styles.quantityText, { color: theme.textSecondary }]}>
-          Price: {wine.price_cents != null ? `$${wine.price_cents / 100}` : wine.price_range ?? ""}
-        </Text>
+          {(wine.price_cents != null || wine.price_range != null) && (
+            <Text style={[styles.quantityText, { color: theme.textSecondary }]}>
+              Price: {wine.price_cents != null ? `$${wine.price_cents / 100}` : wine.price_range ?? ""}
+            </Text>
+          )}
+        </>
       )}
 
       {event?.status === "ended" && voteSummary && (
@@ -286,7 +312,7 @@ export default function WineDetailScreen() {
         </TouchableOpacity>
       )}
 
-      {(wine.ai_geography || wine.ai_production || wine.ai_tasting_notes || wine.ai_pairings) ? (
+      {!hideDetails && (wine.ai_geography || wine.ai_production || wine.ai_tasting_notes || wine.ai_pairings) ? (
         <>
           {wine.ai_geography && (
             <>
@@ -313,7 +339,7 @@ export default function WineDetailScreen() {
             </>
           )}
         </>
-      ) : wine.ai_summary ? (
+      ) : !hideDetails && wine.ai_summary ? (
         <>
           <Text style={[styles.sectionHeader, { color: theme.text }]}>About</Text>
           <Text style={[styles.sectionBody, { color: theme.text }]}>{wine.ai_summary}</Text>

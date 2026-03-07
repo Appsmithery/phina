@@ -1,14 +1,5 @@
 import { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Modal,
-  Pressable,
-  TextInput,
-} from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Image } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -53,6 +44,59 @@ const CONFIDENCE_HELP =
 
 type HelpKey = "body" | "dryness" | "confidence";
 
+function SegmentedControl<T extends string>({
+  options,
+  value,
+  onChange,
+  theme,
+}: {
+  options: { label: string; value: T }[];
+  value: T | null;
+  onChange: (v: T | null) => void;
+  theme: ReturnType<typeof useTheme>;
+}) {
+  return (
+    <View style={segStyles.row}>
+      {options.map((opt) => {
+        const selected = value === opt.value;
+        return (
+          <TouchableOpacity
+            key={opt.value}
+            style={[
+              segStyles.pill,
+              { borderColor: theme.border },
+              selected && { backgroundColor: theme.primary, borderColor: theme.primary },
+            ]}
+            onPress={() => onChange(selected ? null : opt.value)}
+          >
+            <Text
+              style={[
+                segStyles.pillText,
+                { color: theme.textSecondary },
+                selected && { color: "#fff" },
+              ]}
+            >
+              {opt.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+const segStyles = StyleSheet.create({
+  row: { flexDirection: "row", gap: 8 },
+  pill: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  pillText: { fontSize: 13, fontFamily: "Montserrat_600SemiBold" },
+});
+
 export default function PersonalRateWineScreen() {
   const params = useLocalSearchParams<{ wineId: string }>();
   const wineId = typeof params.wineId === "string" ? params.wineId : params.wineId?.[0];
@@ -65,8 +109,6 @@ export default function PersonalRateWineScreen() {
   const [confidence, setConfidence] = useState<number | null>(null);
   const [selectedTags, setSelectedTags] = useState<RatingTag[]>([]);
   const [note, setNote] = useState("");
-  const [bodyModalVisible, setBodyModalVisible] = useState(false);
-  const [sweetnessModalVisible, setSweetnessModalVisible] = useState(false);
   const [expandedHelp, setExpandedHelp] = useState<HelpKey | null>(null);
   const queryClient = useQueryClient();
 
@@ -172,7 +214,7 @@ export default function PersonalRateWineScreen() {
 
   if (!sessionLoaded) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading…</Text>
       </View>
     );
@@ -180,7 +222,7 @@ export default function PersonalRateWineScreen() {
 
   if (sessionLoaded && !session) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
         <Text style={[styles.hint, { color: theme.textMuted }]}>Sign in to rate.</Text>
       </View>
     );
@@ -188,248 +230,193 @@ export default function PersonalRateWineScreen() {
 
   if (!wine) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading…</Text>
       </View>
     );
   }
 
   const canVote = !!member && !submitting;
+  const photoUrl = wine.display_photo_url ?? wine.label_photo_url;
 
   return (
-    <ScrollView
-      style={[styles.scroll, { backgroundColor: theme.background }]}
-      contentContainerStyle={styles.scrollContent}
-    >
-      <View style={styles.headerRow}>
-        <Text style={[styles.title, { color: theme.text }]}>
-          {wine.producer ?? "Unknown"} {wine.varietal ?? ""} {wine.vintage ?? ""}
-        </Text>
+    <ScrollView style={[styles.scroll, { backgroundColor: theme.background }]} contentContainerStyle={styles.scrollContent}>
+      {/* Wine hero card */}
+      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View style={styles.wineHeroRow}>
+          {photoUrl ? (
+            <Image source={{ uri: photoUrl }} style={styles.wineThumb} resizeMode="cover" />
+          ) : (
+            <View style={[styles.wineThumbPlaceholder, { backgroundColor: theme.border }]}>
+              <Ionicons name="wine-outline" size={28} color={theme.textMuted} />
+            </View>
+          )}
+          <View style={styles.wineInfo}>
+            <Text style={[styles.wineProducer, { color: theme.text }]} numberOfLines={2}>
+              {wine.producer ?? "Unknown"}
+            </Text>
+            <Text style={[styles.wineMeta, { color: theme.textSecondary }]} numberOfLines={1}>
+              {[wine.varietal, wine.vintage?.toString(), wine.region].filter(Boolean).join(" · ")}
+            </Text>
+          </View>
+        </View>
       </View>
+
       {!member ? (
         <Text style={[styles.hint, { color: theme.textMuted }]}>Sign in to rate.</Text>
       ) : (
         <>
-          <Text style={[styles.prompt, { color: theme.text }]}>Your rating:</Text>
-          <View style={styles.buttons}>
-            <TouchableOpacity
-              style={[
-                styles.voteBtn,
-                { backgroundColor: theme.thumbsDown },
-                vote === -1 && { borderWidth: 3, borderColor: theme.primary },
-              ]}
-              onPress={() => canVote && setVote(-1)}
-              disabled={!canVote}
-            >
-              <Ionicons name="thumbs-down" size={32} color="#fff" style={styles.voteIcon} />
-              <Text style={styles.voteLabel}>Down</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.voteBtn,
-                { backgroundColor: theme.meh },
-                vote === 0 && { borderWidth: 3, borderColor: theme.primary },
-              ]}
-              onPress={() => canVote && setVote(0)}
-              disabled={!canVote}
-            >
-              <MaterialCommunityIcons name="scale-balance" size={32} color="#fff" style={styles.voteIcon} />
-              <Text style={styles.voteLabel}>Meh</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.voteBtn,
-                { backgroundColor: theme.thumbsUp },
-                vote === 1 && { borderWidth: 3, borderColor: theme.primary },
-              ]}
-              onPress={() => canVote && setVote(1)}
-              disabled={!canVote}
-            >
-              <Ionicons name="thumbs-up" size={32} color="#fff" style={styles.voteIcon} />
-              <Text style={styles.voteLabel}>Up</Text>
-            </TouchableOpacity>
+          {/* Vote card */}
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Text style={[styles.cardTitle, { color: theme.text }]}>How was it?</Text>
+            <View style={styles.voteRow}>
+              <TouchableOpacity
+                style={[
+                  styles.voteBtn,
+                  { backgroundColor: theme.thumbsDown + "15", borderColor: theme.thumbsDown + "40" },
+                  vote === -1 && { backgroundColor: theme.thumbsDown, borderColor: theme.thumbsDown },
+                ]}
+                onPress={() => canVote && setVote(-1)}
+                disabled={!canVote}
+              >
+                <Ionicons name="thumbs-down" size={28} color={vote === -1 ? "#fff" : theme.thumbsDown} />
+                <Text style={[styles.voteLabel, { color: vote === -1 ? "#fff" : theme.thumbsDown }]}>Down</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.voteBtn,
+                  { backgroundColor: theme.meh + "15", borderColor: theme.meh + "40" },
+                  vote === 0 && { backgroundColor: theme.meh, borderColor: theme.meh },
+                ]}
+                onPress={() => canVote && setVote(0)}
+                disabled={!canVote}
+              >
+                <MaterialCommunityIcons name="scale-balance" size={28} color={vote === 0 ? "#fff" : theme.meh} />
+                <Text style={[styles.voteLabel, { color: vote === 0 ? "#fff" : theme.meh }]}>Meh</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.voteBtn,
+                  { backgroundColor: theme.thumbsUp + "15", borderColor: theme.thumbsUp + "40" },
+                  vote === 1 && { backgroundColor: theme.thumbsUp, borderColor: theme.thumbsUp },
+                ]}
+                onPress={() => canVote && setVote(1)}
+                disabled={!canVote}
+              >
+                <Ionicons name="thumbs-up" size={28} color={vote === 1 ? "#fff" : theme.thumbsUp} />
+                <Text style={[styles.voteLabel, { color: vote === 1 ? "#fff" : theme.thumbsUp }]}>Up</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.labelRow}
-            onPress={() => toggleHelp("body")}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.metaLabel, { color: theme.textSecondary }]}>Body (optional)</Text>
-            <Ionicons
-              name={expandedHelp === "body" ? "chevron-up" : "information-circle-outline"}
-              size={18}
-              color={theme.textMuted}
-            />
-          </TouchableOpacity>
-          {expandedHelp === "body" && (
-            <Text style={[styles.helperText, { color: theme.textMuted }]}>{BODY_HELP}</Text>
-          )}
-          <TouchableOpacity
-            style={[styles.dropdown, { borderColor: theme.border }]}
-            onPress={() => setBodyModalVisible(true)}
-          >
-            <Text style={[styles.dropdownText, { color: body ? theme.text : theme.textMuted }]}>
-              {body ? BODY_OPTIONS.find((o) => o.value === body)?.label : "Choose body…"}
-            </Text>
-          </TouchableOpacity>
-          <Modal visible={bodyModalVisible} transparent animationType="fade">
-            <Pressable style={styles.modalOverlay} onPress={() => setBodyModalVisible(false)}>
-              <View style={[styles.modalContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                <Text style={[styles.modalTitle, { color: theme.text }]}>Body</Text>
-                {BODY_OPTIONS.map((opt) => (
-                  <TouchableOpacity
-                    key={opt.value}
-                    style={[styles.modalOption, body === opt.value && { backgroundColor: theme.primary + "20" }]}
-                    onPress={() => {
-                      setBody(opt.value);
-                      setBodyModalVisible(false);
-                    }}
-                  >
-                    <Text style={[styles.modalOptionText, { color: theme.text }]}>{opt.label}</Text>
-                  </TouchableOpacity>
-                ))}
-                <TouchableOpacity
-                  style={styles.modalOption}
-                  onPress={() => {
-                    setBody(null);
-                    setBodyModalVisible(false);
-                  }}
-                >
-                  <Text style={[styles.modalOptionText, { color: theme.textMuted }]}>None</Text>
-                </TouchableOpacity>
-              </View>
-            </Pressable>
-          </Modal>
+          {/* Details card */}
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Text style={[styles.cardTitle, { color: theme.text }]}>Details</Text>
 
-          <TouchableOpacity
-            style={styles.labelRow}
-            onPress={() => toggleHelp("dryness")}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.metaLabel, { color: theme.textSecondary }]}>Dryness (optional)</Text>
-            <Ionicons
-              name={expandedHelp === "dryness" ? "chevron-up" : "information-circle-outline"}
-              size={18}
-              color={theme.textMuted}
-            />
-          </TouchableOpacity>
-          {expandedHelp === "dryness" && (
-            <Text style={[styles.helperText, { color: theme.textMuted }]}>{DRYNESS_HELP}</Text>
-          )}
-          <TouchableOpacity
-            style={[styles.dropdown, { borderColor: theme.border }]}
-            onPress={() => setSweetnessModalVisible(true)}
-          >
-            <Text style={[styles.dropdownText, { color: sweetness ? theme.text : theme.textMuted }]}>
-              {sweetness ? SWEETNESS_OPTIONS.find((o) => o.value === sweetness)?.label : "Choose dryness…"}
-            </Text>
-          </TouchableOpacity>
-          <Modal visible={sweetnessModalVisible} transparent animationType="fade">
-            <Pressable style={styles.modalOverlay} onPress={() => setSweetnessModalVisible(false)}>
-              <View style={[styles.modalContent, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                <Text style={[styles.modalTitle, { color: theme.text }]}>Dryness</Text>
-                {SWEETNESS_OPTIONS.map((opt) => (
+            <TouchableOpacity style={styles.labelRow} onPress={() => toggleHelp("body")} activeOpacity={0.7}>
+              <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>Body</Text>
+              <Ionicons
+                name={expandedHelp === "body" ? "chevron-up" : "information-circle-outline"}
+                size={16}
+                color={theme.textMuted}
+              />
+            </TouchableOpacity>
+            {expandedHelp === "body" && (
+              <Text style={[styles.helperText, { color: theme.textMuted }]}>{BODY_HELP}</Text>
+            )}
+            <SegmentedControl options={BODY_OPTIONS} value={body} onChange={setBody} theme={theme} />
+
+            <View style={styles.fieldSpacer} />
+
+            <TouchableOpacity style={styles.labelRow} onPress={() => toggleHelp("dryness")} activeOpacity={0.7}>
+              <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>Dryness</Text>
+              <Ionicons
+                name={expandedHelp === "dryness" ? "chevron-up" : "information-circle-outline"}
+                size={16}
+                color={theme.textMuted}
+              />
+            </TouchableOpacity>
+            {expandedHelp === "dryness" && (
+              <Text style={[styles.helperText, { color: theme.textMuted }]}>{DRYNESS_HELP}</Text>
+            )}
+            <SegmentedControl options={SWEETNESS_OPTIONS} value={sweetness} onChange={setSweetness} theme={theme} />
+
+            <View style={styles.fieldSpacer} />
+
+            <TouchableOpacity style={styles.labelRow} onPress={() => toggleHelp("confidence")} activeOpacity={0.7}>
+              <Text style={[styles.fieldLabel, { color: theme.textSecondary }]}>Confidence</Text>
+              <Ionicons
+                name={expandedHelp === "confidence" ? "chevron-up" : "information-circle-outline"}
+                size={16}
+                color={theme.textMuted}
+              />
+            </TouchableOpacity>
+            {expandedHelp === "confidence" && (
+              <Text style={[styles.helperText, { color: theme.textMuted }]}>{CONFIDENCE_HELP}</Text>
+            )}
+            <View style={styles.sliderRow}>
+              <Slider
+                style={styles.slider}
+                minimumValue={0}
+                maximumValue={1}
+                step={0.05}
+                value={confidence ?? 0.5}
+                onValueChange={(v) => setConfidence(v)}
+                minimumTrackTintColor={theme.primary}
+                maximumTrackTintColor={theme.border}
+                thumbTintColor={theme.primary}
+              />
+              <Text style={[styles.sliderValue, { color: theme.textSecondary }]}>
+                {confidence != null ? `${Math.round(confidence * 100)}%` : "—"}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setConfidence(null)}
+                style={[styles.confidenceNoneBtn, confidence === null && { opacity: 0.5 }]}
+              >
+                <Text style={[styles.confidenceNoneText, { color: theme.textMuted }]}>None</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Tasting notes card */}
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Text style={[styles.cardTitle, { color: theme.text }]}>Tasting notes</Text>
+            <View style={styles.tagGrid}>
+              {RATING_TAGS.map((tag) => {
+                const selected = selectedTags.includes(tag.value);
+                return (
                   <TouchableOpacity
-                    key={opt.value}
+                    key={tag.value}
                     style={[
-                      styles.modalOption,
-                      sweetness === opt.value && { backgroundColor: theme.primary + "20" },
+                      styles.tagChip,
+                      { borderColor: theme.primary },
+                      selected && { backgroundColor: theme.primary },
                     ]}
-                    onPress={() => {
-                      setSweetness(opt.value);
-                      setSweetnessModalVisible(false);
-                    }}
+                    onPress={() =>
+                      setSelectedTags((prev) =>
+                        prev.includes(tag.value) ? prev.filter((t) => t !== tag.value) : [...prev, tag.value]
+                      )
+                    }
                   >
-                    <Text style={[styles.modalOptionText, { color: theme.text }]}>{opt.label}</Text>
+                    <Text style={[styles.tagChipText, { color: selected ? "#fff" : theme.primary }]}>
+                      {tag.label}
+                    </Text>
                   </TouchableOpacity>
-                ))}
-                <TouchableOpacity
-                  style={styles.modalOption}
-                  onPress={() => {
-                    setSweetness(null);
-                    setSweetnessModalVisible(false);
-                  }}
-                >
-                  <Text style={[styles.modalOptionText, { color: theme.textMuted }]}>None</Text>
-                </TouchableOpacity>
-              </View>
-            </Pressable>
-          </Modal>
-
-          <TouchableOpacity
-            style={styles.labelRow}
-            onPress={() => toggleHelp("confidence")}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.metaLabel, { color: theme.textSecondary }]}>Confidence (optional)</Text>
-            <Ionicons
-              name={expandedHelp === "confidence" ? "chevron-up" : "information-circle-outline"}
-              size={18}
-              color={theme.textMuted}
+                );
+              })}
+            </View>
+            <TextInput
+              style={[styles.noteInput, { borderColor: theme.border, color: theme.text, backgroundColor: theme.background }]}
+              placeholder="Any notes…"
+              placeholderTextColor={theme.textMuted}
+              value={note}
+              onChangeText={setNote}
+              maxLength={200}
+              multiline
             />
-          </TouchableOpacity>
-          {expandedHelp === "confidence" && (
-            <Text style={[styles.helperText, { color: theme.textMuted }]}>{CONFIDENCE_HELP}</Text>
-          )}
-          <View style={styles.sliderRow}>
-            <Slider
-              style={styles.slider}
-              minimumValue={0}
-              maximumValue={1}
-              step={0.05}
-              value={confidence ?? 0.5}
-              onValueChange={(v) => setConfidence(v)}
-              minimumTrackTintColor={theme.primary}
-              maximumTrackTintColor={theme.border}
-              thumbTintColor={theme.primary}
-            />
-            <Text style={[styles.sliderValue, { color: theme.textSecondary }]}>
-              {confidence != null ? `${Math.round(confidence * 100)}%` : "—"}
-            </Text>
-            <TouchableOpacity
-              onPress={() => setConfidence(null)}
-              style={[styles.confidenceNoneBtn, confidence === null && { opacity: 0.7 }]}
-            >
-              <Text style={[styles.confidenceNoneText, { color: theme.textMuted }]}>None</Text>
-            </TouchableOpacity>
           </View>
 
-          <Text style={[styles.metaLabel, { color: theme.textSecondary, marginBottom: 10 }]}>Tasting notes (optional)</Text>
-          <View style={styles.tagGrid}>
-            {RATING_TAGS.map((tag) => {
-              const selected = selectedTags.includes(tag.value);
-              return (
-                <TouchableOpacity
-                  key={tag.value}
-                  style={[
-                    styles.tagChip,
-                    { borderColor: theme.primary },
-                    selected && { backgroundColor: theme.primary },
-                  ]}
-                  onPress={() =>
-                    setSelectedTags((prev) =>
-                      prev.includes(tag.value) ? prev.filter((t) => t !== tag.value) : [...prev, tag.value]
-                    )
-                  }
-                >
-                  <Text style={[styles.tagChipText, { color: selected ? "#fff" : theme.primary }]}>
-                    {tag.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          <TextInput
-            style={[styles.noteInput, { borderColor: theme.border, color: theme.text, backgroundColor: theme.surface }]}
-            placeholder="Any notes…"
-            placeholderTextColor={theme.textMuted}
-            value={note}
-            onChangeText={setNote}
-            maxLength={200}
-            multiline
-          />
-
+          {/* Submit */}
           <TouchableOpacity
             style={[
               styles.submitButton,
@@ -448,44 +435,79 @@ export default function PersonalRateWineScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, justifyContent: "center" },
+  centered: { flex: 1, padding: 24, justifyContent: "center" },
   scroll: { flex: 1 },
-  scrollContent: { padding: 24, paddingBottom: 48 },
-  headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 24 },
-  title: { fontSize: 22, fontWeight: "700", flex: 1 },
-  prompt: { fontSize: 16, textAlign: "center", marginBottom: 16 },
-  buttons: { flexDirection: "row", justifyContent: "space-evenly", gap: 16, marginBottom: 24 },
+  scrollContent: { padding: 16, paddingBottom: 48 },
+
+  card: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontFamily: "Montserrat_600SemiBold",
+    marginBottom: 12,
+  },
+
+  // Wine hero
+  wineHeroRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  wineThumb: { width: 64, height: 80, borderRadius: 10 },
+  wineThumbPlaceholder: {
+    width: 64,
+    height: 80,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  wineInfo: { flex: 1 },
+  wineProducer: { fontSize: 18, fontFamily: "PlayfairDisplay_700Bold", marginBottom: 2 },
+  wineMeta: { fontSize: 13, fontFamily: "Montserrat_400Regular" },
+
+  // Vote
+  voteRow: { flexDirection: "row", gap: 10 },
   voteBtn: {
     flex: 1,
     borderRadius: 14,
-    padding: 20,
+    borderWidth: 1,
+    paddingVertical: 16,
     alignItems: "center",
-    borderWidth: 3,
-    borderColor: "transparent",
+    gap: 4,
   },
-  voteIcon: { marginBottom: 8 },
-  voteLabel: { color: "#fff", fontWeight: "600" },
-  submitButton: { borderRadius: 14, padding: 16, alignItems: "center", marginTop: 8, marginBottom: 16 },
-  submitButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  voteLabel: { fontSize: 12, fontFamily: "Montserrat_600SemiBold" },
+
+  // Fields
   labelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
-  metaLabel: { fontSize: 12, color: "inherit" },
-  helperText: { fontSize: 11, lineHeight: 16, marginBottom: 10, paddingHorizontal: 2 },
-  dropdown: { borderWidth: 1, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 16, marginBottom: 16 },
-  dropdownText: { fontSize: 16 },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 24 },
-  modalContent: { borderWidth: 1, borderRadius: 14, padding: 16 },
-  modalTitle: { fontSize: 16, fontWeight: "600", marginBottom: 12 },
-  modalOption: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 10, marginBottom: 4 },
-  modalOptionText: { fontSize: 16 },
-  sliderRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 16 },
+  fieldLabel: { fontSize: 12, fontFamily: "Montserrat_600SemiBold" },
+  fieldSpacer: { height: 16 },
+  helperText: { fontSize: 11, lineHeight: 16, marginBottom: 8, fontFamily: "Montserrat_300Light" },
+
+  // Slider
+  sliderRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   slider: { flex: 1, height: 40 },
-  sliderValue: { fontSize: 14, minWidth: 36 },
-  confidenceNoneBtn: { paddingVertical: 8, paddingHorizontal: 12 },
-  confidenceNoneText: { fontSize: 14 },
-  hint: { textAlign: "center", fontSize: 16 },
-  placeholder: { textAlign: "center" },
+  sliderValue: { fontSize: 13, minWidth: 32, fontFamily: "Montserrat_400Regular" },
+  confidenceNoneBtn: { paddingVertical: 6, paddingHorizontal: 10 },
+  confidenceNoneText: { fontSize: 13, fontFamily: "Montserrat_400Regular" },
+
+  // Tags
   tagGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   tagChip: { borderWidth: 1.5, borderRadius: 20, paddingVertical: 6, paddingHorizontal: 14 },
   tagChipText: { fontSize: 13, fontFamily: "Montserrat_600SemiBold" },
-  noteInput: { borderWidth: 1, borderRadius: 12, padding: 12, fontSize: 15, minHeight: 56, marginBottom: 16, textAlignVertical: "top" },
+  noteInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    fontFamily: "Montserrat_400Regular",
+    minHeight: 56,
+    textAlignVertical: "top",
+  },
+
+  // Submit
+  submitButton: { borderRadius: 14, padding: 16, alignItems: "center", marginTop: 4 },
+  submitButtonText: { color: "#fff", fontSize: 16, fontFamily: "Montserrat_600SemiBold" },
+
+  hint: { textAlign: "center", fontSize: 15, fontFamily: "Montserrat_400Regular", padding: 8 },
+  placeholder: { textAlign: "center", fontFamily: "Montserrat_400Regular" },
 });

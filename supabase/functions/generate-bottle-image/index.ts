@@ -10,7 +10,6 @@
 //   5. Upload generated image to Supabase Storage
 //   6. Return display_photo_url + metadata; fallback silently on any error
 
-import * as jose from "npm:jose";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
@@ -124,19 +123,19 @@ async function verifyAuth(req: Request): Promise<Response | null> {
   if (!authHeader?.startsWith("Bearer ")) {
     return jsonResponse({ error: "Missing or invalid Authorization header" }, 401);
   }
-  const token = authHeader.slice(7).trim();
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  if (!supabaseUrl) return jsonResponse({ error: "Server configuration error" }, 500);
-  const issuer = Deno.env.get("SB_JWT_ISSUER") ?? `${supabaseUrl}/auth/v1`;
-  const jwksUrl = new URL(`${supabaseUrl}/auth/v1/.well-known/jwks.json`);
-  try {
-    const JWKS = jose.createRemoteJWKSet(jwksUrl);
-    await jose.jwtVerify(token, JWKS, { issuer });
-    return null;
-  } catch (e) {
-    console.warn("generate-bottle-image: JWT verification failed", e);
-    return jsonResponse({ error: "Invalid JWT" }, 401);
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!supabaseUrl || !supabaseAnonKey) return jsonResponse({ error: "Server configuration error" }, 500);
+
+  const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+  }) as { auth: { getUser(): Promise<{ data: { user: unknown }; error: { message: string } | null }> } };
+  const { data: { user }, error } = await authClient.auth.getUser();
+  if (error || !user) {
+    console.warn("generate-bottle-image: auth failed", error?.message);
+    return jsonResponse({ error: "Invalid or expired token" }, 401);
   }
+  return null;
 }
 
 // ─── Gemini helpers ───────────────────────────────────────────────────────────

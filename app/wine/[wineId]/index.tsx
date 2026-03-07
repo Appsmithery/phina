@@ -1,7 +1,6 @@
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
@@ -116,12 +115,6 @@ export default function PersonalWineDetailScreen() {
             onError={wine.display_photo_url && wine.label_photo_url
               ? () => { /* fallback handled below via priority logic */ }
               : undefined}
-          />
-          <LinearGradient
-            colors={["transparent", "transparent", theme.background]}
-            locations={[0, 0.5, 1]}
-            style={StyleSheet.absoluteFill}
-            pointerEvents="none"
           />
           {wine.image_generation_status === "generated" && (
             <View style={[styles.enhancedBadge, { backgroundColor: theme.primary + "20" }]}>
@@ -299,7 +292,7 @@ export default function PersonalWineDetailScreen() {
           {wine.ai_geography && (
             <>
               <View style={styles.sectionHeaderRow}>
-                <Ionicons name="location-outline" size={16} color={theme.primary} style={styles.sectionIcon} />
+                <Ionicons name="location-outline" size={18} color={theme.primary} style={styles.sectionIcon} />
                 <Text style={[styles.sectionHeader, { color: theme.text }]}>Geography</Text>
               </View>
               <Text style={[styles.sectionBody, { color: theme.text }]}>{wine.ai_geography}</Text>
@@ -308,7 +301,7 @@ export default function PersonalWineDetailScreen() {
           {wine.ai_production && (
             <>
               <View style={styles.sectionHeaderRow}>
-                <Ionicons name="flask-outline" size={16} color={theme.primary} style={styles.sectionIcon} />
+                <Ionicons name="flask-outline" size={18} color={theme.primary} style={styles.sectionIcon} />
                 <Text style={[styles.sectionHeader, { color: theme.text }]}>Production</Text>
               </View>
               <Text style={[styles.sectionBody, { color: theme.text }]}>{wine.ai_production}</Text>
@@ -317,7 +310,7 @@ export default function PersonalWineDetailScreen() {
           {wine.ai_tasting_notes && (
             <>
               <View style={styles.sectionHeaderRow}>
-                <Ionicons name="wine-outline" size={16} color={theme.primary} style={styles.sectionIcon} />
+                <Ionicons name="wine-outline" size={18} color={theme.primary} style={styles.sectionIcon} />
                 <Text style={[styles.sectionHeader, { color: theme.text }]}>Tasting Notes</Text>
               </View>
               <Text style={[styles.sectionBody, { color: theme.text }]}>{wine.ai_tasting_notes}</Text>
@@ -326,7 +319,7 @@ export default function PersonalWineDetailScreen() {
           {wine.ai_pairings && (
             <>
               <View style={styles.sectionHeaderRow}>
-                <Ionicons name="restaurant-outline" size={16} color={theme.primary} style={styles.sectionIcon} />
+                <Ionicons name="restaurant-outline" size={18} color={theme.primary} style={styles.sectionIcon} />
                 <Text style={[styles.sectionHeader, { color: theme.text }]}>Suggested Pairings</Text>
               </View>
               <Text style={[styles.sectionBody, { color: theme.text }]}>{wine.ai_pairings}</Text>
@@ -425,7 +418,7 @@ const styles = StyleSheet.create({
   rateButton: { borderRadius: 12, padding: 12, alignItems: "center", marginBottom: 16 },
   rateButtonText: { color: "#fff", fontSize: 16, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   summary: { fontSize: 15, lineHeight: 22 },
-  sectionHeader: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 16, marginTop: 16, marginBottom: 4 },
+  sectionHeader: { fontFamily: "PlayfairDisplay_600SemiBold", fontSize: 16 },
   sectionBody: { fontFamily: "Montserrat_400Regular", fontSize: 15, lineHeight: 22 },
   editButton: { borderRadius: 12, padding: 12, alignItems: "center", marginTop: 24 },
   editButtonText: { color: "#fff", fontSize: 16, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
