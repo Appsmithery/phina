@@ -302,14 +302,91 @@ async function generateImageWithFallback(
 
 // ─── Image helpers ────────────────────────────────────────────────────────────
 
+function stripCodeFences(value: string): string {
+  return value.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+}
+
+function extractFirstJsonObject(value: string): string | null {
+  const input = stripCodeFences(value);
+  let start = -1;
+  let depth = 0;
+  let inString = false;
+  let escaping = false;
+
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+
+    if (escaping) {
+      escaping = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      escaping = true;
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+
+    if (char === "{") {
+      if (start === -1) start = i;
+      depth += 1;
+      continue;
+    }
+
+    if (char === "}" && depth > 0) {
+      depth -= 1;
+      if (depth === 0 && start !== -1) {
+        return input.slice(start, i + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
+function parseGeminiJson<T>(value: string): T | null {
+  const candidates = [stripCodeFences(value), extractFirstJsonObject(value)].filter(
+    (candidate): candidate is string => !!candidate
+  );
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate) as T;
+    } catch {
+      // try the next candidate
+    }
+  }
+
+  return null;
+}
+
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  const chunkSize = 0x8000;
+  const chunks: string[] = [];
+
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    const chunk = bytes.subarray(offset, offset + chunkSize);
+    let binary = "";
+    for (let i = 0; i < chunk.length; i++) {
+      binary += String.fromCharCode(chunk[i]);
+    }
+    chunks.push(binary);
+  }
+
+  return btoa(chunks.join(""));
+}
+
 async function urlToBase64(url: string): Promise<string> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to fetch image: ${res.status}`);
   const buf = await res.arrayBuffer();
-  const bytes = new Uint8Array(buf);
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
+  return uint8ArrayToBase64(new Uint8Array(buf));
 }
 
 function base64ToUint8Array(b64: string): Uint8Array {
@@ -396,7 +473,7 @@ async function validateOcr(
   extraction: ExtractionMetadata
 ): Promise<boolean> {
   try {
-    const b64 = btoa(String.fromCharCode(...generatedImageBytes));
+    const b64 = uint8ArrayToBase64(generatedImageBytes);
     const res = await fetch(
       `${GEMINI_BASE}/models/${VISION_MODEL}:generateContent?key=${apiKey}`,
       {
@@ -422,8 +499,11 @@ async function validateOcr(
     if (!res.ok) return true; // can't validate; allow
     const data = await res.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
     const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-    const jsonStr = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
-    const parsed = JSON.parse(jsonStr) as { producer?: string | null; vintage?: string | null };
+    const parsed = parseGeminiJson<{ producer?: string | null; vintage?: string | null }>(raw);
+    if (!parsed) {
+      console.warn("generate-bottle-image: OCR validation parse failed (allowing)");
+      return true;
+    }
 
     if (extraction.producer && parsed.producer) {
       if (ocrDriftExceeds(extraction.producer, parsed.producer)) {
@@ -503,8 +583,10 @@ Deno.serve(async (req: Request) => {
 
     try {
       const scoreText = await geminiVision(apiKey, raw_image_url, QUALITY_SCORING_PROMPT);
-      const scoreJson = scoreText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
-      const parsed = JSON.parse(scoreJson) as { score?: number; issues?: string[] };
+      const parsed = parseGeminiJson<{ score?: number; issues?: string[] }>(scoreText);
+      if (!parsed) {
+        throw new Error("Unable to parse quality scoring response as JSON");
+      }
       if (typeof parsed.score === "number") confidenceScore = Math.max(0, Math.min(100, parsed.score));
       if (Array.isArray(parsed.issues)) qualityIssues = parsed.issues;
     } catch (e) {

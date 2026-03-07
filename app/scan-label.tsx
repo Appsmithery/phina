@@ -12,7 +12,6 @@ import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
 import { setLastLabelExtraction, type WineAttributes } from "@/lib/last-label-extraction";
-import { generateBottleImage } from "@/lib/image-generation";
 import { trackEvent, captureError } from "@/lib/observability";
 
 // expo-camera is native-only; skip import on web to avoid bundler errors
@@ -85,12 +84,8 @@ type ExtractionResult = {
   wine_attributes?: WineAttributes | null;
 };
 
-/** Calls extract-wine-label, stores result in memory, then calls generate-bottle-image.
- *  Updates loading text via setLoadingText. Calls router.back() on completion. */
-async function extractAndEnhanceLabel(
-  imagePayload: string,
-  setLoadingText: (text: string) => void
-): Promise<void> {
+/** Calls extract-wine-label, stores the extracted values in memory, then returns to add-wine. */
+async function extractLabel(imagePayload: string): Promise<void> {
   const { data, error } = await supabase.functions.invoke("extract-wine-label", {
     body: { image: imagePayload },
   });
@@ -105,7 +100,6 @@ async function extractAndEnhanceLabel(
   const normalizedColor = color === "red" || color === "white" || color === "skin-contact" ? color : null;
   const labelPhotoUrl = extracted.label_photo_url ?? null;
 
-  // Store extraction immediately so add-wine can access it if image gen is skipped
   setLastLabelExtraction({
     producer: extracted.producer ?? null,
     varietal: extracted.varietal ?? null,
@@ -128,46 +122,6 @@ async function extractAndEnhanceLabel(
     wine_attributes: extracted.wine_attributes ?? null,
   });
   trackEvent("label_scanned", { platform: Platform.OS });
-
-  // ── Image enhancement (non-blocking for UX; ~2-4s) ──
-  if (labelPhotoUrl) {
-    setLoadingText("Generating display image\u2026");
-    const imgResult = await generateBottleImage(
-      "", // wine not yet saved; wine_id is optional in the edge function
-      labelPhotoUrl,
-      {
-        producer: extracted.producer ?? null,
-        varietal: extracted.varietal ?? null,
-        vintage: extracted.vintage ?? null,
-        region: extracted.region ?? null,
-        color: normalizedColor,
-        is_sparkling: extracted.is_sparkling ?? null,
-      }
-    );
-    // Merge image gen result into stored extraction
-    setLastLabelExtraction({
-      producer: extracted.producer ?? null,
-      varietal: extracted.varietal ?? null,
-      vintage: extracted.vintage ?? null,
-      region: extracted.region ?? null,
-      ai_summary: extracted.ai_summary ?? null,
-      label_photo_url: labelPhotoUrl,
-      display_photo_url: imgResult.display_photo_url,
-      image_confidence_score: imgResult.confidence_score,
-      image_generation_status: imgResult.generation_status,
-      image_generation_metadata: (imgResult.metadata as Record<string, unknown>) ?? null,
-      color: normalizedColor,
-      is_sparkling: extracted.is_sparkling ?? null,
-      ai_geography: extracted.ai_geography ?? null,
-      ai_production: extracted.ai_production ?? null,
-      ai_tasting_notes: extracted.ai_tasting_notes ?? null,
-      ai_pairings: extracted.ai_pairings ?? null,
-      drink_from: extracted.drink_from ?? null,
-      drink_until: extracted.drink_until ?? null,
-      wine_attributes: extracted.wine_attributes ?? null,
-    });
-  }
-
   router.back();
 }
 
@@ -184,9 +138,8 @@ export default function SharedScanLabelScreen() {
   const theme = useTheme();
   const [extracting, setExtracting] = useState(false);
   const [photoCaptured, setPhotoCaptured] = useState(false);
-  const [loadingText, setLoadingText] = useState("Analyzing label\u2026");
+  const [loadingText, setLoadingText] = useState("Analyzing label...");
 
-  // ── Web-specific: file upload fallback ──
   if (Platform.OS === "web") {
     return (
       <WebScanLabel
@@ -199,7 +152,6 @@ export default function SharedScanLabelScreen() {
     );
   }
 
-  // ── Native: camera-based scanning ──
   return (
     <NativeScanLabel
       theme={theme}
@@ -233,10 +185,10 @@ function WebScanLabel({
       const file = e.target.files?.[0];
       if (!file) return;
       setExtracting(true);
-      setLoadingText("Analyzing label\u2026");
+      setLoadingText("Analyzing label...");
       try {
         const dataUrl = await fileToBase64(file);
-        await extractAndEnhanceLabel(dataUrl, setLoadingText);
+        await extractLabel(dataUrl);
       } catch (err) {
         captureError(err);
         trackEvent("label_scan_error");
@@ -308,10 +260,6 @@ function NativeScanLabel({
   const [cameraReady, setCameraReady] = useState(false);
   const cameraRef = useRef<CameraViewType | null>(null);
 
-  // NOTE: do not use router.replace() here — it duplicates the add-wine screen in the
-  // navigation stack. router.back() returns to the exact add-wine instance that pushed
-  // this screen, and AddWineForm's useFocusEffect reads the extraction on focus.
-
   const captureAndExtract = async () => {
     if (!cameraRef.current) {
       showAlert("Camera not ready", "Please wait a moment and try again.");
@@ -325,7 +273,7 @@ function NativeScanLabel({
       }
     }
     setExtracting(true);
-    setLoadingText("Analyzing label\u2026");
+    setLoadingText("Analyzing label...");
     try {
       const photo = await (cameraRef.current as CameraViewType).takePictureAsync({
         base64: true,
@@ -336,11 +284,10 @@ function NativeScanLabel({
         return;
       }
 
-      // Photo captured successfully — close camera, show loading screen
       setPhotoCaptured(true);
 
       const imagePayload = `data:image/jpeg;base64,${photo.base64}`;
-      await extractAndEnhanceLabel(imagePayload, setLoadingText);
+      await extractLabel(imagePayload);
     } catch (e) {
       captureError(e);
       trackEvent("label_scan_error");
@@ -355,7 +302,7 @@ function NativeScanLabel({
   if (!permission) {
     return (
       <View style={[styles.center, { backgroundColor: theme.background }]}>
-        <Text style={[styles.msg, { color: theme.text }]}>Checking camera…</Text>
+        <Text style={[styles.msg, { color: theme.text }]}>Checking camera...</Text>
       </View>
     );
   }
@@ -399,7 +346,7 @@ function NativeScanLabel({
         ]}
       >
         <Text style={[styles.hint, { color: theme.textSecondary }]}>
-          {cameraReady ? "Frame the wine label in the viewfinder" : "Preparing camera…"}
+          {cameraReady ? "Frame the wine label in the viewfinder" : "Preparing camera..."}
         </Text>
         <TouchableOpacity
           style={[
@@ -413,7 +360,7 @@ function NativeScanLabel({
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.captureBtnText}>
-              {!cameraReady ? "Preparing…" : "Scan label"}
+              {!cameraReady ? "Preparing..." : "Scan label"}
             </Text>
           )}
         </TouchableOpacity>

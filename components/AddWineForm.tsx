@@ -13,7 +13,12 @@ import { useFocusEffect } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
-import { takeLastLabelExtraction, type WineAttributes } from "@/lib/last-label-extraction";
+import {
+  takeLastLabelExtraction,
+  type WineAttributes,
+  type WineExtraction,
+} from "@/lib/last-label-extraction";
+import { generateBottleImage } from "@/lib/image-generation";
 import { useQueryClient } from "@tanstack/react-query";
 
 const QUANTITY_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
@@ -41,6 +46,14 @@ interface EnrichParams {
   region: string | null;
   color: "red" | "white" | "skin-contact" | null;
   isSparkling: boolean;
+  queryClient: ReturnType<typeof useQueryClient>;
+}
+
+interface EnhanceBottleImageParams {
+  wineId: string;
+  memberId: string;
+  rawImageUrl: string;
+  extraction: Pick<WineExtraction, "producer" | "varietal" | "vintage" | "region" | "color" | "is_sparkling">;
   queryClient: ReturnType<typeof useQueryClient>;
 }
 
@@ -96,10 +109,60 @@ function enrichWineInBackground({
   })();
 }
 
+function enhanceBottleImageInBackground({
+  wineId,
+  memberId,
+  rawImageUrl,
+  extraction,
+  queryClient,
+}: EnhanceBottleImageParams): void {
+  (async () => {
+    try {
+      const result = await generateBottleImage(wineId, rawImageUrl, extraction);
+      const { error: patchError } = await supabase
+        .from("wines")
+        .update({
+          display_photo_url: result.display_photo_url ?? rawImageUrl,
+          image_confidence_score: result.confidence_score,
+          image_generation_status: result.generation_status,
+          image_generation_metadata: result.metadata ?? null,
+        })
+        .eq("id", wineId);
+      if (patchError) {
+        if (__DEV__) console.warn("[add-wine] patch bottle image fields error:", patchError);
+        return;
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", memberId] }),
+        queryClient.invalidateQueries({ queryKey: ["wine", wineId] }),
+      ]);
+      if (__DEV__) console.log("[add-wine] background bottle image complete for", wineId);
+    } catch (e) {
+      if (__DEV__) console.warn("[add-wine] enhanceBottleImageInBackground error:", e);
+      const { error: patchError } = await supabase
+        .from("wines")
+        .update({
+          display_photo_url: rawImageUrl,
+          image_confidence_score: 0,
+          image_generation_status: "failed",
+          image_generation_metadata: null,
+        })
+        .eq("id", wineId);
+      if (patchError && __DEV__) {
+        console.warn("[add-wine] patch bottle image failure status error:", patchError);
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", memberId] }),
+        queryClient.invalidateQueries({ queryKey: ["wine", wineId] }),
+      ]);
+    }
+  })();
+}
+
 export type AddWineFormProps = {
   eventId: string | null;
   memberId: string;
-  onSuccess: () => void;
+  onSuccess: () => void | Promise<void>;
   onScan: () => void;
   submitButtonLabel?: string;
 };
@@ -130,7 +193,8 @@ export function AddWineForm({
   const [pendingLabelPhotoUrl, setPendingLabelPhotoUrl] = useState<string | null>(null);
   const [pendingDisplayPhotoUrl, setPendingDisplayPhotoUrl] = useState<string | null>(null);
   const [pendingImageConfidenceScore, setPendingImageConfidenceScore] = useState<number | null>(null);
-  const [pendingImageGenerationStatus, setPendingImageGenerationStatus] = useState<"generated" | "fallback_raw" | "failed" | null>(null);
+  const [pendingImageGenerationStatus, setPendingImageGenerationStatus] =
+    useState<WineExtraction["image_generation_status"]>(null);
   const [pendingImageGenerationMetadata, setPendingImageGenerationMetadata] = useState<Record<string, unknown> | null>(null);
   const [wineAttributes, setWineAttributes] = useState<WineAttributes | null>(null);
   const [aiGeography, setAiGeography] = useState("");
@@ -186,31 +250,41 @@ export function AddWineForm({
       parsedDollars != null && !Number.isNaN(parsedDollars) && parsedDollars >= 0
         ? Math.min(parsedDollars * 100, 9999900)
         : null;
+    const trimmedProducer = producer.trim() || null;
+    const trimmedVarietal = varietal.trim() || null;
+    const parsedVintage = vintage ? parseInt(vintage, 10) : null;
+    const trimmedRegion = region.trim() || null;
+    const trimmedAiSummary = aiSummary.trim() || null;
+    const trimmedAiGeography = aiGeography.trim() || null;
+    const trimmedAiProduction = aiProduction.trim() || null;
+    const trimmedAiTastingNotes = aiTastingNotes.trim() || null;
+    const trimmedAiPairings = aiPairings.trim() || null;
+    const isScannedEntry = !!pendingLabelPhotoUrl;
 
     setLoading(true);
     try {
       const { data, error } = await supabase.from("wines").insert({
         event_id: eventId,
         brought_by: memberId,
-        producer: producer.trim() || null,
-        varietal: varietal.trim() || null,
-        vintage: vintage ? parseInt(vintage, 10) : null,
-        region: region.trim() || null,
-        ai_summary: aiSummary.trim() || null,
+        producer: trimmedProducer,
+        varietal: trimmedVarietal,
+        vintage: parsedVintage,
+        region: trimmedRegion,
+        ai_summary: trimmedAiSummary,
         quantity: quantity,
         color: color,
         is_sparkling: isSparkling,
         label_photo_url: pendingLabelPhotoUrl || null,
-        display_photo_url: pendingDisplayPhotoUrl || null,
-        image_confidence_score: pendingImageConfidenceScore,
-        image_generation_status: pendingImageGenerationStatus,
-        image_generation_metadata: pendingImageGenerationMetadata,
+        display_photo_url: isScannedEntry ? null : (pendingDisplayPhotoUrl || null),
+        image_confidence_score: isScannedEntry ? null : pendingImageConfidenceScore,
+        image_generation_status: isScannedEntry ? "pending" : pendingImageGenerationStatus,
+        image_generation_metadata: isScannedEntry ? null : pendingImageGenerationMetadata,
         price_range: priceRange || null,
         price_cents: priceCentsValue,
-        ai_geography: aiGeography.trim() || null,
-        ai_production: aiProduction.trim() || null,
-        ai_tasting_notes: aiTastingNotes.trim() || null,
-        ai_pairings: aiPairings.trim() || null,
+        ai_geography: trimmedAiGeography,
+        ai_production: trimmedAiProduction,
+        ai_tasting_notes: trimmedAiTastingNotes,
+        ai_pairings: trimmedAiPairings,
         wine_attributes: wineAttributes,
         drink_from: drinkFrom,
         drink_until: drinkUntil,
@@ -222,19 +296,33 @@ export function AddWineForm({
       if (!data?.id) throw new Error("Wine was not saved. Please try again.");
       if (__DEV__) console.log("[add-wine] insert success, id:", data.id);
 
-      // Navigate immediately; background enrichment patches AI fields after
-      onSuccess();
+      await onSuccess();
 
-      // For manually-added wines (no label scan), auto-enrich AI fields in background
-      const isManualEntry = !pendingLabelPhotoUrl;
-      const hasEnoughData = !!(producer.trim() || varietal.trim() || region.trim());
-      if (isManualEntry && hasEnoughData) {
+      if (isScannedEntry && pendingLabelPhotoUrl) {
+        enhanceBottleImageInBackground({
+          wineId: data.id,
+          memberId,
+          rawImageUrl: pendingLabelPhotoUrl,
+          extraction: {
+            producer: trimmedProducer,
+            varietal: trimmedVarietal,
+            vintage: parsedVintage,
+            region: trimmedRegion,
+            color,
+            is_sparkling: isSparkling,
+          },
+          queryClient,
+        });
+      }
+
+      const hasEnoughData = !!(trimmedProducer || trimmedVarietal || trimmedRegion);
+      if (!isScannedEntry && hasEnoughData) {
         enrichWineInBackground({
           wineId: data.id,
-          producer: producer.trim() || null,
-          varietal: varietal.trim() || null,
-          vintage: vintage ? parseInt(vintage, 10) : null,
-          region: region.trim() || null,
+          producer: trimmedProducer,
+          varietal: trimmedVarietal,
+          vintage: parsedVintage,
+          region: trimmedRegion,
           color,
           isSparkling,
           queryClient,
