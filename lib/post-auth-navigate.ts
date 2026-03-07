@@ -7,6 +7,6 @@ export async function navigateAfterAuth(): Promise<void> {
     await clearPendingJoinEventId();
     router.replace(`/join/${pendingId}`);
   } else {
-    router.replace("/(tabs)");
+    router.replace("/");
   }
 }

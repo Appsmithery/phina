@@ -8,6 +8,12 @@ export interface Database {
           id: string;
           name: string | null;
           email: string;
+          first_name: string | null;
+          last_name: string | null;
+          birthday: string | null;
+          location: string | null;
+          wine_experience: "beginner" | "intermediate" | "advanced" | "professional" | null;
+          profile_complete: boolean;
           push_token: string | null;
           phone: string | null;
           is_admin: boolean;
@@ -17,6 +23,12 @@ export interface Database {
           id: string;
           name?: string | null;
           email: string;
+          first_name?: string | null;
+          last_name?: string | null;
+          birthday?: string | null;
+          location?: string | null;
+          wine_experience?: "beginner" | "intermediate" | "advanced" | "professional" | null;
+          profile_complete?: boolean;
           push_token?: string | null;
           phone?: string | null;
           is_admin?: boolean;
@@ -26,6 +38,12 @@ export interface Database {
           id?: string;
           name?: string | null;
           email?: string;
+          first_name?: string | null;
+          last_name?: string | null;
+          birthday?: string | null;
+          location?: string | null;
+          wine_experience?: "beginner" | "intermediate" | "advanced" | "professional" | null;
+          profile_complete?: boolean;
           push_token?: string | null;
           phone?: string | null;
           is_admin?: boolean;

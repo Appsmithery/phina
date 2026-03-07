@@ -67,7 +67,7 @@ export default function CallbackScreen() {
 
   function safeNavigate(retries = 20, delay = 150) {
     try {
-      router.replace("/(tabs)");
+      router.replace("/");
     } catch (e) {
       if (retries > 0) {
         setTimeout(() => safeNavigate(retries - 1, delay), delay);

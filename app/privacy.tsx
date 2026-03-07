@@ -13,7 +13,7 @@ export default function PrivacyScreen() {
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]} contentContainerStyle={styles.content}>
       <Text style={[styles.h1, { color: theme.text }]}>Privacy Policy</Text>
-      <Text style={[styles.updated, { color: theme.textMuted }]}>Last updated: February 28, 2026</Text>
+      <Text style={[styles.updated, { color: theme.textMuted }]}>Last updated: March 7, 2026</Text>
 
       <Text style={[styles.p, { color: theme.textSecondary }]}>
         Phína ("we", "us", or "our") operates the Phína mobile application and website (the "Service"). This policy describes how we collect, use, and protect your information.
@@ -21,13 +21,16 @@ export default function PrivacyScreen() {
 
       <Text style={[styles.h2, { color: theme.text }]}>1. Information We Collect</Text>
       <Text style={[styles.p, { color: theme.textSecondary }]}>
-        <Text style={styles.bold}>Account information.</Text> When you create an account we collect your email address, display name, and authentication credentials. If you sign in with Google, we receive your name, email, and profile photo from Google.
+        <Text style={styles.bold}>Account information.</Text> When you create an account we collect your email address, first name, last name, date of birth, and authentication credentials. We collect your date of birth to verify that you are of legal drinking age — your birthday is never shared with other users. If you sign in with Google, we receive your name, email, and profile photo from Google.
       </Text>
       <Text style={[styles.p, { color: theme.textSecondary }]}>
         <Text style={styles.bold}>Wine data.</Text> Information you enter about wines — producer, varietal, vintage, region, tasting notes, ratings, and label photos you upload.
       </Text>
       <Text style={[styles.p, { color: theme.textSecondary }]}>
         <Text style={styles.bold}>Event data.</Text> Events you create or join, your membership and check-in status, and votes you cast during rating rounds.
+      </Text>
+      <Text style={[styles.p, { color: theme.textSecondary }]}>
+        <Text style={styles.bold}>Profile information.</Text> You may optionally provide your phone number, geographic location (city, state, or zip code), and wine experience level. This information helps us improve the Service and personalize your experience. Your phone number and location are not shared with other users.
       </Text>
       <Text style={[styles.p, { color: theme.textSecondary }]}>
         <Text style={styles.bold}>Device information.</Text> If you enable push notifications, we store your device push token so we can deliver notifications. We do not collect device identifiers for advertising.
@@ -41,6 +44,7 @@ export default function PrivacyScreen() {
         <Text style={[styles.li, { color: theme.textSecondary }]}>To provide and maintain the Service — creating events, tracking wines, running rating rounds.</Text>
         <Text style={[styles.li, { color: theme.textSecondary }]}>To send you push notifications you have opted into (e.g., when a rating round starts).</Text>
         <Text style={[styles.li, { color: theme.textSecondary }]}>To extract wine details from label photos using AI.</Text>
+        <Text style={[styles.li, { color: theme.textSecondary }]}>To verify you are of legal drinking age.</Text>
         <Text style={[styles.li, { color: theme.textSecondary }]}>To display anonymized aggregate ratings to event participants.</Text>
         <Text style={[styles.li, { color: theme.textSecondary }]}>To improve the Service and fix bugs.</Text>
       </View>
@@ -51,7 +55,7 @@ export default function PrivacyScreen() {
       </Text>
       <View style={styles.ul}>
         <Text style={[styles.li, { color: theme.textSecondary }]}>
-          <Text style={styles.bold}>Within events.</Text> Other members of an event you join can see your display name and the wines you brought. Ratings are anonymous — other members see aggregate scores but not who rated what.
+          <Text style={styles.bold}>Within events.</Text> Other members of an event you join can see your display name and the wines you brought. Your birthday, phone number, location, and wine experience level are not visible to other users. Ratings are anonymous — other members see aggregate scores but not who rated what.
         </Text>
         <Text style={[styles.li, { color: theme.textSecondary }]}>
           <Text style={styles.bold}>Service providers.</Text> We use Supabase (database and authentication), Expo (push notifications), third-party AI services (label extraction), Sentry (error monitoring), and PostHog (product analytics). These providers process data on our behalf under their own privacy policies. PostHog analytics captures anonymised usage events (e.g. "event created", "wine rated") — no personal identifiers such as email, name, or wine notes are included in these events.
@@ -68,7 +72,7 @@ export default function PrivacyScreen() {
 
       <Text style={[styles.h2, { color: theme.text }]}>5. Your Rights</Text>
       <View style={styles.ul}>
-        <Text style={[styles.li, { color: theme.textSecondary }]}>Update your display name and preferences in the Profile tab.</Text>
+        <Text style={[styles.li, { color: theme.textSecondary }]}>Update your name, phone number, location, and wine experience level in the Profile tab.</Text>
         <Text style={[styles.li, { color: theme.textSecondary }]}>Delete wines you have added.</Text>
         <Text style={[styles.li, { color: theme.textSecondary }]}>Request deletion of your account and all associated data by contacting us at the email below.</Text>
       </View>

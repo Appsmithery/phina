@@ -138,9 +138,9 @@ function SupabaseLayout() {
         processedUrl = url;
         const session = await createSessionFromUrl(url);
         if (session) {
-          console.log("[deep-link] ✅ Session created, navigating to tabs");
+          console.log("[deep-link] ✅ Session created, navigating to root guard");
           setSessionFromAuth(session);
-          router.replace("/(tabs)");
+          router.replace("/");
         } else {
           console.error("[deep-link] ❌ createSessionFromUrl returned null");
         }
@@ -207,6 +207,7 @@ function SupabaseLayout() {
       <Stack.Screen name="wine/[wineId]/index" />
       <Stack.Screen name="wine/[wineId]/edit" />
       <Stack.Screen name="wine/[wineId]/rate" />
+      <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="privacy" />
       <Stack.Screen name="terms" />
     </Stack>

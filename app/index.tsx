@@ -3,7 +3,7 @@ import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
 import { Redirect } from "expo-router";
 import { useSupabase } from "@/lib/supabase-context";
 import { supabase } from "@/lib/supabase";
-import { getPendingJoinEventId, clearPendingJoinEventId } from "@/lib/pending-join";
+import { getPendingJoinEventId, clearPendingJoinEventId, setPendingJoinEventId } from "@/lib/pending-join";
 
 const loadingStyles = StyleSheet.create({
   container: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" },
@@ -66,18 +66,25 @@ export default function Index() {
     );
   }
 
-  if (session && pendingJoinId) {
-    return <Redirect href={`/join/${pendingJoinId}`} />;
-  }
-
   if (session && !pendingJoinCheckDone) {
     return null;
   }
 
-  if (session) {
-    if (member && !member.name?.trim()) {
-      return <Redirect href="/(tabs)/profile" />;
+  // Onboarding takes priority — must complete profile before anything else.
+  // The onboarding screen checks for pending join IDs after submission.
+  if (session && member && !member.profile_complete) {
+    // Stash the pending join ID back so onboarding can use it after completion
+    if (pendingJoinId) {
+      setPendingJoinEventId(pendingJoinId);
     }
+    return <Redirect href="/onboarding" />;
+  }
+
+  if (session && pendingJoinId) {
+    return <Redirect href={`/join/${pendingJoinId}`} />;
+  }
+
+  if (session) {
     return <Redirect href="/(tabs)" />;
   }
 

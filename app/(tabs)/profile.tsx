@@ -23,8 +23,11 @@ export default function ProfileScreen() {
 
   // Personal Info edit mode
   const [editingInfo, setEditingInfo] = useState(false);
-  const [name, setName] = useState(member?.name ?? "");
+  const [firstName, setFirstName] = useState(member?.first_name ?? "");
+  const [lastName, setLastName] = useState(member?.last_name ?? "");
   const [phone, setPhone] = useState(member?.phone ?? "");
+  const [location, setLocation] = useState(member?.location ?? "");
+  const [wineExperience, setWineExperience] = useState<string | null>(member?.wine_experience ?? null);
   const [saving, setSaving] = useState(false);
 
   // Change password (collapsible inline form)
@@ -35,9 +38,12 @@ export default function ProfileScreen() {
   const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
-    setName(member?.name ?? "");
+    setFirstName(member?.first_name ?? "");
+    setLastName(member?.last_name ?? "");
     setPhone(member?.phone ?? "");
-  }, [member?.name, member?.phone]);
+    setLocation(member?.location ?? "");
+    setWineExperience(member?.wine_experience ?? null);
+  }, [member?.first_name, member?.last_name, member?.phone, member?.location, member?.wine_experience]);
 
   const { data: ownRatings = [] } = useQuery({
     queryKey: ["profile", "ratings", member?.id],
@@ -162,14 +168,20 @@ export default function ProfileScreen() {
     if (!session?.user?.id) return;
     setSaving(true);
     try {
+      const trimmedFirst = firstName.trim();
+      const trimmedLast = lastName.trim();
       const { error } = await supabase
         .from("members")
         .upsert(
           {
             id: session.user.id,
             email: session.user.email!,
-            name: name.trim() || null,
+            first_name: trimmedFirst || null,
+            last_name: trimmedLast || null,
             phone: phone.trim() || null,
+            location: location.trim() || null,
+            wine_experience: wineExperience as any,
+            profile_complete: true,
           },
           { onConflict: "id" }
         );
@@ -412,8 +424,11 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             ) : (
               <TouchableOpacity onPress={() => {
-                setName(member?.name ?? "");
+                setFirstName(member?.first_name ?? "");
+                setLastName(member?.last_name ?? "");
                 setPhone(member?.phone ?? "");
+                setLocation(member?.location ?? "");
+                setWineExperience(member?.wine_experience ?? null);
                 setEditingInfo(false);
               }}>
                 <Text style={[styles.cancelText, { color: theme.textSecondary }]}>Cancel</Text>
@@ -425,19 +440,47 @@ export default function ProfileScreen() {
           <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Email</Text>
           <Text style={[styles.infoValue, { color: theme.text }]}>{session?.user?.email ?? "—"}</Text>
 
-          {/* Name */}
-          <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Name</Text>
+          {/* First Name */}
+          <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>First name</Text>
           {editingInfo ? (
             <TextInput
               style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-              value={name}
-              onChangeText={setName}
-              placeholder="Your name"
+              value={firstName}
+              onChangeText={setFirstName}
+              placeholder="First name"
               placeholderTextColor={theme.textMuted}
+              autoCapitalize="words"
             />
           ) : (
-            <Text style={[styles.infoValue, { color: theme.text }]}>{member?.name || "—"}</Text>
+            <Text style={[styles.infoValue, { color: theme.text }]}>{member?.first_name || "—"}</Text>
           )}
+
+          {/* Last Name */}
+          <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Last name</Text>
+          {editingInfo ? (
+            <TextInput
+              style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+              value={lastName}
+              onChangeText={setLastName}
+              placeholder="Last name"
+              placeholderTextColor={theme.textMuted}
+              autoCapitalize="words"
+            />
+          ) : (
+            <Text style={[styles.infoValue, { color: theme.text }]}>{member?.last_name || "—"}</Text>
+          )}
+
+          {/* Birthday (read-only) */}
+          <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Birthday</Text>
+          <Text style={[styles.infoValue, { color: theme.text }]}>
+            {member?.birthday
+              ? new Date(member.birthday + "T00:00:00").toLocaleDateString("en-US", {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              : "—"}
+          </Text>
 
           {/* Phone */}
           <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Phone</Text>
@@ -452,6 +495,53 @@ export default function ProfileScreen() {
             />
           ) : (
             <Text style={[styles.infoValue, { color: theme.text }]}>{member?.phone || "—"}</Text>
+          )}
+
+          {/* Location */}
+          <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Location</Text>
+          {editingInfo ? (
+            <TextInput
+              style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+              value={location}
+              onChangeText={setLocation}
+              placeholder="City, State or Zip"
+              placeholderTextColor={theme.textMuted}
+            />
+          ) : (
+            <Text style={[styles.infoValue, { color: theme.text }]}>{member?.location || "—"}</Text>
+          )}
+
+          {/* Wine Experience */}
+          <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Wine experience</Text>
+          {editingInfo ? (
+            <View style={styles.profilePillRow}>
+              {(["beginner", "intermediate", "advanced", "professional"] as const).map((level) => {
+                const selected = wineExperience === level;
+                return (
+                  <TouchableOpacity
+                    key={level}
+                    style={[
+                      styles.profilePill,
+                      {
+                        backgroundColor: selected ? theme.primary : theme.background,
+                        borderColor: selected ? theme.primary : theme.border,
+                      },
+                    ]}
+                    onPress={() => setWineExperience(selected ? null : level)}
+                  >
+                    <Text style={[styles.profilePillText, { color: selected ? "#fff" : theme.textSecondary }]}>
+                      {level.charAt(0).toUpperCase() + level.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={[styles.infoValue, { color: theme.text }]}>
+              {member?.wine_experience
+                ? member.wine_experience.charAt(0).toUpperCase() + member.wine_experience.slice(1)
+                : "—"}
+            </Text>
           )}
 
           {/* Save button (edit mode only) */}
@@ -651,6 +741,9 @@ const styles = StyleSheet.create({
   pwToggleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   pwToggleText: { fontFamily: "Montserrat_400Regular", fontSize: 15 },
   pwForm: { marginTop: 16 },
+  profilePillRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
+  profilePill: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+  profilePillText: { fontSize: 13, fontFamily: "Montserrat_600SemiBold" },
   header: {
     paddingHorizontal: 16,
     paddingTop: 16,
