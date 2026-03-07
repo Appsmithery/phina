@@ -21,6 +21,12 @@ const DONATION_LINKS: Record<number, string> = {
   1000: "https://buy.stripe.com/aFaeVfbZNeyr21QdcK4ZG02",
 };
 
+function isMissingMembersColumnError(error: unknown, column: string): boolean {
+  if (!error || typeof error !== "object") return false;
+  const maybeMessage = "message" in error ? error.message : null;
+  return typeof maybeMessage === "string" && maybeMessage.includes(`'${column}' column of 'members'`);
+}
+
 export default function ProfileScreen() {
   const { member, session, refreshMember } = useSupabase();
   const theme = useTheme();
@@ -205,27 +211,40 @@ export default function ProfileScreen() {
     try {
       const trimmedFirst = firstName.trim();
       const trimmedLast = lastName.trim();
-      const profileUpdate: Database["public"]["Tables"]["members"]["Update"] = {
+      const baseProfileUpdate: Database["public"]["Tables"]["members"]["Update"] = {
         first_name: trimmedFirst || null,
         last_name: trimmedLast || null,
         birthday: birthday ? formatBirthdayForStorage(birthday) : null,
         phone: phoneDigits || null,
-        city: city.trim() || null,
-        state: stateCode,
         wine_experience: wineExperience as Database["public"]["Tables"]["members"]["Update"]["wine_experience"],
         profile_complete: true,
+      };
+      const optionalProfileFields: Pick<Database["public"]["Tables"]["members"]["Update"], "city" | "state"> = {
+        city: city.trim() || null,
+        state: stateCode,
       };
 
       if (trimmedEmail && trimmedEmail !== session.user.email) {
         const { error: emailError } = await supabase.auth.updateUser({ email: trimmedEmail });
         if (emailError) throw emailError;
-        profileUpdate.email = trimmedEmail;
+        baseProfileUpdate.email = trimmedEmail;
       }
 
-      const { error } = await supabase
+      let profileUpdate: Database["public"]["Tables"]["members"]["Update"] = {
+        ...baseProfileUpdate,
+        ...optionalProfileFields,
+      };
+
+      let { error } = await supabase
         .from("members")
         .update(profileUpdate)
         .eq("id", session.user.id);
+      if (error && isMissingMembersColumnError(error, "city")) {
+        console.warn("[profile] members.city missing in live schema, retrying without city/state", error);
+        profileUpdate = baseProfileUpdate;
+        const retry = await supabase.from("members").update(profileUpdate).eq("id", session.user.id);
+        error = retry.error;
+      }
       if (error) throw error;
 
       if (trimmedEmail && trimmedEmail !== session.user.email) {
