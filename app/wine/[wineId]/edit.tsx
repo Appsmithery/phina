@@ -19,6 +19,7 @@ import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
 import { takeLastLabelExtraction, type WineAttributes } from "@/lib/last-label-extraction";
+import { generateBottleImage } from "@/lib/image-generation";
 import type { Wine } from "@/types/database";
 
 // expo-image-picker works on native only; conditionally import
@@ -38,6 +39,71 @@ const COLOR_OPTIONS: { label: string; value: "red" | "white" | "skin-contact" | 
   { label: "White", value: "white" },
   { label: "Rose / Orange", value: "skin-contact" },
 ];
+
+function enhanceBottleImageInBackground({
+  wineId,
+  memberId,
+  eventId,
+  rawImageUrl,
+  producer,
+  varietal,
+  vintage,
+  region,
+  color,
+  isSparkling,
+  queryClient,
+}: {
+  wineId: string;
+  memberId: string;
+  eventId: string | null;
+  rawImageUrl: string;
+  producer: string | null;
+  varietal: string | null;
+  vintage: number | null;
+  region: string | null;
+  color: "red" | "white" | "skin-contact" | null;
+  isSparkling: boolean;
+  queryClient: ReturnType<typeof useQueryClient>;
+}): void {
+  (async () => {
+    try {
+      const result = await generateBottleImage(wineId, rawImageUrl, {
+        producer,
+        varietal,
+        vintage,
+        region,
+        color,
+        is_sparkling: isSparkling,
+      });
+      const { error: patchError } = await supabase
+        .from("wines")
+        .update({
+          display_photo_url: result.display_photo_url ?? rawImageUrl,
+          image_confidence_score: result.confidence_score,
+          image_generation_status: result.generation_status,
+          image_generation_metadata: result.metadata ?? null,
+        })
+        .eq("id", wineId);
+      if (patchError) throw patchError;
+    } catch {
+      await supabase
+        .from("wines")
+        .update({
+          display_photo_url: rawImageUrl,
+          image_confidence_score: 0,
+          image_generation_status: "failed",
+          image_generation_metadata: null,
+        })
+        .eq("id", wineId);
+    } finally {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["wine", wineId] }),
+        queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", memberId] }),
+        ...(eventId ? [queryClient.invalidateQueries({ queryKey: ["wines", eventId] })] : []),
+      ]);
+    }
+  })();
+}
 
 export default function EditWineScreen() {
   const { wineId } = useLocalSearchParams<{ wineId: string }>();
@@ -190,7 +256,7 @@ export default function EditWineScreen() {
   );
 
   const save = async () => {
-    if (!wineId || !member?.id) return;
+    if (!wineId || !member?.id || !wine) return;
     if (
       !producer.trim() &&
       !varietal.trim() &&
@@ -205,30 +271,62 @@ export default function EditWineScreen() {
     }
     setLoading(true);
     try {
+      const currentWine = wine;
+      const trimmedProducer = producer.trim() || null;
+      const trimmedVarietal = varietal.trim() || null;
+      const parsedVintage = vintage ? parseInt(vintage, 10) : null;
+      const trimmedRegion = region.trim() || null;
+      const trimmedAiSummary = aiSummary.trim() || null;
+      const trimmedAiGeography = aiGeography.trim() || null;
+      const trimmedAiProduction = aiProduction.trim() || null;
+      const trimmedAiTastingNotes = aiTastingNotes.trim() || null;
+      const trimmedAiPairings = aiPairings.trim() || null;
+      const nextLabelPhotoUrl = localPhotoUrl ?? null;
+      const photoChanged = nextLabelPhotoUrl !== (currentWine.label_photo_url ?? null);
       const { error } = await supabase
         .from("wines")
         .update({
-          producer: producer.trim() || null,
-          varietal: varietal.trim() || null,
-          vintage: vintage ? parseInt(vintage, 10) : null,
-          region: region.trim() || null,
-          ai_summary: aiSummary.trim() || null,
+          producer: trimmedProducer,
+          varietal: trimmedVarietal,
+          vintage: parsedVintage,
+          region: trimmedRegion,
+          ai_summary: trimmedAiSummary,
           quantity,
           color,
           is_sparkling: isSparkling,
-          ai_geography: aiGeography.trim() || null,
-          ai_production: aiProduction.trim() || null,
-          ai_tasting_notes: aiTastingNotes.trim() || null,
-          ai_pairings: aiPairings.trim() || null,
+          label_photo_url: nextLabelPhotoUrl,
+          display_photo_url: photoChanged ? null : currentWine.display_photo_url,
+          image_confidence_score: photoChanged ? null : currentWine.image_confidence_score,
+          image_generation_status: photoChanged ? "pending" : currentWine.image_generation_status,
+          image_generation_metadata: photoChanged ? null : currentWine.image_generation_metadata,
+          ai_geography: trimmedAiGeography,
+          ai_production: trimmedAiProduction,
+          ai_tasting_notes: trimmedAiTastingNotes,
+          ai_pairings: trimmedAiPairings,
           wine_attributes: wineAttributes,
         })
         .eq("id", wineId);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["wine", wineId] });
-      if (wine?.event_id) {
-        queryClient.invalidateQueries({ queryKey: ["wines", wine.event_id] });
+      if (currentWine.event_id) {
+        queryClient.invalidateQueries({ queryKey: ["wines", currentWine.event_id] });
       }
       queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", member.id] });
+      if (photoChanged && nextLabelPhotoUrl) {
+        enhanceBottleImageInBackground({
+          wineId,
+          memberId: member.id,
+          eventId: currentWine.event_id ?? null,
+          rawImageUrl: nextLabelPhotoUrl,
+          producer: trimmedProducer,
+          varietal: trimmedVarietal,
+          vintage: parsedVintage,
+          region: trimmedRegion,
+          color,
+          isSparkling,
+          queryClient,
+        });
+      }
       router.back();
     } catch (e: unknown) {
       showAlert("Error", e instanceof Error ? e.message : "Could not save changes");
