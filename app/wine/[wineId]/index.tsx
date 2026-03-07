@@ -378,7 +378,11 @@ export default function PersonalWineDetailScreen() {
             onPress={() =>
               router.push({
                 pathname: "/scan-label",
-                params: { returnTo: `/wine/${wine.id}/edit` },
+                params: {
+                  returnTo: `/wine/${wine.id}`,
+                  scanMode: "apply_existing_wine",
+                  wineId: wine.id,
+                },
               })
             }
           >

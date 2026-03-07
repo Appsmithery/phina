@@ -19,7 +19,7 @@ import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
 import { takeLastLabelExtraction, type WineAttributes } from "@/lib/last-label-extraction";
-import { generateBottleImage } from "@/lib/image-generation";
+import { enhanceBottleImageInBackground } from "@/lib/bottle-image-background";
 import type { Wine } from "@/types/database";
 
 // expo-image-picker works on native only; conditionally import
@@ -39,71 +39,6 @@ const COLOR_OPTIONS: { label: string; value: "red" | "white" | "skin-contact" | 
   { label: "White", value: "white" },
   { label: "Rose / Orange", value: "skin-contact" },
 ];
-
-function enhanceBottleImageInBackground({
-  wineId,
-  memberId,
-  eventId,
-  rawImageUrl,
-  producer,
-  varietal,
-  vintage,
-  region,
-  color,
-  isSparkling,
-  queryClient,
-}: {
-  wineId: string;
-  memberId: string;
-  eventId: string | null;
-  rawImageUrl: string;
-  producer: string | null;
-  varietal: string | null;
-  vintage: number | null;
-  region: string | null;
-  color: "red" | "white" | "skin-contact" | null;
-  isSparkling: boolean;
-  queryClient: ReturnType<typeof useQueryClient>;
-}): void {
-  (async () => {
-    try {
-      const result = await generateBottleImage(wineId, rawImageUrl, {
-        producer,
-        varietal,
-        vintage,
-        region,
-        color,
-        is_sparkling: isSparkling,
-      });
-      const { error: patchError } = await supabase
-        .from("wines")
-        .update({
-          display_photo_url: result.display_photo_url ?? rawImageUrl,
-          image_confidence_score: result.confidence_score,
-          image_generation_status: result.generation_status,
-          image_generation_metadata: result.metadata ?? null,
-        })
-        .eq("id", wineId);
-      if (patchError) throw patchError;
-    } catch {
-      await supabase
-        .from("wines")
-        .update({
-          display_photo_url: rawImageUrl,
-          image_confidence_score: 0,
-          image_generation_status: "failed",
-          image_generation_metadata: null,
-        })
-        .eq("id", wineId);
-    } finally {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["wine", wineId] }),
-        queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", memberId] }),
-        ...(eventId ? [queryClient.invalidateQueries({ queryKey: ["wines", eventId] })] : []),
-      ]);
-    }
-  })();
-}
 
 export default function EditWineScreen() {
   const { wineId } = useLocalSearchParams<{ wineId: string }>();
@@ -318,12 +253,14 @@ export default function EditWineScreen() {
           memberId: member.id,
           eventId: currentWine.event_id ?? null,
           rawImageUrl: nextLabelPhotoUrl,
-          producer: trimmedProducer,
-          varietal: trimmedVarietal,
-          vintage: parsedVintage,
-          region: trimmedRegion,
-          color,
-          isSparkling,
+          extraction: {
+            producer: trimmedProducer,
+            varietal: trimmedVarietal,
+            vintage: parsedVintage,
+            region: trimmedRegion,
+            color,
+            is_sparkling: isSparkling,
+          },
           queryClient,
         });
       }
@@ -408,7 +345,7 @@ export default function EditWineScreen() {
               onPress={() =>
                 router.push({
                   pathname: "/scan-label",
-                  params: { returnTo: `/wine/${wineId}/edit` },
+                  params: { returnTo: `/wine/${wineId}/edit`, scanMode: "prefill" },
                 })
               }
             >

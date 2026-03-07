@@ -19,7 +19,7 @@ export default function AddWineScreen() {
   };
 
   const onScan = () => {
-    router.push({ pathname: "/scan-label", params: { returnTo: "/add-wine" } });
+    router.push({ pathname: "/scan-label", params: { returnTo: "/add-wine", scanMode: "prefill" } });
   };
 
   if (!sessionLoaded) {

@@ -23,7 +23,10 @@ export default function EventAddWineScreen() {
 
   const onScan = () => {
     if (eventId) {
-      router.push({ pathname: "/scan-label", params: { returnTo: `/event/${eventId}/add-wine` } });
+      router.push({
+        pathname: "/scan-label",
+        params: { returnTo: `/event/${eventId}/add-wine`, scanMode: "prefill" },
+      });
     }
   };
 

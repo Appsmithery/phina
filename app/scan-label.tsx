@@ -7,12 +7,16 @@ import {
   ActivityIndicator,
   Platform,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
 import { setLastLabelExtraction, type WineAttributes } from "@/lib/last-label-extraction";
+import { enhanceBottleImageInBackground } from "@/lib/bottle-image-background";
 import { trackEvent, captureError } from "@/lib/observability";
+import type { Database } from "@/types/database";
 
 // expo-camera is native-only; skip import on web to avoid bundler errors
 type CameraViewType = import("expo-camera").CameraView;
@@ -84,29 +88,41 @@ type ExtractionResult = {
   wine_attributes?: WineAttributes | null;
 };
 
-/** Calls extract-wine-label, stores the extracted values in memory, then returns to add-wine. */
-async function extractLabel(imagePayload: string): Promise<void> {
-  const { data, error } = await supabase.functions.invoke("extract-wine-label", {
-    body: { image: imagePayload },
-  });
-  const err = (data as { error?: string })?.error;
-  if (err) throw new Error(err);
-  if (error) {
-    const message = await getEdgeFunctionErrorMessage(error, data);
-    throw new Error(message);
-  }
-  const extracted = data as ExtractionResult;
+type ScanMode = "prefill" | "apply_existing_wine";
+
+type NormalizedExtraction = {
+  producer: string | null;
+  varietal: string | null;
+  vintage: number | null;
+  region: string | null;
+  ai_summary: string | null;
+  label_photo_url: string | null;
+  display_photo_url: null;
+  image_confidence_score: null;
+  image_generation_status: null;
+  image_generation_metadata: null;
+  color: "red" | "white" | "skin-contact" | null;
+  is_sparkling: boolean | null;
+  ai_geography: string | null;
+  ai_production: string | null;
+  ai_tasting_notes: string | null;
+  ai_pairings: string | null;
+  drink_from: number | null;
+  drink_until: number | null;
+  wine_attributes: WineAttributes | null;
+};
+
+function normalizeExtraction(extracted: ExtractionResult): NormalizedExtraction {
   const color = extracted.color ?? null;
   const normalizedColor = color === "red" || color === "white" || color === "skin-contact" ? color : null;
-  const labelPhotoUrl = extracted.label_photo_url ?? null;
 
-  setLastLabelExtraction({
+  return {
     producer: extracted.producer ?? null,
     varietal: extracted.varietal ?? null,
     vintage: extracted.vintage ?? null,
     region: extracted.region ?? null,
     ai_summary: extracted.ai_summary ?? null,
-    label_photo_url: labelPhotoUrl,
+    label_photo_url: extracted.label_photo_url ?? null,
     display_photo_url: null,
     image_confidence_score: null,
     image_generation_status: null,
@@ -120,8 +136,27 @@ async function extractLabel(imagePayload: string): Promise<void> {
     drink_from: extracted.drink_from ?? null,
     drink_until: extracted.drink_until ?? null,
     wine_attributes: extracted.wine_attributes ?? null,
+  };
+}
+
+async function extractLabel(imagePayload: string): Promise<NormalizedExtraction> {
+  const { data, error } = await supabase.functions.invoke("extract-wine-label", {
+    body: { image: imagePayload },
   });
-  trackEvent("label_scanned", { platform: Platform.OS });
+  const err = (data as { error?: string })?.error;
+  if (err) throw new Error(err);
+  if (error) {
+    const message = await getEdgeFunctionErrorMessage(error, data);
+    throw new Error(message);
+  }
+  return normalizeExtraction(data as ExtractionResult);
+}
+
+function navigateAfterScan(returnTo: string | undefined): void {
+  if (returnTo) {
+    router.replace(returnTo);
+    return;
+  }
   router.back();
 }
 
@@ -135,10 +170,94 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export default function SharedScanLabelScreen() {
+  const params = useLocalSearchParams<{ returnTo?: string; scanMode?: ScanMode; wineId?: string }>();
+  const { member } = useSupabase();
   const theme = useTheme();
+  const queryClient = useQueryClient();
   const [extracting, setExtracting] = useState(false);
   const [photoCaptured, setPhotoCaptured] = useState(false);
   const [loadingText, setLoadingText] = useState("Analyzing label...");
+  const scanMode = params.scanMode === "apply_existing_wine" ? "apply_existing_wine" : "prefill";
+  const returnTo = typeof params.returnTo === "string" ? params.returnTo : undefined;
+  const wineId = typeof params.wineId === "string" ? params.wineId : undefined;
+
+  const handleExtractedLabel = useCallback(
+    async (imagePayload: string) => {
+      const extracted = await extractLabel(imagePayload);
+      trackEvent("label_scanned", { platform: Platform.OS, scan_mode: scanMode });
+
+      if (scanMode === "prefill") {
+        setLastLabelExtraction(extracted);
+        navigateAfterScan(returnTo);
+        return;
+      }
+
+      if (!wineId) {
+        throw new Error("Missing wine ID for label update.");
+      }
+      if (!extracted.label_photo_url) {
+        throw new Error("The scanned label photo could not be saved. Please try again.");
+      }
+
+      const { data: existingWine, error: fetchError } = await supabase
+        .from("wines")
+        .select("*")
+        .eq("id", wineId)
+        .single();
+      if (fetchError) throw fetchError;
+
+      const wine = existingWine as Database["public"]["Tables"]["wines"]["Row"];
+      const updatedWine: Database["public"]["Tables"]["wines"]["Update"] = {
+        producer: extracted.producer ?? wine.producer,
+        varietal: extracted.varietal ?? wine.varietal,
+        vintage: extracted.vintage ?? wine.vintage,
+        region: extracted.region ?? wine.region,
+        ai_summary: extracted.ai_summary ?? wine.ai_summary,
+        label_photo_url: extracted.label_photo_url,
+        display_photo_url: null,
+        image_confidence_score: null,
+        image_generation_status: "pending",
+        image_generation_metadata: null,
+        color: extracted.color ?? wine.color,
+        is_sparkling: extracted.is_sparkling ?? wine.is_sparkling,
+        ai_geography: extracted.ai_geography ?? wine.ai_geography,
+        ai_production: extracted.ai_production ?? wine.ai_production,
+        ai_tasting_notes: extracted.ai_tasting_notes ?? wine.ai_tasting_notes,
+        ai_pairings: extracted.ai_pairings ?? wine.ai_pairings,
+        drink_from: extracted.drink_from ?? wine.drink_from,
+        drink_until: extracted.drink_until ?? wine.drink_until,
+        wine_attributes: extracted.wine_attributes ?? wine.wine_attributes,
+      };
+
+      const { error: updateError } = await supabase.from("wines").update(updatedWine).eq("id", wineId);
+      if (updateError) throw updateError;
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["wine", wineId] }),
+        queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", member?.id ?? wine.brought_by] }),
+        ...(wine.event_id ? [queryClient.invalidateQueries({ queryKey: ["wines", wine.event_id] })] : []),
+      ]);
+
+      enhanceBottleImageInBackground({
+        wineId,
+        memberId: member?.id ?? wine.brought_by,
+        eventId: wine.event_id,
+        rawImageUrl: extracted.label_photo_url,
+        extraction: {
+          producer: updatedWine.producer ?? null,
+          varietal: updatedWine.varietal ?? null,
+          vintage: updatedWine.vintage ?? null,
+          region: updatedWine.region ?? null,
+          color: updatedWine.color ?? null,
+          is_sparkling: updatedWine.is_sparkling ?? false,
+        },
+        queryClient,
+      });
+
+      navigateAfterScan(returnTo ?? `/wine/${wineId}`);
+    },
+    [member?.id, queryClient, returnTo, scanMode, wineId]
+  );
 
   if (Platform.OS === "web") {
     return (
@@ -148,6 +267,7 @@ export default function SharedScanLabelScreen() {
         setExtracting={setExtracting}
         loadingText={loadingText}
         setLoadingText={setLoadingText}
+        onExtractLabel={handleExtractedLabel}
       />
     );
   }
@@ -161,6 +281,7 @@ export default function SharedScanLabelScreen() {
       setPhotoCaptured={setPhotoCaptured}
       loadingText={loadingText}
       setLoadingText={setLoadingText}
+      onExtractLabel={handleExtractedLabel}
     />
   );
 }
@@ -171,12 +292,14 @@ function WebScanLabel({
   setExtracting,
   loadingText,
   setLoadingText,
+  onExtractLabel,
 }: {
   theme: ReturnType<typeof useTheme>;
   extracting: boolean;
   setExtracting: (v: boolean) => void;
   loadingText: string;
   setLoadingText: (v: string) => void;
+  onExtractLabel: (imagePayload: string) => Promise<void>;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -188,7 +311,7 @@ function WebScanLabel({
       setLoadingText("Analyzing label...");
       try {
         const dataUrl = await fileToBase64(file);
-        await extractLabel(dataUrl);
+        await onExtractLabel(dataUrl);
       } catch (err) {
         captureError(err);
         trackEvent("label_scan_error");
@@ -199,7 +322,7 @@ function WebScanLabel({
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
     },
-    [setExtracting, setLoadingText]
+    [onExtractLabel, setExtracting, setLoadingText]
   );
 
   if (extracting) {
@@ -247,6 +370,7 @@ function NativeScanLabel({
   setPhotoCaptured,
   loadingText,
   setLoadingText,
+  onExtractLabel,
 }: {
   theme: ReturnType<typeof useTheme>;
   extracting: boolean;
@@ -255,6 +379,7 @@ function NativeScanLabel({
   setPhotoCaptured: (v: boolean) => void;
   loadingText: string;
   setLoadingText: (v: string) => void;
+  onExtractLabel: (imagePayload: string) => Promise<void>;
 }) {
   const [permission, requestPermission] = useCameraPermissions!();
   const [cameraReady, setCameraReady] = useState(false);
@@ -287,7 +412,7 @@ function NativeScanLabel({
       setPhotoCaptured(true);
 
       const imagePayload = `data:image/jpeg;base64,${photo.base64}`;
-      await extractLabel(imagePayload);
+      await onExtractLabel(imagePayload);
     } catch (e) {
       captureError(e);
       trackEvent("label_scan_error");
