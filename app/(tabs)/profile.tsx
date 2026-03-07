@@ -130,7 +130,7 @@ export default function ProfileScreen() {
       colorToNum,
     );
 
-    const ALL_TAGS = ["minerality", "fruit", "spice", "tannic"] as const;
+    const ALL_TAGS = ["minerality", "fruit", "spice", "tannic", "oak", "floral"] as const;
     const tagScores: Record<string, number> = {};
     for (const r of ownRatings) {
       const w = PREF_WEIGHT[r.value] ?? 0;
