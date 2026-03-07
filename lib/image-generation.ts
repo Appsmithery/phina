@@ -14,6 +14,13 @@ export interface BottleImageResult {
     prompt_version: string;
     latency_ms: number;
     issues?: string[];
+    timings_ms?: Record<string, number>;
+    image_generation_attempts?: Array<{
+      model_id: string;
+      latency_ms: number;
+      retryable: boolean;
+      message: string;
+    }>;
   };
 }
 
@@ -22,6 +29,7 @@ export async function generateBottleImage(
   rawImageUrl: string,
   extraction: Pick<WineExtraction, "producer" | "varietal" | "vintage" | "region" | "color" | "is_sparkling">
 ): Promise<BottleImageResult> {
+  const invokeStartMs = Date.now();
   try {
     const { data, error } = await supabase.functions.invoke("generate-bottle-image", {
       body: {
@@ -39,11 +47,23 @@ export async function generateBottleImage(
     });
 
     if (error) {
-      console.warn("[image-generation] edge function error:", error);
+      console.warn("[image-generation] edge function error:", {
+        wineId,
+        invoke_ms: Date.now() - invokeStartMs,
+        error,
+      });
       return { display_photo_url: rawImageUrl, confidence_score: 0, generation_status: "failed" };
     }
 
     const result = data as BottleImageResult;
+    if (__DEV__) {
+      console.log("[image-generation] invoke timing", {
+        wineId,
+        invoke_ms: Date.now() - invokeStartMs,
+        generation_status: result?.generation_status ?? "failed",
+        metadata: result?.metadata,
+      });
+    }
     return {
       display_photo_url: result?.display_photo_url ?? rawImageUrl,
       confidence_score: result?.confidence_score ?? 0,
@@ -51,7 +71,11 @@ export async function generateBottleImage(
       metadata: result?.metadata,
     };
   } catch (e) {
-    console.warn("[image-generation] unexpected error:", e);
+    console.warn("[image-generation] unexpected error:", {
+      wineId,
+      invoke_ms: Date.now() - invokeStartMs,
+      error: e,
+    });
     return { display_photo_url: rawImageUrl, confidence_score: 0, generation_status: "failed" };
   }
 }

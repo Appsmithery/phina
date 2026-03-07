@@ -106,6 +106,13 @@ interface GenerateResult {
     prompt_version: string;
     latency_ms: number;
     issues?: string[];
+    timings_ms?: Record<string, number>;
+    image_generation_attempts?: Array<{
+      model_id: string;
+      latency_ms: number;
+      retryable: boolean;
+      message: string;
+    }>;
   };
 }
 
@@ -119,6 +126,7 @@ interface ImageGenerationAttempt {
   modelId: string;
   message: string;
   retryable: boolean;
+  latencyMs: number;
 }
 
 interface SupabaseStorageClient {
@@ -273,11 +281,13 @@ async function generateImageWithFallback(
       modelId: IMAGE_MODELS[0],
       message,
       retryable: false,
+      latencyMs: 0,
     });
     return { image: null, attempts };
   }
 
   for (const modelId of IMAGE_MODELS) {
+    const attemptStartMs = Date.now();
     try {
       const image = await geminiGenerateImageForModel(apiKey, modelId, imageBase64, prompt);
       return { image, attempts };
@@ -287,10 +297,11 @@ async function generateImageWithFallback(
         modelId,
         message: error.message,
         retryable: error.retryable === true,
+        latencyMs: Date.now() - attemptStartMs,
       };
       attempts.push(attempt);
       console.warn(
-        `generate-bottle-image: image generation failed for model=${modelId} retryable=${attempt.retryable}`,
+        `generate-bottle-image: image generation failed for model=${modelId} retryable=${attempt.retryable} latency=${attempt.latencyMs}ms`,
         error.message
       );
       if (!attempt.retryable) break;
@@ -530,7 +541,9 @@ function buildFallbackResult(
   confidenceScore: number,
   startMs: number,
   modelId: string,
-  issues?: string[]
+  issues?: string[],
+  timingsMs?: Record<string, number>,
+  attempts?: ImageGenerationAttempt[]
 ): GenerateResult {
   return {
     display_photo_url: rawImageUrl,
@@ -542,6 +555,15 @@ function buildFallbackResult(
       prompt_version: PROMPT_VERSION,
       latency_ms: Date.now() - startMs,
       issues: issues?.length ? issues : undefined,
+      timings_ms: timingsMs && Object.keys(timingsMs).length ? timingsMs : undefined,
+      image_generation_attempts: attempts?.length
+        ? attempts.map((attempt) => ({
+            model_id: attempt.modelId,
+            latency_ms: attempt.latencyMs,
+            retryable: attempt.retryable,
+            message: attempt.message,
+          }))
+        : undefined,
     },
   };
 }
@@ -575,6 +597,7 @@ Deno.serve(async (req: Request) => {
 
   const startMs = Date.now();
   const { wine_id, raw_image_url, extraction_metadata } = body;
+  const timingsMs: Record<string, number> = {};
 
   try {
     // ── Step 1: Score raw scan quality ────────────────────────────────────────
@@ -582,7 +605,9 @@ Deno.serve(async (req: Request) => {
     let qualityIssues: string[] = [];
 
     try {
+      const qualityScoringStartMs = Date.now();
       const scoreText = await geminiVision(apiKey, raw_image_url, QUALITY_SCORING_PROMPT);
+      timingsMs.quality_scoring_ms = Date.now() - qualityScoringStartMs;
       const parsed = parseGeminiJson<{ score?: number; issues?: string[] }>(scoreText);
       if (!parsed) {
         throw new Error("Unable to parse quality scoring response as JSON");
@@ -590,6 +615,7 @@ Deno.serve(async (req: Request) => {
       if (typeof parsed.score === "number") confidenceScore = Math.max(0, Math.min(100, parsed.score));
       if (Array.isArray(parsed.issues)) qualityIssues = parsed.issues;
     } catch (e) {
+      timingsMs.quality_scoring_ms ??= 0;
       console.warn("generate-bottle-image: quality scoring failed, using default", e);
     }
 
@@ -597,6 +623,16 @@ Deno.serve(async (req: Request) => {
 
     // ── Step 2: Mode selection — fallback raw if confidence too low ───────────
     if (confidenceScore < 40) {
+      timingsMs.total_pipeline_ms = Date.now() - startMs;
+      console.log(
+        "generate-bottle-image: timing summary",
+        JSON.stringify({
+          wine_id,
+          generation_status: "fallback_raw",
+          model_id: VISION_MODEL,
+          timings_ms: timingsMs,
+        })
+      );
       const result: GenerateResult = {
         display_photo_url: raw_image_url,
         confidence_score: confidenceScore,
@@ -607,6 +643,7 @@ Deno.serve(async (req: Request) => {
           prompt_version: PROMPT_VERSION,
           latency_ms: Date.now() - startMs,
           issues: qualityIssues,
+          timings_ms: timingsMs,
         },
       };
       return jsonResponse(result);
@@ -619,52 +656,111 @@ Deno.serve(async (req: Request) => {
         ? RESTORATION_PROMPT
         : buildGenerationPrompt(extraction_metadata);
 
+    const imageGenerationStartMs = Date.now();
     const { image, attempts } = await generateImageWithFallback(apiKey, raw_image_url, prompt);
+    timingsMs.image_generation_ms = Date.now() - imageGenerationStartMs;
 
     if (!image) {
       const attemptedModelId = attempts.length ? attempts[attempts.length - 1].modelId : IMAGE_MODELS[0];
       console.warn("generate-bottle-image: all image models failed, falling back to raw");
+      timingsMs.total_pipeline_ms = Date.now() - startMs;
       await logError(wine_id, "image_model_generation_failed", {
         mode,
         confidence_score: confidenceScore,
         attempts,
+        timings_ms: timingsMs,
       });
+      console.log(
+        "generate-bottle-image: timing summary",
+        JSON.stringify({
+          wine_id,
+          generation_status: "fallback_raw",
+          model_id: attemptedModelId,
+          timings_ms: timingsMs,
+          attempts: attempts.map((attempt) => ({
+            model_id: attempt.modelId,
+            latency_ms: attempt.latencyMs,
+            retryable: attempt.retryable,
+          })),
+        })
+      );
       return jsonResponse<GenerateResult>(
-        buildFallbackResult(raw_image_url, confidenceScore, startMs, attemptedModelId, qualityIssues)
+        buildFallbackResult(raw_image_url, confidenceScore, startMs, attemptedModelId, qualityIssues, timingsMs, attempts)
       );
     }
 
     // ── Step 4: OCR validation ────────────────────────────────────────────────
+    const ocrValidationStartMs = Date.now();
     const ocrValid = await validateOcr(apiKey, image.bytes, image.mimeType, extraction_metadata);
+    timingsMs.ocr_validation_ms = Date.now() - ocrValidationStartMs;
     if (!ocrValid) {
       console.warn("generate-bottle-image: OCR validation failed, falling back to raw");
+      timingsMs.total_pipeline_ms = Date.now() - startMs;
       await logError(wine_id, "ocr_validation_failed", {
         mode,
         confidence_score: confidenceScore,
         model_id: image.modelId,
+        timings_ms: timingsMs,
       });
+      console.log(
+        "generate-bottle-image: timing summary",
+        JSON.stringify({
+          wine_id,
+          generation_status: "fallback_raw",
+          model_id: image.modelId,
+          timings_ms: timingsMs,
+        })
+      );
       return jsonResponse<GenerateResult>(
-        buildFallbackResult(raw_image_url, confidenceScore, startMs, image.modelId, qualityIssues)
+        buildFallbackResult(raw_image_url, confidenceScore, startMs, image.modelId, qualityIssues, timingsMs, attempts)
       );
     }
 
     // ── Step 5: Upload to storage ─────────────────────────────────────────────
+    const uploadStartMs = Date.now();
     const displayPhotoUrl = await uploadDisplayPhoto(image.bytes, image.mimeType);
+    timingsMs.upload_ms = Date.now() - uploadStartMs;
     if (!displayPhotoUrl) {
       console.warn("generate-bottle-image: upload failed, falling back to raw");
+      timingsMs.total_pipeline_ms = Date.now() - startMs;
       await logError(wine_id, "upload_failed", {
         mode,
         confidence_score: confidenceScore,
         model_id: image.modelId,
         mime_type: image.mimeType,
+        timings_ms: timingsMs,
       });
+      console.log(
+        "generate-bottle-image: timing summary",
+        JSON.stringify({
+          wine_id,
+          generation_status: "fallback_raw",
+          model_id: image.modelId,
+          timings_ms: timingsMs,
+        })
+      );
       return jsonResponse<GenerateResult>(
-        buildFallbackResult(raw_image_url, confidenceScore, startMs, image.modelId, qualityIssues)
+        buildFallbackResult(raw_image_url, confidenceScore, startMs, image.modelId, qualityIssues, timingsMs, attempts)
       );
     }
 
+    timingsMs.total_pipeline_ms = Date.now() - startMs;
     const latencyMs = Date.now() - startMs;
     console.log(`generate-bottle-image: success wine=${wine_id} mode=${mode} model=${image.modelId} latency=${latencyMs}ms`);
+    console.log(
+      "generate-bottle-image: timing summary",
+      JSON.stringify({
+        wine_id,
+        generation_status: "generated",
+        model_id: image.modelId,
+        timings_ms: timingsMs,
+        attempts: attempts.map((attempt) => ({
+          model_id: attempt.modelId,
+          latency_ms: attempt.latencyMs,
+          retryable: attempt.retryable,
+        })),
+      })
+    );
 
     return jsonResponse<GenerateResult>({
       display_photo_url: displayPhotoUrl,
@@ -676,13 +772,33 @@ Deno.serve(async (req: Request) => {
         prompt_version: PROMPT_VERSION,
         latency_ms: latencyMs,
         issues: qualityIssues.length ? qualityIssues : undefined,
+        timings_ms: timingsMs,
+        image_generation_attempts: attempts.length
+          ? attempts.map((attempt) => ({
+              model_id: attempt.modelId,
+              latency_ms: attempt.latencyMs,
+              retryable: attempt.retryable,
+              message: attempt.message,
+            }))
+          : undefined,
       },
     });
   } catch (e) {
     console.error("generate-bottle-image: unhandled error", e);
+    timingsMs.total_pipeline_ms = Date.now() - startMs;
     await logError(wine_id, "unhandled_error", {
       message: e instanceof Error ? e.message : String(e),
+      timings_ms: timingsMs,
     });
+    console.log(
+      "generate-bottle-image: timing summary",
+      JSON.stringify({
+        wine_id,
+        generation_status: "failed",
+        model_id: VISION_MODEL,
+        timings_ms: timingsMs,
+      })
+    );
     return jsonResponse<GenerateResult>({
       display_photo_url: raw_image_url,
       confidence_score: 0,
@@ -692,6 +808,7 @@ Deno.serve(async (req: Request) => {
         model_id: VISION_MODEL,
         prompt_version: PROMPT_VERSION,
         latency_ms: Date.now() - startMs,
+        timings_ms: timingsMs,
       },
     });
   }
