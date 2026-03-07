@@ -17,7 +17,8 @@ import { showAlert } from "@/lib/alert";
 import { getPendingJoinEventId, clearPendingJoinEventId } from "@/lib/pending-join";
 import { US_STATES, getStateLabel } from "@/lib/us-states";
 import { stripPhone, isValidPhone } from "@/lib/validation";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { BirthdayPickerField } from "@/components/BirthdayPickerField";
+import { formatBirthdayForStorage, getAge } from "@/lib/birthday";
 
 const EXPERIENCE_LEVELS = ["beginner", "intermediate", "advanced", "professional"] as const;
 
@@ -27,18 +28,6 @@ const EXPERIENCE_LABELS: Record<string, string> = {
   advanced: "Advanced",
   professional: "Professional",
 };
-
-function getAge(birthday: Date): number {
-  const today = new Date();
-  let age = today.getFullYear() - birthday.getFullYear();
-  const m = today.getMonth() - birthday.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birthday.getDate())) age--;
-  return age;
-}
-
-function formatDate(d: Date): string {
-  return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-}
 
 export default function OnboardingScreen() {
   const { session, refreshMember } = useSupabase();
@@ -53,9 +42,6 @@ export default function OnboardingScreen() {
   const [showStatePicker, setShowStatePicker] = useState(false);
   const [wineExperience, setWineExperience] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-
-  // Native date picker visibility
-  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const handleSubmit = async () => {
     if (!session?.user?.id) return;
@@ -87,7 +73,7 @@ export default function OnboardingScreen() {
 
     setSaving(true);
     try {
-      const birthdayStr = birthday.toISOString().split("T")[0]; // YYYY-MM-DD
+      const birthdayStr = formatBirthdayForStorage(birthday);
       const { error } = await supabase.from("members").upsert(
         {
           id: session.user.id,
@@ -119,15 +105,6 @@ export default function OnboardingScreen() {
       showAlert("Error", e instanceof Error ? e.message : "Could not save your profile.");
     } finally {
       setSaving(false);
-    }
-  };
-
-  // Web date input handler
-  const handleWebDateChange = (e: any) => {
-    const val = e?.target?.value || e?.nativeEvent?.text;
-    if (val) {
-      const d = new Date(val + "T00:00:00");
-      if (!isNaN(d.getTime())) setBirthday(d);
     }
   };
 
@@ -180,43 +157,13 @@ export default function OnboardingScreen() {
           <Text style={[styles.label, { color: theme.textSecondary }]}>
             Birthday <Text style={{ color: theme.primary }}>*</Text>
           </Text>
-          {Platform.OS === "web" ? (
-            <TextInput
-              style={[styles.input, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
-              placeholder="MM/DD/YYYY"
-              placeholderTextColor={theme.textMuted}
-              value={birthday ? birthday.toISOString().split("T")[0] : ""}
-              onChange={handleWebDateChange}
-              // @ts-expect-error -- web-only prop
-              type="date"
-            />
-          ) : (
-            <>
-              <TouchableOpacity
-                style={[styles.input, styles.dateButton, { backgroundColor: theme.surface, borderColor: theme.border }]}
-                onPress={() => setShowDatePicker(true)}
-              >
-                <Text style={{ color: birthday ? theme.text : theme.textMuted, fontFamily: "Montserrat_400Regular", fontSize: 16 }}>
-                  {birthday ? formatDate(birthday) : "Select your birthday"}
-                </Text>
-              </TouchableOpacity>
-              {showDatePicker && (
-                <DateTimePicker
-                  value={birthday ?? new Date(2000, 0, 1)}
-                  mode="date"
-                  display={Platform.OS === "ios" ? "spinner" : "default"}
-                  maximumDate={new Date()}
-                  onChange={(_event, selectedDate) => {
-                    setShowDatePicker(Platform.OS === "ios");
-                    if (selectedDate) setBirthday(selectedDate);
-                  }}
-                />
-              )}
-            </>
-          )}
-          <Text style={[styles.hint, { color: theme.textMuted }]}>
-            Used for age verification. Your birthday is kept private.
-          </Text>
+          <BirthdayPickerField
+            value={birthday}
+            onChange={setBirthday}
+            theme={theme}
+            backgroundColor={theme.surface}
+            hintText="Used for age verification. You must be at least 21, and your birthday is kept private."
+          />
 
           {/* Phone */}
           <Text style={[styles.label, { color: theme.textSecondary }]}>Phone (optional)</Text>
@@ -367,12 +314,6 @@ const styles = StyleSheet.create({
   },
   dateButton: {
     justifyContent: "center",
-  },
-  hint: {
-    fontSize: 12,
-    fontFamily: "Montserrat_400Regular",
-    marginTop: -10,
-    marginBottom: 16,
   },
   pillRow: {
     flexDirection: "row",

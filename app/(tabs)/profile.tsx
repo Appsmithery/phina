@@ -1,5 +1,4 @@
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Linking, Platform } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { LinearGradient } from "expo-linear-gradient";
 import { showAlert } from "@/lib/alert";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -12,6 +11,8 @@ import { supabase } from "@/lib/supabase";
 import { useQueryClient } from "@tanstack/react-query";
 import { US_STATES, getStateLabel } from "@/lib/us-states";
 import { stripPhone, isValidPhone, formatPhone, isValidEmail } from "@/lib/validation";
+import { BirthdayPickerField } from "@/components/BirthdayPickerField";
+import { formatBirthday, formatBirthdayForStorage, getAge, parseDateOnly } from "@/lib/birthday";
 
 const DONATION_LINKS: Record<number, string> = {
   100: "https://buy.stripe.com/8x214p9RF4XRbCq2y64ZG00",
@@ -34,9 +35,8 @@ export default function ProfileScreen() {
   const [showStatePicker, setShowStatePicker] = useState(false);
   const [wineExperience, setWineExperience] = useState<string | null>(member?.wine_experience ?? null);
   const [birthday, setBirthday] = useState<Date | null>(
-    member?.birthday ? new Date(member.birthday + "T00:00:00") : null,
+    parseDateOnly(member?.birthday),
   );
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [email, setEmail] = useState(session?.user?.email ?? "");
   const [saving, setSaving] = useState(false);
 
@@ -54,7 +54,7 @@ export default function ProfileScreen() {
     setCity(member?.city ?? "");
     setStateCode(member?.state ?? null);
     setWineExperience(member?.wine_experience ?? null);
-    setBirthday(member?.birthday ? new Date(member.birthday + "T00:00:00") : null);
+    setBirthday(parseDateOnly(member?.birthday));
     setEmail(session?.user?.email ?? "");
   }, [member?.first_name, member?.last_name, member?.phone, member?.city, member?.state, member?.wine_experience, member?.birthday, session?.user?.email]);
 
@@ -177,14 +177,6 @@ export default function ProfileScreen() {
     };
   }, [ownRatings, eventsCount, favoritesCount]);
 
-  function getAge(d: Date): number {
-    const today = new Date();
-    let age = today.getFullYear() - d.getFullYear();
-    const m = today.getMonth() - d.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
-    return age;
-  }
-
   const saveProfile = async () => {
     if (!session?.user?.id) return;
 
@@ -220,7 +212,7 @@ export default function ProfileScreen() {
             email: session.user.email!,
             first_name: trimmedFirst || null,
             last_name: trimmedLast || null,
-            birthday: birthday ? birthday.toISOString().split("T")[0] : null,
+            birthday: birthday ? formatBirthdayForStorage(birthday) : null,
             phone: phoneDigits || null,
             city: city.trim() || null,
             state: stateCode,
@@ -482,10 +474,9 @@ export default function ProfileScreen() {
                 setCity(member?.city ?? "");
                 setStateCode(member?.state ?? null);
                 setWineExperience(member?.wine_experience ?? null);
-                setBirthday(member?.birthday ? new Date(member.birthday + "T00:00:00") : null);
+                setBirthday(parseDateOnly(member?.birthday));
                 setEmail(session?.user?.email ?? "");
                 setShowStatePicker(false);
-                setShowDatePicker(false);
                 setEditingInfo(false);
               }}>
                 <Text style={[styles.cancelText, { color: theme.textSecondary }]}>Cancel</Text>
@@ -543,56 +534,17 @@ export default function ProfileScreen() {
           {/* Birthday */}
           <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Birthday</Text>
           {editingInfo ? (
-            Platform.OS === "web" ? (
-              <TextInput
-                style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-                placeholder="MM/DD/YYYY"
-                placeholderTextColor={theme.textMuted}
-                value={birthday ? birthday.toISOString().split("T")[0] : ""}
-                onChange={(e: any) => {
-                  const val = e?.target?.value || e?.nativeEvent?.text;
-                  if (val) {
-                    const d = new Date(val + "T00:00:00");
-                    if (!isNaN(d.getTime())) setBirthday(d);
-                  }
-                }}
-                // @ts-expect-error -- web-only prop
-                type="date"
-              />
-            ) : (
-              <>
-                <TouchableOpacity
-                  style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, justifyContent: "center" }]}
-                  onPress={() => setShowDatePicker(true)}
-                >
-                  <Text style={{ color: birthday ? theme.text : theme.textMuted, fontFamily: "Montserrat_400Regular", fontSize: 16 }}>
-                    {birthday
-                      ? birthday.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-                      : "Select your birthday"}
-                  </Text>
-                </TouchableOpacity>
-                {showDatePicker && (
-                  <DateTimePicker
-                    value={birthday ?? new Date(2000, 0, 1)}
-                    mode="date"
-                    display={Platform.OS === "ios" ? "spinner" : "default"}
-                    maximumDate={new Date()}
-                    onChange={(_event, selectedDate) => {
-                      setShowDatePicker(Platform.OS === "ios");
-                      if (selectedDate) setBirthday(selectedDate);
-                    }}
-                  />
-                )}
-              </>
-            )
+            <BirthdayPickerField
+              value={birthday}
+              onChange={setBirthday}
+              theme={theme}
+              backgroundColor={theme.background}
+              hintText="Used for age verification only. You must be at least 21 to use Phina."
+            />
           ) : (
             <Text style={[styles.infoValue, { color: theme.text }]}>
               {member?.birthday
-                ? new Date(member.birthday + "T00:00:00").toLocaleDateString("en-US", {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  })
+                ? formatBirthday(parseDateOnly(member.birthday) ?? new Date(member.birthday))
                 : "—"}
             </Text>
           )}
