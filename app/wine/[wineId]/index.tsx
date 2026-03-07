@@ -107,11 +107,11 @@ export default function PersonalWineDetailScreen() {
       contentContainerStyle={styles.content}
     >
       {(wine.display_photo_url ?? wine.label_photo_url) ? (
-        <View style={styles.heroContainer}>
+        <View style={[styles.heroContainer, { backgroundColor: theme.surface }]}>
           <Image
             source={{ uri: wine.display_photo_url ?? wine.label_photo_url ?? "" }}
             style={styles.photo}
-            resizeMode="cover"
+            resizeMode="contain"
             onError={wine.display_photo_url && wine.label_photo_url
               ? () => { /* fallback handled below via priority logic */ }
               : undefined}
@@ -375,8 +375,16 @@ export default function PersonalWineDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 16, paddingBottom: 32 },
-  heroContainer: { width: "100%", height: 280, marginBottom: 16, borderRadius: 14, overflow: "hidden" },
-  photo: { width: "100%", height: 280 },
+  heroContainer: {
+    width: "100%",
+    aspectRatio: 3 / 4,
+    marginBottom: 16,
+    borderRadius: 14,
+    overflow: "hidden",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  photo: { width: "100%", height: "100%" },
   enhancedBadge: {
     position: "absolute",
     bottom: 12,
