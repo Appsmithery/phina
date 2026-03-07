@@ -251,8 +251,8 @@ export default function EventDetailScreen() {
     );
   }
 
-  return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+  const listHeader = (
+    <>
       <Text style={[styles.title, { color: theme.text }]}>{event.title}</Text>
       <View style={styles.metaRow}>
         <View style={[styles.statusBadge, { backgroundColor: theme.primary + "20" }]}>
@@ -345,17 +345,23 @@ export default function EventDetailScreen() {
       </TouchableOpacity>
 
       <Text style={[styles.sectionTitle, { color: theme.text }]}>Wines</Text>
-      {wines.length === 0 ? (
+      {wines.length === 0 && (
         <View style={[styles.emptyWinesContainer, { borderColor: theme.border }]}>
           <Ionicons name="wine-outline" size={40} color={theme.textMuted} style={styles.emptyIcon} />
           <Text style={[styles.emptyTitle, { color: theme.text }]}>No wines added yet</Text>
           <Text style={[styles.emptySubtitle, { color: theme.textMuted }]}>Tap "Add wine" above to get started</Text>
         </View>
-      ) : (
-        <FlatList
-          data={wines}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item, index }) => {
+      )}
+    </>
+  );
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <FlatList
+        data={wines}
+        keyExtractor={(item) => item.id}
+        ListHeaderComponent={listHeader}
+        renderItem={({ item, index }) => {
             const activeRound = rounds.find((r) => r.wine_id === item.id && r.is_active);
             const round = activeRound ?? rounds.find((r) => r.wine_id === item.id);
             const summary = ratingSummaries.find((s) => s.wine_id === item.id);
@@ -420,7 +426,6 @@ export default function EventDetailScreen() {
             );
           }}
         />
-      )}
     </View>
   );
 }

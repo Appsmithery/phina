@@ -37,13 +37,13 @@ jest.mock("@/lib/supabase", () => ({
 }));
 
 describe("EventsScreen", () => {
-  it("renders + Add button", () => {
+  it("renders Host button", () => {
     render(
       <Wrapper>
         <EventsScreen />
       </Wrapper>
     );
-    expect(screen.getByText("+ Add")).toBeTruthy();
+    expect(screen.getByText("Host")).toBeTruthy();
   });
 
   it("shows empty state when no events", () => {

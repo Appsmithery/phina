@@ -121,7 +121,8 @@ export default function CreateEventScreen() {
           </TouchableOpacity>
         )}
         <Text style={[styles.label, { color: theme.textSecondary }]}>Tasting Mode</Text>
-        <View style={[styles.modeRow, { borderColor: theme.border }]}>          {(["single_blind", "double_blind"] as const).map((mode) => {
+        <View style={[styles.modeRow, { borderColor: theme.border }]}>
+          {(["single_blind", "double_blind"] as const).map((mode) => {
             const active = tastingMode === mode;
             return (
               <TouchableOpacity

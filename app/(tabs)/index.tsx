@@ -44,7 +44,7 @@ export default function EventsScreen() {
           style={[styles.createButton, { backgroundColor: theme.primary }]}
           onPress={() => router.push("/event/create")}
         >
-          <Text style={styles.createButtonText}>+ Add</Text>
+          <Text style={styles.createButtonText}>Host</Text>
         </TouchableOpacity>
       </View>
       {isLoading ? (

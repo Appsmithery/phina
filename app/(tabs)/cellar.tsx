@@ -105,12 +105,6 @@ export default function CellarScreen() {
         <Text style={[styles.title, { color: theme.text }]}>My Cellar</Text>
         <Ionicons name="notifications-outline" size={22} color={theme.textMuted} />
       </View>
-      <TouchableOpacity
-        style={[styles.addButton, { backgroundColor: theme.primary }]}
-        onPress={() => router.push("/add-wine")}
-      >
-        <Text style={styles.addButtonText}>+ Add Wine</Text>
-      </TouchableOpacity>
       <View style={styles.tabRow}>
         <TouchableOpacity
           style={[
@@ -167,7 +161,7 @@ export default function CellarScreen() {
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: 80 }]}
           renderItem={({ item }) => {
             const isEventWine = item.event_id != null;
             const eventTitle = item.event?.title ?? (isEventWine ? "Unknown event" : null);
@@ -255,6 +249,14 @@ export default function CellarScreen() {
           }}
         />
       )}
+      <View style={styles.bottomButtonWrapper}>
+        <TouchableOpacity
+          style={[styles.addButton, { backgroundColor: theme.primary }]}
+          onPress={() => router.push("/add-wine")}
+        >
+          <Text style={styles.addButtonText}>+ Add Wine</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -270,7 +272,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: { fontSize: 20, fontWeight: "700", fontFamily: "PlayfairDisplay_700Bold" },
-  addButton: { borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16, marginHorizontal: 16, marginBottom: 12, alignItems: "center" },
+  bottomButtonWrapper: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 16, paddingBottom: 24 },
+  addButton: { borderRadius: 12, paddingVertical: 14, alignItems: "center" },
   addButtonText: { color: "#fff", fontSize: 15, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   tabRow: { flexDirection: "row", marginHorizontal: 16, marginBottom: 12 },
   tab: { flex: 1, alignItems: "center", paddingVertical: 8, borderBottomWidth: 2, borderBottomColor: "transparent" },

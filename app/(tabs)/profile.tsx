@@ -1,8 +1,8 @@
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Linking, Platform } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { showAlert } from "@/lib/alert";
-import { useEffect, useMemo, useState } from "react";
-import { router } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { useSupabase } from "@/lib/supabase-context";
@@ -80,6 +80,12 @@ export default function ProfileScreen() {
     },
     enabled: !!member?.id,
   });
+
+  useFocusEffect(
+    useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    }, [queryClient]),
+  );
 
   const stats = useMemo(() => {
     const PREF_WEIGHT: Record<number, number> = { 1: 3, 0: 1, [-1]: 0 };
@@ -231,14 +237,8 @@ export default function ProfileScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={[styles.profileHeader, { backgroundColor: theme.background, borderBottomColor: theme.border }]}>
-        <TouchableOpacity style={styles.profileHeaderIcon} onPress={() => {}}>
-          <Ionicons name="settings-outline" size={22} color={theme.textSecondary} />
-        </TouchableOpacity>
-        <Text style={[styles.profileHeaderTitle, { color: theme.text }]}>phína</Text>
-        <TouchableOpacity style={styles.profileHeaderIcon} onPress={() => {}}>
-          <Ionicons name="share-outline" size={22} color={theme.textSecondary} />
-        </TouchableOpacity>
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: theme.text }]}>Profile</Text>
       </View>
       <ScrollView
         style={styles.scroll}
@@ -651,24 +651,12 @@ const styles = StyleSheet.create({
   pwToggleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   pwToggleText: { fontFamily: "Montserrat_400Regular", fontSize: 15 },
   pwForm: { marginTop: 16 },
-  profileHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  header: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
+    paddingBottom: 8,
   },
-  profileHeaderTitle: {
-    fontFamily: "PlayfairDisplay_700Bold_Italic",
-    fontSize: 22,
-    letterSpacing: 0.5,
-  },
-  profileHeaderIcon: {
-    width: 36,
-    alignItems: "center",
-  },
+  title: { fontSize: 22, fontWeight: "700", fontFamily: "PlayfairDisplay_700Bold" },
   tasteGraphHeader: {
     flexDirection: "row",
     alignItems: "center",
