@@ -1,4 +1,4 @@
-import { useLocalSearchParams, router } from "expo-router";
+import { Stack, useLocalSearchParams, router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -48,6 +48,18 @@ export default function PersonalWineDetailScreen() {
 
   const queryClient = useQueryClient();
   const isOwner = wine && member?.id === wine.brought_by;
+  const hasGeneratedImage = wine?.image_generation_status === "generated" && !!wine.display_photo_url;
+  const isImagePending = wine?.image_generation_status === "pending" && !wine.display_photo_url;
+  const fallbackPhotoUrl =
+    !hasGeneratedImage && !isImagePending ? (wine?.display_photo_url ?? wine?.label_photo_url ?? null) : null;
+
+  const handleBackPress = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace("/(tabs)/cellar");
+  };
 
   const handleDelete = () => {
     if (!wine?.id) return;
@@ -106,21 +118,41 @@ export default function PersonalWineDetailScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
       contentContainerStyle={styles.content}
     >
-      {(wine.display_photo_url ?? wine.label_photo_url) ? (
+      <Stack.Screen
+        options={{
+          headerLeft: () => (
+            <TouchableOpacity onPress={handleBackPress} style={styles.headerBackButton} hitSlop={10}>
+              <Ionicons name="arrow-back" size={24} color={theme.primary} />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      {isImagePending ? (
+        <View style={[styles.heroContainer, styles.pendingHero, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Ionicons name="image-outline" size={34} color={theme.primary} style={styles.pendingIcon} />
+          <Text style={[styles.pendingHeroTitle, { color: theme.text }]}>Image generation in progress</Text>
+          <Text style={[styles.pendingHeroBody, { color: theme.textSecondary }]}>
+            Your enhanced bottle photo will appear here shortly.
+          </Text>
+        </View>
+      ) : hasGeneratedImage ? (
+        <View style={styles.heroContainer}>
+          <Image
+            source={{ uri: wine.display_photo_url ?? "" }}
+            style={styles.photo}
+            resizeMode="cover"
+          />
+          <View style={[styles.enhancedBadge, { backgroundColor: theme.primary + "20" }]}>
+            <Text style={[styles.enhancedBadgeText, { color: theme.primary }]}>Enhanced from scan</Text>
+          </View>
+        </View>
+      ) : fallbackPhotoUrl ? (
         <View style={[styles.heroContainer, { backgroundColor: theme.surface }]}>
           <Image
-            source={{ uri: wine.display_photo_url ?? wine.label_photo_url ?? "" }}
+            source={{ uri: fallbackPhotoUrl }}
             style={styles.photo}
             resizeMode="contain"
-            onError={wine.display_photo_url && wine.label_photo_url
-              ? () => { /* fallback handled below via priority logic */ }
-              : undefined}
           />
-          {wine.image_generation_status === "generated" && (
-            <View style={[styles.enhancedBadge, { backgroundColor: theme.primary + "20" }]}>
-              <Text style={[styles.enhancedBadgeText, { color: theme.primary }]}>Enhanced from scan</Text>
-            </View>
-          )}
         </View>
       ) : null}
       <Text style={[styles.producer, { color: theme.text }]}>{wine.producer ?? "Unknown producer"}</Text>
@@ -375,6 +407,7 @@ export default function PersonalWineDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 16, paddingBottom: 32 },
+  headerBackButton: { paddingHorizontal: 8, paddingVertical: 4 },
   heroContainer: {
     width: "100%",
     aspectRatio: 3 / 4,
@@ -383,6 +416,24 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     justifyContent: "center",
     alignItems: "center",
+  },
+  pendingHero: {
+    borderWidth: 1,
+    paddingHorizontal: 28,
+  },
+  pendingIcon: { marginBottom: 14 },
+  pendingHeroTitle: {
+    fontSize: 20,
+    fontFamily: "PlayfairDisplay_600SemiBold",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  pendingHeroBody: {
+    fontSize: 14,
+    lineHeight: 22,
+    fontFamily: "Montserrat_400Regular",
+    textAlign: "center",
+    maxWidth: 240,
   },
   photo: { width: "100%", height: "100%" },
   enhancedBadge: {
