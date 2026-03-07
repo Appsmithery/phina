@@ -1,6 +1,6 @@
 // Supabase Edge Function: generate-bottle-image
 // PRD-2026-007: AI-Enhanced Wine Bottle Image Generation
-// Uses Google Gemini Flash 2.0 to produce polished bottle renders from user scans.
+// Uses current Gemini vision and image-generation models to produce polished bottle renders from user scans.
 //
 // Pipeline:
 //   1. Score raw scan quality (0-100) via Gemini vision
@@ -14,7 +14,12 @@ import * as jose from "npm:jose";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
-const GEMINI_FLASH = "gemini-2.0-flash-exp";
+const VISION_MODEL = "gemini-2.5-flash";
+const IMAGE_MODELS = [
+  "gemini-2.5-flash-image",
+  "gemini-3.1-flash-image-preview",
+  "gemini-2.0-flash-exp-image-generation",
+] as const;
 const LABEL_PHOTOS_BUCKET = "label-photos";
 const PROMPT_VERSION = "1.0";
 
@@ -104,6 +109,18 @@ interface GenerateResult {
   };
 }
 
+interface GeneratedImage {
+  bytes: Uint8Array;
+  mimeType: string;
+  modelId: string;
+}
+
+interface ImageGenerationAttempt {
+  modelId: string;
+  message: string;
+  retryable: boolean;
+}
+
 interface SupabaseStorageClient {
   storage: {
     from(bucket: string): {
@@ -148,7 +165,7 @@ async function verifyAuth(req: Request): Promise<Response | null> {
 
 async function geminiVision(apiKey: string, imageUrl: string, prompt: string): Promise<string> {
   const res = await fetch(
-    `${GEMINI_BASE}/models/${GEMINI_FLASH}:generateContent?key=${apiKey}`,
+    `${GEMINI_BASE}/models/${VISION_MODEL}:generateContent?key=${apiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -170,15 +187,23 @@ async function geminiVision(apiKey: string, imageUrl: string, prompt: string): P
   return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
-async function geminiGenerateImage(
+function isRetryableImageModelFailure(status: number, message: string): boolean {
+  if (status === 404) return true;
+  const normalized = message.toLowerCase();
+  return normalized.includes("not found") ||
+    normalized.includes("not supported for generatecontent") ||
+    normalized.includes("unsupported") ||
+    normalized.includes("no image bytes returned");
+}
+
+async function geminiGenerateImageForModel(
   apiKey: string,
-  imageUrl: string,
+  modelId: string,
+  imageBase64: string,
   prompt: string
-): Promise<Uint8Array | null> {
-  // Gemini 2.0 Flash Experimental supports image generation via the standard generateContent endpoint
-  // with responseModalities including "IMAGE"
+): Promise<GeneratedImage> {
   const res = await fetch(
-    `${GEMINI_BASE}/models/${GEMINI_FLASH}:generateContent?key=${apiKey}`,
+    `${GEMINI_BASE}/models/${modelId}:generateContent?key=${apiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -187,20 +212,26 @@ async function geminiGenerateImage(
           {
             parts: [
               { text: prompt },
-              { inline_data: { mime_type: "image/jpeg", data: await urlToBase64(imageUrl) } },
+              { inline_data: { mime_type: "image/jpeg", data: imageBase64 } },
             ],
           },
         ],
         generationConfig: {
           responseModalities: ["IMAGE", "TEXT"],
           temperature: 0.4,
+          imageConfig: { aspectRatio: "3:4" },
         },
       }),
     }
   );
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Gemini image gen error ${res.status}: ${errText.slice(0, 200)}`);
+    const message = `Gemini image gen error ${res.status}: ${errText.slice(0, 200)}`;
+    const error = new Error(message) as Error & { status?: number; retryable?: boolean; modelId?: string };
+    error.status = res.status;
+    error.retryable = isRetryableImageModelFailure(res.status, errText);
+    error.modelId = modelId;
+    throw error;
   }
   const data = await res.json() as {
     candidates?: Array<{
@@ -210,10 +241,63 @@ async function geminiGenerateImage(
   const parts = data?.candidates?.[0]?.content?.parts ?? [];
   for (const part of parts) {
     if (part.inlineData?.data) {
-      return base64ToUint8Array(part.inlineData.data);
+      return {
+        bytes: base64ToUint8Array(part.inlineData.data),
+        mimeType: part.inlineData.mimeType || "image/png",
+        modelId,
+      };
     }
   }
-  return null;
+  const error = new Error("Gemini image gen error: no image bytes returned") as Error & {
+    retryable?: boolean;
+    modelId?: string;
+  };
+  error.retryable = true;
+  error.modelId = modelId;
+  throw error;
+}
+
+async function generateImageWithFallback(
+  apiKey: string,
+  imageUrl: string,
+  prompt: string
+): Promise<{ image: GeneratedImage | null; attempts: ImageGenerationAttempt[] }> {
+  const attempts: ImageGenerationAttempt[] = [];
+  let imageBase64: string;
+
+  try {
+    imageBase64 = await urlToBase64(imageUrl);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    attempts.push({
+      modelId: IMAGE_MODELS[0],
+      message,
+      retryable: false,
+    });
+    return { image: null, attempts };
+  }
+
+  for (const modelId of IMAGE_MODELS) {
+    try {
+      const image = await geminiGenerateImageForModel(apiKey, modelId, imageBase64, prompt);
+      return { image, attempts };
+    } catch (e) {
+      const error = e as Error & { retryable?: boolean; modelId?: string };
+      const attempt: ImageGenerationAttempt = {
+        modelId,
+        message: error.message,
+        retryable: error.retryable === true,
+      };
+      attempts.push(attempt);
+      console.warn(
+        `generate-bottle-image: image generation failed for model=${modelId} retryable=${attempt.retryable}`,
+        error.message
+      );
+      if (!attempt.retryable) break;
+    }
+  }
+
+  return { image: null, attempts };
 }
 
 // ─── Image helpers ────────────────────────────────────────────────────────────
@@ -237,15 +321,21 @@ function base64ToUint8Array(b64: string): Uint8Array {
 
 // ─── Storage upload ───────────────────────────────────────────────────────────
 
-async function uploadDisplayPhoto(imageBytes: Uint8Array): Promise<string | null> {
+function extensionForMimeType(mimeType: string): string {
+  if (mimeType === "image/png") return "png";
+  if (mimeType === "image/webp") return "webp";
+  return "jpg";
+}
+
+async function uploadDisplayPhoto(imageBytes: Uint8Array, mimeType: string): Promise<string | null> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceRoleKey) return null;
   const supabase = createClient(supabaseUrl, serviceRoleKey) as SupabaseStorageClient;
-  const path = `${crypto.randomUUID()}_display.jpg`;
+  const path = `${crypto.randomUUID()}_display.${extensionForMimeType(mimeType)}`;
   const { data, error } = await supabase.storage
     .from(LABEL_PHOTOS_BUCKET)
-    .upload(path, imageBytes, { contentType: "image/jpeg", upsert: false });
+    .upload(path, imageBytes, { contentType: mimeType, upsert: false });
   if (error) {
     console.error("generate-bottle-image: storage upload failed", error.message);
     return null;
@@ -302,12 +392,13 @@ function ocrDriftExceeds(original: string, subject: string, threshold = 0.15): b
 async function validateOcr(
   apiKey: string,
   generatedImageBytes: Uint8Array,
+  generatedImageMimeType: string,
   extraction: ExtractionMetadata
 ): Promise<boolean> {
   try {
     const b64 = btoa(String.fromCharCode(...generatedImageBytes));
     const res = await fetch(
-      `${GEMINI_BASE}/models/${GEMINI_FLASH}:generateContent?key=${apiKey}`,
+      `${GEMINI_BASE}/models/${VISION_MODEL}:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -320,7 +411,7 @@ async function validateOcr(
                     "Read the label text on this wine bottle. " +
                     'Return ONLY a JSON object: { "producer": "<text or null>", "vintage": "<text or null>" }',
                 },
-                { inline_data: { mime_type: "image/jpeg", data: b64 } },
+                { inline_data: { mime_type: generatedImageMimeType, data: b64 } },
               ],
             },
           ],
@@ -352,6 +443,27 @@ async function validateOcr(
     console.warn("generate-bottle-image: OCR validation error (allowing)", e);
     return true; // validation failure is non-fatal; allow
   }
+}
+
+function buildFallbackResult(
+  rawImageUrl: string,
+  confidenceScore: number,
+  startMs: number,
+  modelId: string,
+  issues?: string[]
+): GenerateResult {
+  return {
+    display_photo_url: rawImageUrl,
+    confidence_score: confidenceScore,
+    generation_status: "fallback_raw",
+    metadata: {
+      mode: "fallback_raw",
+      model_id: modelId,
+      prompt_version: PROMPT_VERSION,
+      latency_ms: Date.now() - startMs,
+      issues: issues?.length ? issues : undefined,
+    },
+  };
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
@@ -409,7 +521,7 @@ Deno.serve(async (req: Request) => {
         generation_status: "fallback_raw",
         metadata: {
           mode: "fallback_raw",
-          model_id: GEMINI_FLASH,
+          model_id: VISION_MODEL,
           prompt_version: PROMPT_VERSION,
           latency_ms: Date.now() - startMs,
           issues: qualityIssues,
@@ -425,47 +537,52 @@ Deno.serve(async (req: Request) => {
         ? RESTORATION_PROMPT
         : buildGenerationPrompt(extraction_metadata);
 
-    const imageBytes = await geminiGenerateImage(apiKey, raw_image_url, prompt);
+    const { image, attempts } = await generateImageWithFallback(apiKey, raw_image_url, prompt);
 
-    if (!imageBytes) {
-      console.warn("generate-bottle-image: Gemini returned no image bytes, falling back");
-      await logError(wine_id, "no_image_bytes", { mode, confidence_score: confidenceScore });
-      return jsonResponse<GenerateResult>({
-        display_photo_url: raw_image_url,
+    if (!image) {
+      const attemptedModelId = attempts.length ? attempts[attempts.length - 1].modelId : IMAGE_MODELS[0];
+      console.warn("generate-bottle-image: all image models failed, falling back to raw");
+      await logError(wine_id, "image_model_generation_failed", {
+        mode,
         confidence_score: confidenceScore,
-        generation_status: "fallback_raw",
-        metadata: { mode: "fallback_raw", model_id: GEMINI_FLASH, prompt_version: PROMPT_VERSION, latency_ms: Date.now() - startMs },
+        attempts,
       });
+      return jsonResponse<GenerateResult>(
+        buildFallbackResult(raw_image_url, confidenceScore, startMs, attemptedModelId, qualityIssues)
+      );
     }
 
     // ── Step 4: OCR validation ────────────────────────────────────────────────
-    const ocrValid = await validateOcr(apiKey, imageBytes, extraction_metadata);
+    const ocrValid = await validateOcr(apiKey, image.bytes, image.mimeType, extraction_metadata);
     if (!ocrValid) {
       console.warn("generate-bottle-image: OCR validation failed, falling back to raw");
-      await logError(wine_id, "ocr_validation_failed", { mode, confidence_score: confidenceScore });
-      return jsonResponse<GenerateResult>({
-        display_photo_url: raw_image_url,
+      await logError(wine_id, "ocr_validation_failed", {
+        mode,
         confidence_score: confidenceScore,
-        generation_status: "fallback_raw",
-        metadata: { mode: "fallback_raw", model_id: GEMINI_FLASH, prompt_version: PROMPT_VERSION, latency_ms: Date.now() - startMs },
+        model_id: image.modelId,
       });
+      return jsonResponse<GenerateResult>(
+        buildFallbackResult(raw_image_url, confidenceScore, startMs, image.modelId, qualityIssues)
+      );
     }
 
     // ── Step 5: Upload to storage ─────────────────────────────────────────────
-    const displayPhotoUrl = await uploadDisplayPhoto(imageBytes);
+    const displayPhotoUrl = await uploadDisplayPhoto(image.bytes, image.mimeType);
     if (!displayPhotoUrl) {
       console.warn("generate-bottle-image: upload failed, falling back to raw");
-      await logError(wine_id, "upload_failed", { mode, confidence_score: confidenceScore });
-      return jsonResponse<GenerateResult>({
-        display_photo_url: raw_image_url,
+      await logError(wine_id, "upload_failed", {
+        mode,
         confidence_score: confidenceScore,
-        generation_status: "fallback_raw",
-        metadata: { mode: "fallback_raw", model_id: GEMINI_FLASH, prompt_version: PROMPT_VERSION, latency_ms: Date.now() - startMs },
+        model_id: image.modelId,
+        mime_type: image.mimeType,
       });
+      return jsonResponse<GenerateResult>(
+        buildFallbackResult(raw_image_url, confidenceScore, startMs, image.modelId, qualityIssues)
+      );
     }
 
     const latencyMs = Date.now() - startMs;
-    console.log(`generate-bottle-image: success wine=${wine_id} mode=${mode} latency=${latencyMs}ms`);
+    console.log(`generate-bottle-image: success wine=${wine_id} mode=${mode} model=${image.modelId} latency=${latencyMs}ms`);
 
     return jsonResponse<GenerateResult>({
       display_photo_url: displayPhotoUrl,
@@ -473,7 +590,7 @@ Deno.serve(async (req: Request) => {
       generation_status: "generated",
       metadata: {
         mode,
-        model_id: GEMINI_FLASH,
+        model_id: image.modelId,
         prompt_version: PROMPT_VERSION,
         latency_ms: latencyMs,
         issues: qualityIssues.length ? qualityIssues : undefined,
@@ -490,7 +607,7 @@ Deno.serve(async (req: Request) => {
       generation_status: "failed",
       metadata: {
         mode: "fallback_raw",
-        model_id: GEMINI_FLASH,
+        model_id: VISION_MODEL,
         prompt_version: PROMPT_VERSION,
         latency_ms: Date.now() - startMs,
       },
