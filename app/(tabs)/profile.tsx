@@ -1,4 +1,5 @@
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Linking, Platform } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { LinearGradient } from "expo-linear-gradient";
 import { showAlert } from "@/lib/alert";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -9,6 +10,8 @@ import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
 import { useQueryClient } from "@tanstack/react-query";
+import { US_STATES, getStateLabel } from "@/lib/us-states";
+import { stripPhone, isValidPhone, formatPhone, isValidEmail } from "@/lib/validation";
 
 const DONATION_LINKS: Record<number, string> = {
   100: "https://buy.stripe.com/8x214p9RF4XRbCq2y64ZG00",
@@ -26,8 +29,15 @@ export default function ProfileScreen() {
   const [firstName, setFirstName] = useState(member?.first_name ?? "");
   const [lastName, setLastName] = useState(member?.last_name ?? "");
   const [phone, setPhone] = useState(member?.phone ?? "");
-  const [location, setLocation] = useState(member?.location ?? "");
+  const [city, setCity] = useState(member?.city ?? "");
+  const [stateCode, setStateCode] = useState<string | null>(member?.state ?? null);
+  const [showStatePicker, setShowStatePicker] = useState(false);
   const [wineExperience, setWineExperience] = useState<string | null>(member?.wine_experience ?? null);
+  const [birthday, setBirthday] = useState<Date | null>(
+    member?.birthday ? new Date(member.birthday + "T00:00:00") : null,
+  );
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [email, setEmail] = useState(session?.user?.email ?? "");
   const [saving, setSaving] = useState(false);
 
   // Change password (collapsible inline form)
@@ -41,9 +51,12 @@ export default function ProfileScreen() {
     setFirstName(member?.first_name ?? "");
     setLastName(member?.last_name ?? "");
     setPhone(member?.phone ?? "");
-    setLocation(member?.location ?? "");
+    setCity(member?.city ?? "");
+    setStateCode(member?.state ?? null);
     setWineExperience(member?.wine_experience ?? null);
-  }, [member?.first_name, member?.last_name, member?.phone, member?.location, member?.wine_experience]);
+    setBirthday(member?.birthday ? new Date(member.birthday + "T00:00:00") : null);
+    setEmail(session?.user?.email ?? "");
+  }, [member?.first_name, member?.last_name, member?.phone, member?.city, member?.state, member?.wine_experience, member?.birthday, session?.user?.email]);
 
   const { data: ownRatings = [] } = useQuery({
     queryKey: ["profile", "ratings", member?.id],
@@ -164,8 +177,37 @@ export default function ProfileScreen() {
     };
   }, [ownRatings, eventsCount, favoritesCount]);
 
+  function getAge(d: Date): number {
+    const today = new Date();
+    let age = today.getFullYear() - d.getFullYear();
+    const m = today.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < d.getDate())) age--;
+    return age;
+  }
+
   const saveProfile = async () => {
     if (!session?.user?.id) return;
+
+    // Validate phone
+    const phoneDigits = stripPhone(phone);
+    if (phoneDigits.length > 0 && !isValidPhone(phone)) {
+      showAlert("Invalid Phone", "Please enter a valid 10-digit phone number.");
+      return;
+    }
+
+    // Validate birthday age
+    if (birthday && getAge(birthday) < 21) {
+      showAlert("Age Requirement", "You must be at least 21 years old to use Phína.");
+      return;
+    }
+
+    // Validate email
+    const trimmedEmail = email.trim();
+    if (trimmedEmail && !isValidEmail(trimmedEmail)) {
+      showAlert("Invalid Email", "Please enter a valid email address.");
+      return;
+    }
+
     setSaving(true);
     try {
       const trimmedFirst = firstName.trim();
@@ -178,14 +220,24 @@ export default function ProfileScreen() {
             email: session.user.email!,
             first_name: trimmedFirst || null,
             last_name: trimmedLast || null,
-            phone: phone.trim() || null,
-            location: location.trim() || null,
+            birthday: birthday ? birthday.toISOString().split("T")[0] : null,
+            phone: phoneDigits || null,
+            city: city.trim() || null,
+            state: stateCode,
             wine_experience: wineExperience as any,
             profile_complete: true,
           },
           { onConflict: "id" }
         );
       if (error) throw error;
+
+      // Handle email change via Supabase Auth
+      if (trimmedEmail && trimmedEmail !== session.user.email) {
+        const { error: emailError } = await supabase.auth.updateUser({ email: trimmedEmail });
+        if (emailError) throw emailError;
+        showAlert("Confirmation Sent", "A confirmation link has been sent to your new email address. Please check your inbox.");
+      }
+
       await refreshMember();
       queryClient.invalidateQueries({ queryKey: ["members"] });
       setEditingInfo(false);
@@ -427,8 +479,13 @@ export default function ProfileScreen() {
                 setFirstName(member?.first_name ?? "");
                 setLastName(member?.last_name ?? "");
                 setPhone(member?.phone ?? "");
-                setLocation(member?.location ?? "");
+                setCity(member?.city ?? "");
+                setStateCode(member?.state ?? null);
                 setWineExperience(member?.wine_experience ?? null);
+                setBirthday(member?.birthday ? new Date(member.birthday + "T00:00:00") : null);
+                setEmail(session?.user?.email ?? "");
+                setShowStatePicker(false);
+                setShowDatePicker(false);
                 setEditingInfo(false);
               }}>
                 <Text style={[styles.cancelText, { color: theme.textSecondary }]}>Cancel</Text>
@@ -436,9 +493,22 @@ export default function ProfileScreen() {
             )}
           </View>
 
-          {/* Email — always read-only */}
+          {/* Email */}
           <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Email</Text>
-          <Text style={[styles.infoValue, { color: theme.text }]}>{session?.user?.email ?? "—"}</Text>
+          {editingInfo ? (
+            <TextInput
+              style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Your email"
+              placeholderTextColor={theme.textMuted}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+            />
+          ) : (
+            <Text style={[styles.infoValue, { color: theme.text }]}>{session?.user?.email ?? "—"}</Text>
+          )}
 
           {/* First Name */}
           <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>First name</Text>
@@ -470,17 +540,62 @@ export default function ProfileScreen() {
             <Text style={[styles.infoValue, { color: theme.text }]}>{member?.last_name || "—"}</Text>
           )}
 
-          {/* Birthday (read-only) */}
+          {/* Birthday */}
           <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Birthday</Text>
-          <Text style={[styles.infoValue, { color: theme.text }]}>
-            {member?.birthday
-              ? new Date(member.birthday + "T00:00:00").toLocaleDateString("en-US", {
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })
-              : "—"}
-          </Text>
+          {editingInfo ? (
+            Platform.OS === "web" ? (
+              <TextInput
+                style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+                placeholder="MM/DD/YYYY"
+                placeholderTextColor={theme.textMuted}
+                value={birthday ? birthday.toISOString().split("T")[0] : ""}
+                onChange={(e: any) => {
+                  const val = e?.target?.value || e?.nativeEvent?.text;
+                  if (val) {
+                    const d = new Date(val + "T00:00:00");
+                    if (!isNaN(d.getTime())) setBirthday(d);
+                  }
+                }}
+                // @ts-expect-error -- web-only prop
+                type="date"
+              />
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, justifyContent: "center" }]}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <Text style={{ color: birthday ? theme.text : theme.textMuted, fontFamily: "Montserrat_400Regular", fontSize: 16 }}>
+                    {birthday
+                      ? birthday.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+                      : "Select your birthday"}
+                  </Text>
+                </TouchableOpacity>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={birthday ?? new Date(2000, 0, 1)}
+                    mode="date"
+                    display={Platform.OS === "ios" ? "spinner" : "default"}
+                    maximumDate={new Date()}
+                    onChange={(_event, selectedDate) => {
+                      setShowDatePicker(Platform.OS === "ios");
+                      if (selectedDate) setBirthday(selectedDate);
+                    }}
+                  />
+                )}
+              </>
+            )
+          ) : (
+            <Text style={[styles.infoValue, { color: theme.text }]}>
+              {member?.birthday
+                ? new Date(member.birthday + "T00:00:00").toLocaleDateString("en-US", {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })
+                : "—"}
+            </Text>
+          )}
 
           {/* Phone */}
           <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Phone</Text>
@@ -494,21 +609,60 @@ export default function ProfileScreen() {
               keyboardType="phone-pad"
             />
           ) : (
-            <Text style={[styles.infoValue, { color: theme.text }]}>{member?.phone || "—"}</Text>
+            <Text style={[styles.infoValue, { color: theme.text }]}>{member?.phone ? formatPhone(member.phone) : "—"}</Text>
           )}
 
-          {/* Location */}
-          <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Location</Text>
+          {/* City */}
+          <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>City</Text>
           {editingInfo ? (
             <TextInput
               style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-              value={location}
-              onChangeText={setLocation}
-              placeholder="City, State or Zip"
+              value={city}
+              onChangeText={setCity}
+              placeholder="City"
               placeholderTextColor={theme.textMuted}
             />
           ) : (
-            <Text style={[styles.infoValue, { color: theme.text }]}>{member?.location || "—"}</Text>
+            <Text style={[styles.infoValue, { color: theme.text }]}>{member?.city || "—"}</Text>
+          )}
+
+          {/* State */}
+          <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>State</Text>
+          {editingInfo ? (
+            <>
+              <TouchableOpacity
+                style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, justifyContent: "center" }]}
+                onPress={() => setShowStatePicker(!showStatePicker)}
+              >
+                <Text style={{ color: stateCode ? theme.text : theme.textMuted, fontFamily: "Montserrat_400Regular", fontSize: 16 }}>
+                  {stateCode ? getStateLabel(stateCode) : "Select state"}
+                </Text>
+              </TouchableOpacity>
+              {showStatePicker && (
+                <View style={[styles.statePickerContainer, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                  <ScrollView style={styles.statePickerScroll} nestedScrollEnabled>
+                    {US_STATES.map((s) => {
+                      const selected = stateCode === s.value;
+                      return (
+                        <TouchableOpacity
+                          key={s.value}
+                          style={[styles.stateOption, selected && { backgroundColor: theme.primary + "15" }]}
+                          onPress={() => { setStateCode(selected ? null : s.value); setShowStatePicker(false); }}
+                        >
+                          <Text style={[styles.stateOptionText, { color: selected ? theme.primary : theme.text }]}>
+                            {s.value} — {s.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+            </>
+          ) : (
+            <Text style={[styles.infoValue, { color: theme.text }]}>
+              {member?.state ? getStateLabel(member.state) : "—"}
+            </Text>
           )}
 
           {/* Wine Experience */}
@@ -741,6 +895,10 @@ const styles = StyleSheet.create({
   pwToggleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   pwToggleText: { fontFamily: "Montserrat_400Regular", fontSize: 15 },
   pwForm: { marginTop: 16 },
+  statePickerContainer: { borderWidth: 1, borderRadius: 12, marginBottom: 16, overflow: "hidden" },
+  statePickerScroll: { maxHeight: 200 },
+  stateOption: { paddingHorizontal: 14, paddingVertical: 10 },
+  stateOptionText: { fontSize: 15, fontFamily: "Montserrat_400Regular" },
   profilePillRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
   profilePill: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
   profilePillText: { fontSize: 13, fontFamily: "Montserrat_600SemiBold" },

@@ -3,7 +3,17 @@ ALTER TABLE members
   ADD COLUMN IF NOT EXISTS first_name text,
   ADD COLUMN IF NOT EXISTS last_name text,
   ADD COLUMN IF NOT EXISTS birthday date,
-  ADD COLUMN IF NOT EXISTS location text,
+  ADD COLUMN IF NOT EXISTS city text,
+  ADD COLUMN IF NOT EXISTS state text CHECK (
+    state IN (
+      'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
+      'HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
+      'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
+      'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
+      'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY',
+      'DC','AS','GU','MP','PR','VI'
+    )
+  ),
   ADD COLUMN IF NOT EXISTS wine_experience text CHECK (
     wine_experience IN ('beginner', 'intermediate', 'advanced', 'professional')
   ),

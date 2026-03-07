@@ -15,6 +15,8 @@ import { useTheme } from "@/lib/theme";
 import { supabase } from "@/lib/supabase";
 import { showAlert } from "@/lib/alert";
 import { getPendingJoinEventId, clearPendingJoinEventId } from "@/lib/pending-join";
+import { US_STATES, getStateLabel } from "@/lib/us-states";
+import { stripPhone, isValidPhone } from "@/lib/validation";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 const EXPERIENCE_LEVELS = ["beginner", "intermediate", "advanced", "professional"] as const;
@@ -46,7 +48,9 @@ export default function OnboardingScreen() {
   const [lastName, setLastName] = useState("");
   const [birthday, setBirthday] = useState<Date | null>(null);
   const [phone, setPhone] = useState("");
-  const [location, setLocation] = useState("");
+  const [city, setCity] = useState("");
+  const [stateCode, setStateCode] = useState<string | null>(null);
+  const [showStatePicker, setShowStatePicker] = useState(false);
   const [wineExperience, setWineExperience] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -75,6 +79,11 @@ export default function OnboardingScreen() {
       showAlert("Age Requirement", "You must be at least 21 years old to use Phína.");
       return;
     }
+    const phoneDigits = stripPhone(phone);
+    if (phoneDigits.length > 0 && !isValidPhone(phone)) {
+      showAlert("Invalid Phone", "Please enter a valid 10-digit phone number.");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -86,8 +95,9 @@ export default function OnboardingScreen() {
           first_name: trimmedFirst,
           last_name: trimmedLast,
           birthday: birthdayStr,
-          phone: phone.trim() || null,
-          location: location.trim() || null,
+          phone: phoneDigits || null,
+          city: city.trim() || null,
+          state: stateCode,
           wine_experience: wineExperience as any,
           profile_complete: true,
         },
@@ -220,16 +230,46 @@ export default function OnboardingScreen() {
             autoComplete="tel"
           />
 
-          {/* Location */}
-          <Text style={[styles.label, { color: theme.textSecondary }]}>Location (optional)</Text>
+          {/* City */}
+          <Text style={[styles.label, { color: theme.textSecondary }]}>City (optional)</Text>
           <TextInput
             style={[styles.input, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
-            value={location}
-            onChangeText={setLocation}
-            placeholder="City, State or Zip"
+            value={city}
+            onChangeText={setCity}
+            placeholder="City"
             placeholderTextColor={theme.textMuted}
-            autoComplete="postal-address"
           />
+
+          {/* State */}
+          <Text style={[styles.label, { color: theme.textSecondary }]}>State (optional)</Text>
+          <TouchableOpacity
+            style={[styles.input, styles.dateButton, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            onPress={() => setShowStatePicker(!showStatePicker)}
+          >
+            <Text style={{ color: stateCode ? theme.text : theme.textMuted, fontFamily: "Montserrat_400Regular", fontSize: 16 }}>
+              {stateCode ? getStateLabel(stateCode) : "Select state"}
+            </Text>
+          </TouchableOpacity>
+          {showStatePicker && (
+            <View style={[styles.statePickerContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <ScrollView style={styles.statePickerScroll} nestedScrollEnabled>
+                {US_STATES.map((s) => {
+                  const selected = stateCode === s.value;
+                  return (
+                    <TouchableOpacity
+                      key={s.value}
+                      style={[styles.stateOption, selected && { backgroundColor: theme.primary + "15" }]}
+                      onPress={() => { setStateCode(selected ? null : s.value); setShowStatePicker(false); }}
+                    >
+                      <Text style={[styles.stateOptionText, { color: selected ? theme.primary : theme.text }]}>
+                        {s.value} — {s.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
 
           {/* Wine Experience */}
           <Text style={[styles.label, { color: theme.textSecondary }]}>Wine experience (optional)</Text>
@@ -349,6 +389,23 @@ const styles = StyleSheet.create({
   pillText: {
     fontSize: 13,
     fontFamily: "Montserrat_600SemiBold",
+  },
+  statePickerContainer: {
+    borderWidth: 1,
+    borderRadius: 12,
+    marginBottom: 16,
+    overflow: "hidden",
+  },
+  statePickerScroll: {
+    maxHeight: 200,
+  },
+  stateOption: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  stateOptionText: {
+    fontSize: 15,
+    fontFamily: "Montserrat_400Regular",
   },
   readOnlyValue: {
     fontSize: 15,
