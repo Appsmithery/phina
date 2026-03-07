@@ -13,6 +13,7 @@ import { US_STATES, getStateLabel } from "@/lib/us-states";
 import { stripPhone, isValidPhone, formatPhone, isValidEmail } from "@/lib/validation";
 import { BirthdayPickerField } from "@/components/BirthdayPickerField";
 import { formatBirthday, formatBirthdayForStorage, getAge, parseDateOnly } from "@/lib/birthday";
+import type { Database } from "@/types/database";
 
 const DONATION_LINKS: Record<number, string> = {
   100: "https://buy.stripe.com/8x214p9RF4XRbCq2y64ZG00",
@@ -204,29 +205,30 @@ export default function ProfileScreen() {
     try {
       const trimmedFirst = firstName.trim();
       const trimmedLast = lastName.trim();
-      const { error } = await supabase
-        .from("members")
-        .upsert(
-          {
-            id: session.user.id,
-            email: session.user.email!,
-            first_name: trimmedFirst || null,
-            last_name: trimmedLast || null,
-            birthday: birthday ? formatBirthdayForStorage(birthday) : null,
-            phone: phoneDigits || null,
-            city: city.trim() || null,
-            state: stateCode,
-            wine_experience: wineExperience as any,
-            profile_complete: true,
-          },
-          { onConflict: "id" }
-        );
-      if (error) throw error;
+      const profileUpdate: Database["public"]["Tables"]["members"]["Update"] = {
+        first_name: trimmedFirst || null,
+        last_name: trimmedLast || null,
+        birthday: birthday ? formatBirthdayForStorage(birthday) : null,
+        phone: phoneDigits || null,
+        city: city.trim() || null,
+        state: stateCode,
+        wine_experience: wineExperience as Database["public"]["Tables"]["members"]["Update"]["wine_experience"],
+        profile_complete: true,
+      };
 
-      // Handle email change via Supabase Auth
       if (trimmedEmail && trimmedEmail !== session.user.email) {
         const { error: emailError } = await supabase.auth.updateUser({ email: trimmedEmail });
         if (emailError) throw emailError;
+        profileUpdate.email = trimmedEmail;
+      }
+
+      const { error } = await supabase
+        .from("members")
+        .update(profileUpdate)
+        .eq("id", session.user.id);
+      if (error) throw error;
+
+      if (trimmedEmail && trimmedEmail !== session.user.email) {
         showAlert("Confirmation Sent", "A confirmation link has been sent to your new email address. Please check your inbox.");
       }
 
@@ -234,6 +236,13 @@ export default function ProfileScreen() {
       queryClient.invalidateQueries({ queryKey: ["members"] });
       setEditingInfo(false);
     } catch (e: unknown) {
+      console.warn("[profile] save failed", {
+        error: e,
+        hasBirthday: !!birthday,
+        birthday: birthday ? formatBirthdayForStorage(birthday) : null,
+        stateCode,
+        hasEmailChange: trimmedEmail !== session.user.email,
+      });
       showAlert("Error", e instanceof Error ? e.message : "Could not save");
     } finally {
       setSaving(false);

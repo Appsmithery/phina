@@ -25,9 +25,11 @@ import {
 
 type ThemeColors = {
   primary: string;
+  secondary: string;
   background: string;
   surface: string;
   text: string;
+  textSecondary: string;
   textMuted: string;
   border: string;
 };
@@ -96,18 +98,26 @@ export function BirthdayPickerField({
   const renderNativePicker = () => {
     if (Platform.OS === "ios") {
       return (
-        <DateTimePicker
-          value={draftDate}
-          mode="date"
-          display="inline"
-          maximumDate={maximumDate}
-          onChange={(_event, selectedDate) => {
-            if (selectedDate) {
-              setDraftDate(clampBirthdayToBounds(selectedDate, maximumDate));
-            }
-          }}
-          style={styles.iosPicker}
-        />
+        <View style={[styles.iosPickerCard, { backgroundColor: "#FCFAF6", borderColor: theme.border }]}>
+          <View style={styles.selectedDateRow}>
+            <Text style={[styles.selectedDateLabel, { color: theme.textMuted }]}>Selected date</Text>
+            <Text style={[styles.selectedDateValue, { color: theme.text }]}>{formatBirthday(draftDate)}</Text>
+          </View>
+          <DateTimePicker
+            value={draftDate}
+            mode="date"
+            display="inline"
+            maximumDate={maximumDate}
+            accentColor={theme.primary}
+            themeVariant="light"
+            onChange={(_event, selectedDate) => {
+              if (selectedDate) {
+                setDraftDate(clampBirthdayToBounds(selectedDate, maximumDate));
+              }
+            }}
+            style={styles.iosPicker}
+          />
+        </View>
       );
     }
 
@@ -157,7 +167,7 @@ export function BirthdayPickerField({
       <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <Pressable style={styles.modalBackdrop} onPress={() => setModalVisible(false)} />
-          <View style={[styles.modalSheet, { backgroundColor: theme.surface }]}>
+          <View style={[styles.modalSheet, { backgroundColor: "#FFFDFC", borderColor: theme.border }]}>
             <View style={styles.modalHeader}>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Text style={[styles.modalAction, { color: theme.textMuted }]}>Cancel</Text>
@@ -188,7 +198,7 @@ export function BirthdayPickerField({
                     style={[
                       styles.yearChip,
                       {
-                        backgroundColor: selected ? theme.primary : theme.background,
+                        backgroundColor: selected ? theme.primary : "#F7F3EE",
                         borderColor: selected ? theme.primary : theme.border,
                       },
                     ]}
@@ -238,6 +248,8 @@ const styles = StyleSheet.create({
   modalSheet: {
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
+    borderWidth: 1,
+    borderBottomWidth: 0,
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 28,
@@ -280,9 +292,33 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_600SemiBold",
     fontSize: 15,
   },
+  iosPickerCard: {
+    borderRadius: 22,
+    borderWidth: 1,
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingTop: 14,
+    paddingBottom: 10,
+  },
+  selectedDateRow: {
+    marginBottom: 8,
+    paddingHorizontal: 6,
+  },
+  selectedDateLabel: {
+    fontFamily: "Montserrat_600SemiBold",
+    fontSize: 11,
+    letterSpacing: 1.2,
+    marginBottom: 4,
+    textTransform: "uppercase",
+  },
+  selectedDateValue: {
+    fontFamily: "Montserrat_600SemiBold",
+    fontSize: 17,
+  },
   iosPicker: {
     alignSelf: "stretch",
-    marginHorizontal: -8,
+    height: 360,
+    marginHorizontal: -2,
   },
   androidCalendarButton: {
     borderRadius: 18,
