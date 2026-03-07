@@ -6,7 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
-import { trackEvent } from "@/lib/observability";
+import { trackEvent, captureError } from "@/lib/observability";
 import type { WineWithPricePrivacy } from "@/types/database";
 import type { Event } from "@/types/database";
 
@@ -28,7 +28,13 @@ export default function CellarScreen() {
     if (memberId) trackEvent("cellar_opened");
   }, [memberId]);
 
-  const { data: wines = [] } = useQuery({
+  const {
+    data: wines = [],
+    error,
+    isError,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ["cellar", "my-wines", member?.id],
     queryFn: async () => {
       if (!member?.id) return [];
@@ -38,8 +44,15 @@ export default function CellarScreen() {
         .eq("brought_by", member.id)
         .order("created_at", { ascending: false });
       if (winesError) {
-        console.error("[cellar] wines query error:", JSON.stringify(winesError));
-        throw winesError;
+        captureError(winesError, {
+          screen: "cellar",
+          query: "wines_with_price_privacy",
+          member_id: member.id,
+        });
+        if (__DEV__) {
+          console.warn("[cellar] wines query error:", winesError);
+        }
+        throw new Error(winesError.message || "Could not load your cellar.");
       }
       const list = (winesData ?? []) as WineWithPricePrivacy[];
       if (list.length === 0) return [];
@@ -98,6 +111,25 @@ export default function CellarScreen() {
     );
   }
 
+  if (isError) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <View style={styles.errorState}>
+          <Text style={[styles.errorTitle, { color: theme.text }]}>Could not load your cellar</Text>
+          <Text style={[styles.placeholder, { color: theme.textMuted }]}>
+            {error instanceof Error ? error.message : "Please try again."}
+          </Text>
+          <TouchableOpacity
+            style={[styles.retryButton, { backgroundColor: theme.primary }]}
+            onPress={() => void refetch()}
+          >
+            <Text style={styles.retryButtonText}>Try again</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.titleRow}>
@@ -149,7 +181,9 @@ export default function CellarScreen() {
           onChangeText={setSearch}
         />
       </View>
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading your cellar...</Text>
+      ) : filtered.length === 0 ? (
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>
           {wines.length === 0
             ? "Add wines to your personal cellar to track what you have at home."
@@ -164,10 +198,6 @@ export default function CellarScreen() {
           contentContainerStyle={[styles.list, { paddingBottom: 80 }]}
           renderItem={({ item }) => {
             const isEventWine = item.event_id != null;
-            const eventTitle = item.event?.title ?? (isEventWine ? "Unknown event" : null);
-            const eventDate = item.event?.date
-              ? new Date(item.event.date).toLocaleDateString()
-              : "";
             const wineLine = [
               item.quantity != null && item.quantity > 1 ? `${item.quantity}×` : "",
               item.producer ?? "Unknown",
@@ -275,6 +305,10 @@ const styles = StyleSheet.create({
   bottomButtonWrapper: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 16, paddingBottom: 24 },
   addButton: { borderRadius: 12, paddingVertical: 14, alignItems: "center" },
   addButtonText: { color: "#fff", fontSize: 15, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
+  errorState: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24 },
+  errorTitle: { fontSize: 20, fontWeight: "700", marginBottom: 12, fontFamily: "PlayfairDisplay_700Bold" },
+  retryButton: { borderRadius: 12, paddingVertical: 12, paddingHorizontal: 20, marginTop: 8 },
+  retryButtonText: { color: "#fff", fontSize: 14, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   tabRow: { flexDirection: "row", marginHorizontal: 16, marginBottom: 12 },
   tab: { flex: 1, alignItems: "center", paddingVertical: 8, borderBottomWidth: 2, borderBottomColor: "transparent" },
   tabText: { fontSize: 14, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
