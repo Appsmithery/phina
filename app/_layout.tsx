@@ -208,6 +208,7 @@ function SupabaseLayout() {
       <Stack.Screen name="wine/[wineId]/edit" />
       <Stack.Screen name="wine/[wineId]/rate" />
       <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
+      <Stack.Screen name="settings" />
       <Stack.Screen name="privacy" />
       <Stack.Screen name="terms" />
     </Stack>

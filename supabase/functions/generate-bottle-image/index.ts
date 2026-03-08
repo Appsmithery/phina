@@ -31,7 +31,7 @@ const BRAND_SCAFFOLD =
   "heritage-luxury tone";
 
 const SCENE_CONSTRAINTS =
-  "neutral warm background (rustic stone or light oak wooden table), refined surface texture, " +
+  "neutral warm background, refined surface texture, " +
   "centered or slightly angled hero composition, 3:4 aspect ratio, optimized for mobile display";
 
 const NEGATIVE_CONSTRAINTS =
