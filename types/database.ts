@@ -297,6 +297,33 @@ export interface Database {
           }
         ];
       };
+      image_generation_errors: {
+        Row: {
+          id: string;
+          wine_id: string | null;
+          event_id: string | null;
+          error_type: string;
+          error_details: Record<string, unknown> | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          wine_id?: string | null;
+          event_id?: string | null;
+          error_type: string;
+          error_details?: Record<string, unknown> | null;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          wine_id?: string | null;
+          event_id?: string | null;
+          error_type?: string;
+          error_details?: Record<string, unknown> | null;
+          created_at?: string | null;
+        };
+        Relationships: [];
+      };
       event_favorites: {
         Row: {
           event_id: string;

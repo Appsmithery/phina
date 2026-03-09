@@ -195,12 +195,20 @@ export default function EventDetailScreen() {
     }
 
     await queryClient.invalidateQueries({ queryKey: ["event", id] });
+    showAlert("Hero image", "Hero image generation started.");
     void (async () => {
-      await generateEventImage(event.id, event.title, event.theme, event.description ?? null);
+      const result = await generateEventImage(event.id, event.title, event.theme, event.description ?? null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["event", id] }),
         queryClient.invalidateQueries({ queryKey: ["events"] }),
       ]);
+
+      if (result.ok) {
+        showAlert("Hero image", "Hero image refreshed.");
+        return;
+      }
+
+      showAlert("Hero image failed", result.error || "Hero image generation failed. Try again later.");
     })();
   };
 
@@ -394,6 +402,14 @@ export default function EventDetailScreen() {
             </Text>
             <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
           </TouchableOpacity>
+
+          {event.event_image_status === "pending" ? (
+            <Text style={[styles.statusMessage, { color: theme.textMuted }]}>Hero image generation started.</Text>
+          ) : null}
+
+          {event.event_image_status === "failed" ? (
+            <Text style={[styles.statusMessage, { color: "#B55A5A" }]}>Hero image generation failed. Try again later.</Text>
+          ) : null}
         </>
       ) : null}
 
@@ -608,6 +624,12 @@ const styles = StyleSheet.create({
   removeButtonText: { fontSize: 14, fontWeight: "500", fontFamily: "Montserrat_400Regular" },
   resultRow: { marginTop: 12 },
   resultText: { fontSize: 15, fontFamily: "Montserrat_400Regular" },
+  statusMessage: {
+    fontSize: 13,
+    marginTop: -2,
+    marginBottom: 12,
+    fontFamily: "Montserrat_400Regular",
+  },
 });
 
 function WineHostActions({

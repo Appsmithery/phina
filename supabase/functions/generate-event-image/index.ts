@@ -38,6 +38,7 @@ interface ImageGenerationAttempt {
 
 interface AdminClient {
   from(table: string): {
+    insert(values: Record<string, unknown>): Promise<{ error: { message: string } | null }>;
     update(values: Record<string, unknown>): {
       eq(column: string, value: string): Promise<{ error: { message: string } | null }>;
     };
@@ -128,6 +129,24 @@ async function setEventStatus(
   const { error } = await admin.from("events").update(values).eq("id", eventId);
   if (error) {
     console.error("generate-event-image: failed to update event row", { eventId, error: error.message, values });
+  }
+}
+
+async function logError(eventId: string, errorType: string, details: Record<string, unknown>): Promise<void> {
+  const admin = getAdminClient();
+  if (!admin) {
+    console.error("generate-event-image: missing admin client while logging error", { eventId, errorType });
+    return;
+  }
+
+  const { error } = await admin.from("image_generation_errors").insert({
+    event_id: eventId,
+    error_type: errorType,
+    error_details: details,
+  });
+
+  if (error) {
+    console.error("generate-event-image: failed to log error", { eventId, errorType, error: error.message });
   }
 }
 
@@ -280,7 +299,13 @@ Deno.serve(async (req: Request) => {
   if (!apiKey) {
     console.error("generate-event-image: GEMINI_API_KEY not configured");
     await setEventStatus(eventId, { event_image_status: "failed" });
-    return jsonResponse({ event_image_url: null, event_image_status: "failed" }, 200);
+    await logError(eventId, "missing_gemini_api_key", {});
+    return jsonResponse({
+      event_image_url: null,
+      event_image_status: "failed",
+      failure_reason: "missing_gemini_api_key",
+      error: "GEMINI_API_KEY not configured",
+    }, 200);
   }
 
   const startMs = Date.now();
@@ -291,9 +316,15 @@ Deno.serve(async (req: Request) => {
 
     if (!image) {
       await setEventStatus(eventId, { event_image_status: "failed" });
+      await logError(eventId, "image_generation_failed", {
+        prompt_version: PROMPT_VERSION,
+        attempts,
+      });
       return jsonResponse({
         event_image_url: null,
         event_image_status: "failed",
+        failure_reason: "image_generation_failed",
+        error: attempts[attempts.length - 1]?.message ?? "Hero image generation failed.",
         metadata: {
           model_id: attempts[attempts.length - 1]?.modelId ?? IMAGE_MODELS[0],
           prompt_version: PROMPT_VERSION,
@@ -311,9 +342,15 @@ Deno.serve(async (req: Request) => {
     const publicUrl = await uploadEventImage(eventId, image);
     if (!publicUrl) {
       await setEventStatus(eventId, { event_image_status: "failed" });
+      await logError(eventId, "storage_upload_failed", {
+        model_id: image.modelId,
+        mime_type: image.mimeType,
+      });
       return jsonResponse({
         event_image_url: null,
         event_image_status: "failed",
+        failure_reason: "storage_upload_failed",
+        error: "Could not upload the generated hero image.",
         metadata: {
           model_id: image.modelId,
           prompt_version: PROMPT_VERSION,
@@ -351,9 +388,14 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     console.error("generate-event-image: unhandled error", error);
     await setEventStatus(eventId, { event_image_status: "failed" });
+    await logError(eventId, "unhandled_error", {
+      message: error instanceof Error ? error.message : String(error),
+    });
     return jsonResponse({
       event_image_url: null,
       event_image_status: "failed",
+      failure_reason: "unhandled_error",
+      error: error instanceof Error ? error.message : "Unhandled event image generation error.",
       metadata: {
         model_id: IMAGE_MODELS[0],
         prompt_version: PROMPT_VERSION,
