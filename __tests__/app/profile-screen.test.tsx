@@ -158,7 +158,7 @@ describe("ProfileScreen", () => {
     expect(screen.getByText("Your taste profile starts here.")).toBeTruthy();
     expect(screen.queryByText("Your Taste Graph")).toBeNull();
     expect(mockTrackEvent).toHaveBeenCalledWith("profile_empty_state_viewed");
-    expect(screen.getByText("Add photo")).toBeTruthy();
+    expect(screen.getByLabelText("Edit photo")).toBeTruthy();
     expect(screen.queryByText("Remove photo")).toBeNull();
     expect(screen.getByTestId("profile-avatar-fallback")).toBeTruthy();
   });
@@ -190,7 +190,7 @@ describe("ProfileScreen", () => {
     expect(screen.getByText("Your Taste Graph")).toBeTruthy();
   });
 
-  it("renders the uploaded avatar and photo management actions", () => {
+  it("renders the uploaded avatar and edit control", () => {
     mockMember = {
       ...mockMember,
       avatar_url: "https://example.com/avatar.jpg",
@@ -201,7 +201,7 @@ describe("ProfileScreen", () => {
     render(<ProfileScreen />);
 
     expect(screen.getByTestId("profile-avatar-image")).toBeTruthy();
-    expect(screen.getByText("Change photo")).toBeTruthy();
-    expect(screen.getByText("Remove photo")).toBeTruthy();
+    expect(screen.getByLabelText("Edit photo")).toBeTruthy();
+    expect(screen.queryByText("Remove photo")).toBeNull();
   });
 });

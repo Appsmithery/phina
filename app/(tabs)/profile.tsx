@@ -416,6 +416,8 @@ export default function ProfileScreen() {
               onPress={handlePickAvatar}
               disabled={avatarBusy}
               hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={avatarBusy ? "Updating photo" : "Edit photo"}
             >
               <Ionicons
                 name={avatarBusy ? "hourglass-outline" : "pencil"}
