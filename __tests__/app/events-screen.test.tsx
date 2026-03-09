@@ -52,6 +52,6 @@ describe("EventsScreen", () => {
         <EventsScreen />
       </Wrapper>
     );
-    expect(screen.getByText(/No events yet/)).toBeTruthy();
+    expect(screen.getByText(/No upcoming events/)).toBeTruthy();
   });
 });
