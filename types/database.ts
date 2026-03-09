@@ -64,6 +64,10 @@ export interface Database {
           tasting_mode: "single_blind" | "double_blind";
           created_by: string;
           created_at: string;
+          partiful_url: string | null;
+          description: string | null;
+          event_image_url: string | null;
+          event_image_status: "none" | "pending" | "generated" | "failed";
         };
         Insert: {
           id?: string;
@@ -74,6 +78,10 @@ export interface Database {
           tasting_mode?: "single_blind" | "double_blind";
           created_by: string;
           created_at?: string;
+          partiful_url?: string | null;
+          description?: string | null;
+          event_image_url?: string | null;
+          event_image_status?: "none" | "pending" | "generated" | "failed";
         };
         Update: {
           id?: string;
@@ -84,6 +92,10 @@ export interface Database {
           tasting_mode?: "single_blind" | "double_blind";
           created_by?: string;
           created_at?: string;
+          partiful_url?: string | null;
+          description?: string | null;
+          event_image_url?: string | null;
+          event_image_status?: "none" | "pending" | "generated" | "failed";
         };
         Relationships: [];
       };
