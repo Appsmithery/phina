@@ -5,6 +5,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, Share, Platform, Im
 import { Ionicons } from "@expo/vector-icons";
 
 import { showAlert } from "@/lib/alert";
+import { generateEventImage } from "@/lib/event-image-generation";
 import { useEndEvent, useEndRatingRound, useStartRatingRound } from "@/hooks/use-event-actions";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
@@ -180,6 +181,29 @@ export default function EventDetailScreen() {
     }
   };
 
+  const handleRegenerateHeroImage = async () => {
+    if (!event) return;
+
+    const { error } = await supabase
+      .from("events")
+      .update({ event_image_status: "pending" })
+      .eq("id", event.id);
+
+    if (error) {
+      showAlert("Error", error.message ?? "Could not start hero image generation.");
+      return;
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ["event", id] });
+    void (async () => {
+      await generateEventImage(event.id, event.title, event.theme, event.description ?? null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["event", id] }),
+        queryClient.invalidateQueries({ queryKey: ["events"] }),
+      ]);
+    })();
+  };
+
   const handleDeleteEvent = () => {
     showAlert(
       "Delete event?",
@@ -343,6 +367,31 @@ export default function EventDetailScreen() {
           >
             <Ionicons name="share-outline" size={20} color={theme.text} />
             <Text style={[styles.actionLabel, { color: theme.text }]}>Share invite link</Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            onPress={() => router.push(`/event/${id}/edit`)}
+          >
+            <Ionicons name="create-outline" size={20} color={theme.text} />
+            <Text style={[styles.actionLabel, { color: theme.text }]}>Edit event details</Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            onPress={handleRegenerateHeroImage}
+            disabled={event.event_image_status === "pending"}
+          >
+            <Ionicons name="image-outline" size={20} color={theme.text} />
+            <Text style={[styles.actionLabel, { color: theme.text }]}>
+              {event.event_image_status === "pending"
+                ? "Generating hero image..."
+                : event.event_image_url
+                  ? "Regenerate hero image"
+                  : "Generate hero image"}
+            </Text>
             <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
           </TouchableOpacity>
         </>

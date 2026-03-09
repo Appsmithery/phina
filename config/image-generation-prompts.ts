@@ -77,11 +77,14 @@ export const EVENT_SCENE_CONSTRAINTS =
   "4:3 aspect ratio, optimized for mobile card display, inviting depth";
 
 export function buildEventImagePrompt(title: string, theme: string | null, description: string | null): string {
-  const themeSentence = theme?.trim() ? `Theme: ${theme.trim()}. ` : "";
-  const descriptionSentence = description?.trim() ? `Description: ${description.trim()}. ` : "";
+  const normalizedTitle = sanitizePromptField(title, 100) ?? "Wine tasting";
+  const normalizedTheme = sanitizePromptField(theme, 80);
+  const normalizedDescription = sanitizePromptField(description, 220);
+  const themeSentence = normalizedTheme ? `Theme: ${normalizedTheme}. ` : "";
+  const descriptionSentence = normalizedDescription ? `Description: ${normalizedDescription}. ` : "";
 
   return (
-    `Generate an elegant editorial photograph for a wine tasting event titled "${title}". ` +
+    `Generate an elegant editorial photograph for a wine tasting event titled "${normalizedTitle}". ` +
     themeSentence +
     descriptionSentence +
     "Show an inviting, atmospheric wine event scene - think candlelit table settings, " +
@@ -89,4 +92,10 @@ export function buildEventImagePrompt(title: string, theme: string | null, descr
     `Style: ${EVENT_BRAND_SCAFFOLD}. Scene: ${EVENT_SCENE_CONSTRAINTS}. ` +
     "No text, no logos, no watermarks, no people's faces."
   );
+}
+
+function sanitizePromptField(value: string | null | undefined, maxLength: number): string | null {
+  const normalized = value?.replace(/\s+/g, " ").trim();
+  if (!normalized) return null;
+  return normalized.slice(0, maxLength);
 }

@@ -248,36 +248,6 @@ export default function ProfileScreen() {
     if (webFileInputRef.current) webFileInputRef.current.value = "";
   }, [uploadAvatarBlob]);
 
-  const handleRemoveAvatar = useCallback(async () => {
-    if (!member?.id || avatarBusy) return;
-
-    setAvatarBusy(true);
-    try {
-      if (member.avatar_source === "upload" && member.avatar_storage_path) {
-        const { error: removeError } = await supabase.storage
-          .from(AVATARS_BUCKET)
-          .remove([member.avatar_storage_path]);
-        if (removeError) throw removeError;
-      }
-
-      const { error: updateError } = await supabase
-        .from("members")
-        .update({
-          avatar_url: null,
-          avatar_storage_path: null,
-          avatar_source: "removed",
-        })
-        .eq("id", member.id);
-      if (updateError) throw updateError;
-
-      await refreshProfileData();
-    } catch (e: unknown) {
-      showAlert("Error", e instanceof Error ? e.message : "Could not remove your photo.");
-    } finally {
-      setAvatarBusy(false);
-    }
-  }, [avatarBusy, member?.avatar_source, member?.avatar_storage_path, member?.id, refreshProfileData]);
-
   const renderTopSection = () => {
     if (member?.id == null || isTopSectionLoading) return null;
     if (shouldShowProfileEmptyState) {
@@ -426,34 +396,33 @@ export default function ProfileScreen() {
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: 32 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.profileSummary}>
-          {hasAvatar ? (
-            <Image
-              source={{ uri: member?.avatar_url ?? "" }}
-              style={styles.avatarImage}
-              testID="profile-avatar-image"
-            />
-          ) : (
-            <View style={[styles.avatar, { backgroundColor: theme.primary }]} testID="profile-avatar-fallback">
-              <Text style={styles.avatarText}>{initials}</Text>
-            </View>
-          )}
-          <View style={styles.avatarActions}>
+          <View style={styles.avatarWrap}>
+            {hasAvatar ? (
+              <Image
+                source={{ uri: member?.avatar_url ?? "" }}
+                style={styles.avatarImage}
+                testID="profile-avatar-image"
+              />
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: theme.primary }]} testID="profile-avatar-fallback">
+                <Text style={styles.avatarText}>{initials}</Text>
+              </View>
+            )}
             <TouchableOpacity
-              style={[styles.avatarActionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
+              style={[
+                styles.avatarEditButton,
+                { borderColor: theme.border, backgroundColor: theme.surface },
+              ]}
               onPress={handlePickAvatar}
               disabled={avatarBusy}
+              hitSlop={8}
             >
-              <Text style={[styles.avatarActionText, { color: theme.textSecondary }]}>
-                {avatarBusy ? "Updating..." : hasAvatar ? "Change photo" : "Add photo"}
-              </Text>
+              <Ionicons
+                name={avatarBusy ? "hourglass-outline" : "pencil"}
+                size={14}
+                color={theme.text}
+              />
             </TouchableOpacity>
-            {hasAvatar ? (
-              <TouchableOpacity onPress={handleRemoveAvatar} disabled={avatarBusy}>
-                <Text style={[styles.removeAvatarText, { color: avatarBusy ? theme.textMuted : theme.primary }]}>
-                  Remove photo
-                </Text>
-              </TouchableOpacity>
-            ) : null}
           </View>
           {displayName ? (
             <Text style={[styles.profileName, { color: theme.text }]}>{displayName}</Text>
@@ -507,6 +476,10 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 22, fontWeight: "700", fontFamily: "PlayfairDisplay_700Bold" },
   profileSummary: { alignItems: "center", marginBottom: 20 },
+  avatarWrap: {
+    position: "relative",
+    marginBottom: 10,
+  },
   avatar: {
     width: 72,
     height: 72,
@@ -526,24 +499,16 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontFamily: "Montserrat_600SemiBold",
   },
-  avatarActions: {
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 10,
-  },
-  avatarActionButton: {
+  avatarEditButton: {
+    position: "absolute",
+    right: -2,
+    bottom: -2,
     borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  avatarActionText: {
-    fontSize: 13,
-    fontFamily: "Montserrat_600SemiBold",
-  },
-  removeAvatarText: {
-    fontSize: 13,
-    fontFamily: "Montserrat_400Regular",
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
   },
   profileName: {
     fontSize: 20,

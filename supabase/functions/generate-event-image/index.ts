@@ -5,7 +5,6 @@ const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
 const IMAGE_MODELS = [
   "gemini-2.5-flash-image",
   "gemini-3.1-flash-image-preview",
-  "gemini-2.0-flash-exp-image-generation",
 ] as const;
 const EVENT_IMAGES_BUCKET = "event-images";
 const PROMPT_VERSION = "1.0";
@@ -56,11 +55,14 @@ interface AdminClient {
 }
 
 function buildEventImagePrompt(title: string, theme: string | null, description: string | null): string {
-  const themeSentence = theme?.trim() ? `Theme: ${theme.trim()}. ` : "";
-  const descriptionSentence = description?.trim() ? `Description: ${description.trim()}. ` : "";
+  const normalizedTitle = sanitizePromptField(title, 100) ?? "Wine tasting";
+  const normalizedTheme = sanitizePromptField(theme, 80);
+  const normalizedDescription = sanitizePromptField(description, 220);
+  const themeSentence = normalizedTheme ? `Theme: ${normalizedTheme}. ` : "";
+  const descriptionSentence = normalizedDescription ? `Description: ${normalizedDescription}. ` : "";
 
   return (
-    `Generate an elegant editorial photograph for a wine tasting event titled "${title}". ` +
+    `Generate an elegant editorial photograph for a wine tasting event titled "${normalizedTitle}". ` +
     themeSentence +
     descriptionSentence +
     "Show an inviting, atmospheric wine event scene - think candlelit table settings, " +
@@ -68,6 +70,12 @@ function buildEventImagePrompt(title: string, theme: string | null, description:
     `Style: ${EVENT_BRAND_SCAFFOLD}. Scene: ${EVENT_SCENE_CONSTRAINTS}. ` +
     "No text, no logos, no watermarks, no people's faces."
   );
+}
+
+function sanitizePromptField(value: string | null | undefined, maxLength: number): string | null {
+  const normalized = value?.replace(/\s+/g, " ").trim();
+  if (!normalized) return null;
+  return normalized.slice(0, maxLength);
 }
 
 async function verifyAuth(req: Request): Promise<Response | null> {
@@ -271,7 +279,7 @@ Deno.serve(async (req: Request) => {
   const apiKey = Deno.env.get("GEMINI_API_KEY");
   if (!apiKey) {
     console.error("generate-event-image: GEMINI_API_KEY not configured");
-    await setEventStatus(eventId, { event_image_status: "failed", event_image_url: null });
+    await setEventStatus(eventId, { event_image_status: "failed" });
     return jsonResponse({ event_image_url: null, event_image_status: "failed" }, 200);
   }
 
@@ -282,7 +290,7 @@ Deno.serve(async (req: Request) => {
     const { image, attempts } = await generateImageWithFallback(apiKey, prompt);
 
     if (!image) {
-      await setEventStatus(eventId, { event_image_status: "failed", event_image_url: null });
+      await setEventStatus(eventId, { event_image_status: "failed" });
       return jsonResponse({
         event_image_url: null,
         event_image_status: "failed",
@@ -302,7 +310,7 @@ Deno.serve(async (req: Request) => {
 
     const publicUrl = await uploadEventImage(eventId, image);
     if (!publicUrl) {
-      await setEventStatus(eventId, { event_image_status: "failed", event_image_url: null });
+      await setEventStatus(eventId, { event_image_status: "failed" });
       return jsonResponse({
         event_image_url: null,
         event_image_status: "failed",
@@ -342,7 +350,7 @@ Deno.serve(async (req: Request) => {
     });
   } catch (error) {
     console.error("generate-event-image: unhandled error", error);
-    await setEventStatus(eventId, { event_image_status: "failed", event_image_url: null });
+    await setEventStatus(eventId, { event_image_status: "failed" });
     return jsonResponse({
       event_image_url: null,
       event_image_status: "failed",
