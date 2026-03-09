@@ -1,6 +1,6 @@
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform, Share } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform, Share, Image } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useCallback, useEffect, useMemo, useState } from "react";
 import { router, useFocusEffect } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,12 +9,20 @@ import { trackEvent } from "@/lib/observability";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
+import { showAlert } from "@/lib/alert";
+
+let ImagePicker: typeof import("expo-image-picker") | undefined;
+if (Platform.OS !== "web") {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  ImagePicker = require("expo-image-picker") as typeof import("expo-image-picker");
+}
 
 const DONATION_LINKS: Record<number, string> = {
   100: "https://buy.stripe.com/8x214p9RF4XRbCq2y64ZG00",
   500: "https://buy.stripe.com/cNi5kFfbZ2PJ21Q3Ca4ZG01",
   1000: "https://buy.stripe.com/aFaeVfbZNeyr21QdcK4ZG02",
 };
+const AVATARS_BUCKET = "avatars";
 
 const EXPERIENCE_LABELS: Record<string, string> = {
   beginner: "ENTHUSIAST",
@@ -24,9 +32,11 @@ const EXPERIENCE_LABELS: Record<string, string> = {
 };
 
 export default function ProfileScreen() {
-  const { member, session } = useSupabase();
+  const { member, session, refreshMember } = useSupabase();
   const theme = useTheme();
   const queryClient = useQueryClient();
+  const webFileInputRef = useRef<HTMLInputElement | null>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
 
   const { data: ownRatings = [], isLoading: ownRatingsLoading } = useQuery({
     queryKey: ["profile", "ratings", member?.id],
@@ -161,6 +171,113 @@ export default function ProfileScreen() {
     await Linking.openURL(params.length ? `${base}?${params.join("&")}` : base);
   };
 
+  const refreshProfileData = useCallback(async () => {
+    await refreshMember();
+    queryClient.invalidateQueries({ queryKey: ["profile"] });
+    queryClient.invalidateQueries({ queryKey: ["members"] });
+  }, [queryClient, refreshMember]);
+
+  const uploadAvatarBlob = useCallback(async (blob: Blob) => {
+    if (!member?.id) return;
+
+    setAvatarBusy(true);
+    const previousStoragePath = member.avatar_source === "upload" ? member.avatar_storage_path : null;
+
+    try {
+      const path = `${member.id}/avatar-${Date.now()}.jpg`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from(AVATARS_BUCKET)
+        .upload(path, blob, { contentType: "image/jpeg", upsert: false });
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from(AVATARS_BUCKET).getPublicUrl(uploadData.path);
+      const { error: updateError } = await supabase
+        .from("members")
+        .update({
+          avatar_url: urlData.publicUrl,
+          avatar_storage_path: uploadData.path,
+          avatar_source: "upload",
+        })
+        .eq("id", member.id);
+      if (updateError) throw updateError;
+
+      if (previousStoragePath && previousStoragePath !== uploadData.path) {
+        await supabase.storage.from(AVATARS_BUCKET).remove([previousStoragePath]);
+      }
+
+      await refreshProfileData();
+    } catch (e: unknown) {
+      showAlert("Error", e instanceof Error ? e.message : "Could not update your photo.");
+    } finally {
+      setAvatarBusy(false);
+    }
+  }, [member?.avatar_source, member?.avatar_storage_path, member?.id, refreshProfileData]);
+
+  const handlePickAvatar = useCallback(async () => {
+    if (!member?.id || avatarBusy) return;
+
+    if (Platform.OS === "web") {
+      webFileInputRef.current?.click();
+      return;
+    }
+
+    if (!ImagePicker) return;
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      showAlert("Permission needed", "Allow access to your photos to choose an avatar.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets[0]?.uri) return;
+
+    const response = await fetch(result.assets[0].uri);
+    const blob = await response.blob();
+    await uploadAvatarBlob(blob);
+  }, [avatarBusy, member?.id, uploadAvatarBlob]);
+
+  const handleWebFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await uploadAvatarBlob(file);
+    if (webFileInputRef.current) webFileInputRef.current.value = "";
+  }, [uploadAvatarBlob]);
+
+  const handleRemoveAvatar = useCallback(async () => {
+    if (!member?.id || avatarBusy) return;
+
+    setAvatarBusy(true);
+    try {
+      if (member.avatar_source === "upload" && member.avatar_storage_path) {
+        const { error: removeError } = await supabase.storage
+          .from(AVATARS_BUCKET)
+          .remove([member.avatar_storage_path]);
+        if (removeError) throw removeError;
+      }
+
+      const { error: updateError } = await supabase
+        .from("members")
+        .update({
+          avatar_url: null,
+          avatar_storage_path: null,
+          avatar_source: "removed",
+        })
+        .eq("id", member.id);
+      if (updateError) throw updateError;
+
+      await refreshProfileData();
+    } catch (e: unknown) {
+      showAlert("Error", e instanceof Error ? e.message : "Could not remove your photo.");
+    } finally {
+      setAvatarBusy(false);
+    }
+  }, [avatarBusy, member?.avatar_source, member?.avatar_storage_path, member?.id, refreshProfileData]);
+
   const renderTopSection = () => {
     if (member?.id == null || isTopSectionLoading) return null;
     if (shouldShowProfileEmptyState) {
@@ -285,9 +402,19 @@ export default function ProfileScreen() {
   };
 
   const displayName = [member?.first_name, member?.last_name].filter(Boolean).join(" ");
+  const hasAvatar = Boolean(member?.avatar_url);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {Platform.OS === "web" && (
+        <input
+          ref={webFileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleWebFileChange as unknown as React.ChangeEventHandler<HTMLInputElement>}
+          style={{ display: "none" }}
+        />
+      )}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.push("/settings")} hitSlop={8}>
           <Ionicons name="settings-outline" size={22} color={theme.text} />
@@ -299,8 +426,34 @@ export default function ProfileScreen() {
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: 32 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.profileSummary}>
-          <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
-            <Text style={styles.avatarText}>{initials}</Text>
+          {hasAvatar ? (
+            <Image
+              source={{ uri: member?.avatar_url ?? "" }}
+              style={styles.avatarImage}
+              testID="profile-avatar-image"
+            />
+          ) : (
+            <View style={[styles.avatar, { backgroundColor: theme.primary }]} testID="profile-avatar-fallback">
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
+          )}
+          <View style={styles.avatarActions}>
+            <TouchableOpacity
+              style={[styles.avatarActionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
+              onPress={handlePickAvatar}
+              disabled={avatarBusy}
+            >
+              <Text style={[styles.avatarActionText, { color: theme.textSecondary }]}>
+                {avatarBusy ? "Updating..." : hasAvatar ? "Change photo" : "Add photo"}
+              </Text>
+            </TouchableOpacity>
+            {hasAvatar ? (
+              <TouchableOpacity onPress={handleRemoveAvatar} disabled={avatarBusy}>
+                <Text style={[styles.removeAvatarText, { color: avatarBusy ? theme.textMuted : theme.primary }]}>
+                  Remove photo
+                </Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
           {displayName ? (
             <Text style={[styles.profileName, { color: theme.text }]}>{displayName}</Text>
@@ -362,10 +515,35 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 10,
   },
+  avatarImage: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    marginBottom: 10,
+  },
   avatarText: {
     color: "#fff",
     fontSize: 24,
     fontFamily: "Montserrat_600SemiBold",
+  },
+  avatarActions: {
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
+  },
+  avatarActionButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  avatarActionText: {
+    fontSize: 13,
+    fontFamily: "Montserrat_600SemiBold",
+  },
+  removeAvatarText: {
+    fontSize: 13,
+    fontFamily: "Montserrat_400Regular",
   },
   profileName: {
     fontSize: 20,

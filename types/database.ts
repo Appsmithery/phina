@@ -8,6 +8,9 @@ export interface Database {
           id: string;
           name: string | null;
           email: string;
+          avatar_url: string | null;
+          avatar_storage_path: string | null;
+          avatar_source: "google" | "upload" | "removed" | null;
           first_name: string | null;
           last_name: string | null;
           birthday: string | null;
@@ -24,6 +27,9 @@ export interface Database {
           id: string;
           name?: string | null;
           email: string;
+          avatar_url?: string | null;
+          avatar_storage_path?: string | null;
+          avatar_source?: "google" | "upload" | "removed" | null;
           first_name?: string | null;
           last_name?: string | null;
           birthday?: string | null;
@@ -40,6 +46,9 @@ export interface Database {
           id?: string;
           name?: string | null;
           email?: string;
+          avatar_url?: string | null;
+          avatar_storage_path?: string | null;
+          avatar_source?: "google" | "upload" | "removed" | null;
           first_name?: string | null;
           last_name?: string | null;
           birthday?: string | null;

@@ -16,6 +16,7 @@
     "functions:serve": "supabase functions serve extract-wine-label",
     "functions:deploy:extract-wine-label": "supabase functions deploy extract-wine-label --no-verify-jwt --use-api",
     "functions:deploy:generate-bottle-image": "supabase functions deploy generate-bottle-image --no-verify-jwt --use-api",
+    "functions:deploy:generate-event-image": "supabase functions deploy generate-event-image --no-verify-jwt --use-api",
     "functions:deploy:generate-wine-summary": "supabase functions deploy generate-wine-summary --no-verify-jwt --use-api",
     "functions:deploy:send-rating-round-push": "supabase functions deploy send-rating-round-push --use-api"
   },

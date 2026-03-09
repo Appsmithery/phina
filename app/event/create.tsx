@@ -1,18 +1,24 @@
 import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, ScrollView, Platform } from "react-native";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
-import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
+import { router } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
+
+import { showAlert } from "@/lib/alert";
+import { trackEvent } from "@/lib/observability";
+import { generateEventImage } from "@/lib/event-image-generation";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
-import { showAlert } from "@/lib/alert";
-import { useQueryClient } from "@tanstack/react-query";
-import { trackEvent } from "@/lib/observability";
-import { generateEventImage } from "@/lib/event-image-generation";
 
 function formatDisplayDate(d: Date): string {
-  return d.toLocaleDateString(undefined, { weekday: "short", month: "long", day: "numeric", year: "numeric" });
+  return d.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 const APP_BASE_URL = process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co";
@@ -42,22 +48,32 @@ export default function CreateEventScreen() {
     const shareMessage = `I'm using Phina for our wine tasting on ${formatDisplayDate(selectedDate)}! Set up your account before the event so you're ready to rate: ${joinUrl}`;
 
     showAlert(
-      "Share with your guests",
+      "Share in Partiful",
       "Post this in your Partiful event so guests can set up before the tasting.",
       [
         {
           text: "Copy Message",
           onPress: async () => {
+            let copied = false;
+
             try {
               await Clipboard.setStringAsync(shareMessage);
-              showAlert("Copied!", "Message copied to clipboard. Paste it in your Partiful event.");
-            } catch {
-              // Fallback for web
-              if (Platform.OS === "web" && navigator.clipboard) {
+              copied = true;
+            } catch (error) {
+              if (Platform.OS === "web" && typeof navigator !== "undefined" && navigator.clipboard) {
                 await navigator.clipboard.writeText(shareMessage);
-                showAlert("Copied!", "Message copied to clipboard.");
+                copied = true;
+              } else {
+                console.warn("[create-event] clipboard copy failed:", error);
               }
             }
+
+            showAlert(
+              copied ? "Copied" : "Copy failed",
+              copied
+                ? "Message copied to clipboard. Paste it into your Partiful event."
+                : "We could not copy the message automatically. You can still share your join link from the event page."
+            );
             router.replace(`/event/${eventId}`);
           },
         },
@@ -72,16 +88,21 @@ export default function CreateEventScreen() {
 
   const create = async () => {
     if (!session?.user?.id || !title.trim()) return;
+
     setLoading(true);
     try {
-      const trimmedPartifulUrl = partifulUrl.trim() || null;
+      const trimmedTitle = title.trim();
+      const trimmedTheme = themeText.trim() || "Tasting";
+      const trimmedPartifulUrl = partifulUrl.trim()
+        ? (/^https?:\/\//i.test(partifulUrl.trim()) ? partifulUrl.trim() : `https://${partifulUrl.trim()}`)
+        : null;
       const trimmedDescription = description.trim() || null;
 
       const { data, error } = await supabase
         .from("events")
         .insert({
-          title: title.trim(),
-          theme: themeText.trim() || "Tasting",
+          title: trimmedTitle,
+          theme: trimmedTheme,
           date,
           status: "active",
           created_by: session.user.id,
@@ -92,30 +113,27 @@ export default function CreateEventScreen() {
         })
         .select("id")
         .single();
+
       if (error) throw error;
 
-      // Auto-join the host as a member of their own event
       const { error: memberError } = await supabase
         .from("event_members")
         .upsert(
           { event_id: data.id, member_id: session.user.id, checked_in: true },
           { onConflict: "event_id,member_id" }
         );
-      if (memberError) console.warn("[create-event] host auto-join failed:", memberError.message);
 
-      // Fire-and-forget: generate event image in background
-      generateEventImage(data.id, title.trim(), themeText.trim() || "Tasting", trimmedDescription);
+      if (memberError) {
+        console.warn("[create-event] host auto-join failed:", memberError.message);
+      }
+
+      void generateEventImage(data.id, trimmedTitle, trimmedTheme, trimmedDescription);
 
       queryClient.invalidateQueries({ queryKey: ["events"] });
       queryClient.invalidateQueries({ queryKey: ["profile", "event_members"] });
       trackEvent("event_created", { event_id: data.id, has_partiful_url: !!trimmedPartifulUrl });
 
-      // Show share prompt if Partiful URL was provided, otherwise navigate directly
-      if (trimmedPartifulUrl) {
-        showSharePrompt(data.id);
-      } else {
-        router.replace(`/event/${data.id}`);
-      }
+      showSharePrompt(data.id);
     } catch (e: unknown) {
       showAlert("Error", e instanceof Error ? e.message : "Could not create event");
     } finally {
@@ -132,128 +150,131 @@ export default function CreateEventScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-      <Text style={[styles.title, { color: theme.text }]}>New event</Text>
-      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <Text style={[styles.label, { color: theme.textSecondary }]}>Title</Text>
-        <TextInput
-          style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-          value={title}
-          onChangeText={setTitle}
-          placeholder="e.g. Alpine Night"
-          placeholderTextColor={theme.textMuted}
-        />
-        <Text style={[styles.label, { color: theme.textSecondary }]}>Theme</Text>
-        <TextInput
-          style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-          value={themeText}
-          onChangeText={setThemeText}
-          placeholder="e.g. Burgundy, Natural Wines, Rosé"
-          placeholderTextColor={theme.textMuted}
-        />
-        <Text style={[styles.label, { color: theme.textSecondary }]}>Description</Text>
-        <TextInput
-          style={[styles.input, styles.multilineInput, { color: theme.text, borderColor: theme.border }]}
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Tell your guests what to expect..."
-          placeholderTextColor={theme.textMuted}
-          multiline
-          numberOfLines={3}
-          textAlignVertical="top"
-        />
-        <Text style={[styles.label, { color: theme.textSecondary }]}>Date</Text>
-        {Platform.OS === "web" ? (
-          <TextInput
-            style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-            value={date}
-            onChange={(event: any) => {
-              const val = event?.target?.value;
-              if (val) setSelectedDate(new Date(val + "T00:00:00"));
-            }}
-            // @ts-expect-error web-only prop
-            type="date"
-            min={new Date().toISOString().slice(0, 10)}
-          />
-        ) : (
-          <>
-            <TouchableOpacity
-              style={[styles.input, styles.dateInput, { borderColor: theme.border }]}
-              onPress={() => setShowPicker(true)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.dateText, { color: theme.text }]}>{formatDisplayDate(selectedDate)}</Text>
-            </TouchableOpacity>
-            {showPicker && (
-              <DateTimePicker
-                value={selectedDate}
-                mode="date"
-                display={Platform.OS === "ios" ? "inline" : "default"}
-                onChange={onDateChange}
-                minimumDate={new Date()}
-                themeVariant="light"
+          <Text style={[styles.title, { color: theme.text }]}>New event</Text>
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Title</Text>
+            <TextInput
+              style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="e.g. Alpine Night"
+              placeholderTextColor={theme.textMuted}
+            />
+
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Theme</Text>
+            <TextInput
+              style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+              value={themeText}
+              onChangeText={setThemeText}
+              placeholder="e.g. Alpine, Burgundy Night, Rose"
+              placeholderTextColor={theme.textMuted}
+            />
+
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Description</Text>
+            <TextInput
+              style={[styles.input, styles.multilineInput, { color: theme.text, borderColor: theme.border }]}
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Tell your guests what to expect..."
+              placeholderTextColor={theme.textMuted}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Date</Text>
+            {Platform.OS === "web" ? (
+              <TextInput
+                style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+                value={date}
+                onChange={(event: any) => {
+                  const val = event?.target?.value;
+                  if (val) setSelectedDate(new Date(`${val}T00:00:00`));
+                }}
+                // @ts-expect-error web-only prop
+                type="date"
+                min={new Date().toISOString().slice(0, 10)}
               />
-            )}
-            {showPicker && Platform.OS === "ios" && (
-              <TouchableOpacity
-                style={[styles.doneButton, { backgroundColor: theme.primary }]}
-                onPress={() => setShowPicker(false)}
-              >
-                <Text style={styles.doneButtonText}>Done</Text>
-              </TouchableOpacity>
-            )}
-          </>
-        )}
-        <Text style={[styles.label, { color: theme.textSecondary }]}>Partiful Link (optional)</Text>
-        <TextInput
-          style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-          value={partifulUrl}
-          onChangeText={setPartifulUrl}
-          placeholder="partiful.com/e/..."
-          placeholderTextColor={theme.textMuted}
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="url"
-        />
-        <Text style={[styles.label, { color: theme.textSecondary }]}>Tasting Mode</Text>
-        <View style={[styles.modeRow, { borderColor: theme.border }]}>
-          {(["single_blind", "double_blind"] as const).map((mode) => {
-            const active = tastingMode === mode;
-            return (
-              <TouchableOpacity
-                key={mode}
-                style={[
-                  styles.modePill,
-                  active && { backgroundColor: theme.primary },
-                  !active && { backgroundColor: "transparent" },
-                ]}
-                onPress={() => setTastingMode(mode)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.modePillText,
-                    { color: active ? "#fff" : theme.text },
-                  ]}
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={[styles.input, styles.dateInput, { borderColor: theme.border }]}
+                  onPress={() => setShowPicker(true)}
+                  activeOpacity={0.7}
                 >
-                  {mode === "single_blind" ? "Single Blind" : "Double Blind"}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-        <Text style={[styles.modeHint, { color: theme.textSecondary }]}>
-          {tastingMode === "single_blind"
-            ? "Guests see wine details but not results until the event ends."
-            : "Guests see only wine numbers — details are revealed when the event ends."}
-        </Text>
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: theme.primary }]}
-          onPress={create}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>{loading ? "Creating…" : "Create"}</Text>
-        </TouchableOpacity>
-      </View>
+                  <Text style={[styles.dateText, { color: theme.text }]}>{formatDisplayDate(selectedDate)}</Text>
+                </TouchableOpacity>
+                {showPicker && (
+                  <DateTimePicker
+                    value={selectedDate}
+                    mode="date"
+                    display={Platform.OS === "ios" ? "inline" : "default"}
+                    onChange={onDateChange}
+                    minimumDate={new Date()}
+                    themeVariant="light"
+                  />
+                )}
+                {showPicker && Platform.OS === "ios" && (
+                  <TouchableOpacity
+                    style={[styles.doneButton, { backgroundColor: theme.primary }]}
+                    onPress={() => setShowPicker(false)}
+                  >
+                    <Text style={styles.doneButtonText}>Done</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Partiful Link (optional)</Text>
+            <TextInput
+              style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+              value={partifulUrl}
+              onChangeText={setPartifulUrl}
+              placeholder="partiful.com/e/..."
+              placeholderTextColor={theme.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+            />
+
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Tasting Mode</Text>
+            <View style={[styles.modeRow, { borderColor: theme.border }]}>
+              {(["single_blind", "double_blind"] as const).map((mode) => {
+                const active = tastingMode === mode;
+
+                return (
+                  <TouchableOpacity
+                    key={mode}
+                    style={[
+                      styles.modePill,
+                      active && { backgroundColor: theme.primary },
+                      !active && { backgroundColor: "transparent" },
+                    ]}
+                    onPress={() => setTastingMode(mode)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.modePillText, { color: active ? "#fff" : theme.text }]}>
+                      {mode === "single_blind" ? "Single Blind" : "Double Blind"}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={[styles.modeHint, { color: theme.textSecondary }]}>
+              {tastingMode === "single_blind"
+                ? "Guests see wine details but not results until the event ends."
+                : "Guests see only wine numbers - details are revealed when the event ends."}
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: theme.primary }]}
+              onPress={create}
+              disabled={loading}
+            >
+              <Text style={styles.buttonText}>{loading ? "Creating..." : "Create"}</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>

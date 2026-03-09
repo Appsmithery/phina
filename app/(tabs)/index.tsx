@@ -1,8 +1,9 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Image } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
@@ -25,10 +26,7 @@ export default function EventsScreen() {
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["events"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("events")
-        .select("*")
-        .order("date", { ascending: false });
+      const { data, error } = await supabase.from("events").select("*").order("date", { ascending: false });
       if (error) throw error;
       return data as Event[];
     },
@@ -38,47 +36,38 @@ export default function EventsScreen() {
     queryKey: ["events", "my-memberships", member?.id],
     queryFn: async () => {
       if (!member?.id) return new Set<string>();
-      const { data, error } = await supabase
-        .from("event_members")
-        .select("event_id")
-        .eq("member_id", member.id);
+      const { data, error } = await supabase.from("event_members").select("event_id").eq("member_id", member.id);
       if (error) throw error;
-      return new Set((data ?? []).map((r) => r.event_id));
+      return new Set((data ?? []).map((row) => row.event_id));
     },
     enabled: !!member?.id,
   });
 
   const filteredEvents = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
-    const q = search.trim().toLowerCase();
+    const query = search.trim().toLowerCase();
 
     let filtered: Event[];
     switch (activeTab) {
       case "upcoming":
-        filtered = events
-          .filter((e) => e.date >= today && e.status !== "ended")
-          .sort((a, b) => a.date.localeCompare(b.date));
+        filtered = events.filter((event) => event.date >= today && event.status !== "ended").sort((a, b) => a.date.localeCompare(b.date));
         break;
       case "past":
-        filtered = events.filter((e) => e.date < today || e.status === "ended");
+        filtered = events.filter((event) => event.date < today || event.status === "ended");
         break;
       case "my-events":
-        filtered = events.filter(
-          (e) => myEventIds.has(e.id) || e.created_by === member?.id,
-        );
+        filtered = events.filter((event) => myEventIds.has(event.id) || event.created_by === member?.id);
         break;
     }
 
-    if (q) {
-      filtered = filtered.filter(
-        (e) =>
-          e.title.toLowerCase().includes(q) ||
-          e.theme.toLowerCase().includes(q),
-      );
+    if (query) {
+      filtered = filtered.filter((event) => {
+        return event.title.toLowerCase().includes(query) || event.theme.toLowerCase().includes(query);
+      });
     }
 
     return filtered;
-  }, [events, activeTab, myEventIds, member?.id, search]);
+  }, [activeTab, events, member?.id, myEventIds, search]);
 
   const emptyMessage = useMemo(() => {
     if (search.trim()) return "No events match your search.";
@@ -93,46 +82,48 @@ export default function EventsScreen() {
   }, [activeTab, search]);
 
   const renderItem = ({ item }: { item: Event }) => {
-    const d = new Date(item.date + "T00:00:00");
-    const dayNum = d.getDate();
-    const monthAbbr = d
-      .toLocaleDateString("en-US", { month: "short" })
-      .toUpperCase();
+    const date = new Date(`${item.date}T00:00:00`);
+    const dayNum = date.getDate();
+    const monthAbbr = date.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
+    const dateLabel = date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 
     return (
       <TouchableOpacity
-        style={[
-          styles.card,
-          { backgroundColor: theme.surface, borderColor: theme.border },
-        ]}
+        style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
         onPress={() => router.push(`/event/${item.id}`)}
-        activeOpacity={0.8}
+        activeOpacity={0.85}
       >
-        <View style={styles.cardRow}>
-          <View style={[styles.dateBadge, { backgroundColor: theme.primary }]}>
-            <Text style={styles.dateBadgeDay}>{dayNum}</Text>
-            <Text style={styles.dateBadgeMonth}>{monthAbbr}</Text>
-          </View>
-          <View style={styles.cardContent}>
-            <Text style={[styles.cardTitle, { color: theme.text }]}>
-              {item.title}
-            </Text>
-            <Text style={[styles.cardTheme, { color: theme.textSecondary }]}>
-              {item.theme}
-            </Text>
+        <View style={[styles.heroShell, { backgroundColor: `${theme.primary}12` }]}>
+          {item.event_image_url ? (
+            <Image source={{ uri: item.event_image_url }} style={styles.heroImage} resizeMode="cover" />
+          ) : null}
+
+          <View style={styles.heroOverlay} pointerEvents="none">
+            <View style={[styles.dateBadge, { backgroundColor: theme.primary }]}>
+              <Text style={styles.dateBadgeDay}>{dayNum}</Text>
+              <Text style={styles.dateBadgeMonth}>{monthAbbr}</Text>
+            </View>
+
             <View
               style={[
-                styles.badge,
+                styles.statusBadge,
                 item.status === "ended"
-                  ? { backgroundColor: theme.textMuted }
-                  : { backgroundColor: theme.primary },
+                  ? { backgroundColor: "rgba(0,0,0,0.55)" }
+                  : { backgroundColor: "rgba(181, 90, 90, 0.9)" },
               ]}
             >
-              <Text style={styles.badgeText}>
-                {item.status === "ended" ? "Ended" : "Active"}
-              </Text>
+              <Text style={styles.statusBadgeText}>{item.status === "ended" ? "Ended" : "Active"}</Text>
             </View>
           </View>
+
+          <View style={styles.titleWrap} pointerEvents="none">
+            <Text style={styles.cardTitle}>{item.title}</Text>
+          </View>
+        </View>
+
+        <View style={styles.cardBody}>
+          <Text style={[styles.cardTheme, { color: theme.text }]}>{item.theme}</Text>
+          <Text style={[styles.cardMeta, { color: theme.textSecondary }]}>{dateLabel}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -163,36 +154,18 @@ export default function EventsScreen() {
             ]}
             onPress={() => setActiveTab(tab)}
           >
-            <Text
-              style={[
-                styles.tabText,
-                {
-                  color:
-                    activeTab === tab ? theme.primary : theme.textMuted,
-                },
-              ]}
-            >
+            <Text style={[styles.tabText, { color: activeTab === tab ? theme.primary : theme.textMuted }]}>
               {TAB_LABELS[tab]}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <View
-        style={[
-          styles.searchWrapper,
-          { backgroundColor: theme.surface, borderColor: theme.border },
-        ]}
-      >
-        <Ionicons
-          name="search-outline"
-          size={16}
-          color={theme.textMuted}
-          style={styles.searchIcon}
-        />
+      <View style={[styles.searchWrapper, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <Ionicons name="search-outline" size={16} color={theme.textMuted} style={styles.searchIcon} />
         <TextInput
           style={[styles.search, { color: theme.text }]}
-          placeholder="Find workshops, galas, or mixers…"
+          placeholder="Find tastings, dinners, or group pours..."
           placeholderTextColor={theme.textMuted}
           value={search}
           onChangeText={setSearch}
@@ -200,13 +173,9 @@ export default function EventsScreen() {
       </View>
 
       {isLoading ? (
-        <Text style={[styles.placeholder, { color: theme.textMuted }]}>
-          Loading…
-        </Text>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading...</Text>
       ) : filteredEvents.length === 0 ? (
-        <Text style={[styles.placeholder, { color: theme.textMuted }]}>
-          {emptyMessage}
-        </Text>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>{emptyMessage}</Text>
       ) : (
         <FlatList
           data={filteredEvents}
@@ -215,11 +184,7 @@ export default function EventsScreen() {
           contentContainerStyle={styles.list}
           ListHeaderComponent={
             activeTab === "upcoming" ? (
-              <Text
-                style={[styles.sectionHeader, { color: theme.text }]}
-              >
-                Recommended for you
-              </Text>
+              <Text style={[styles.sectionHeader, { color: theme.text }]}>Recommended for you</Text>
             ) : null
           }
         />
@@ -288,21 +253,35 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_600SemiBold",
     marginBottom: 12,
   },
-  list: { padding: 16, paddingTop: 0 },
+  list: { padding: 16, paddingTop: 0, paddingBottom: 24 },
   card: {
     borderWidth: 1,
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: 18,
+    overflow: "hidden",
+    marginBottom: 14,
   },
-  cardRow: { flexDirection: "row", gap: 12 },
+  heroShell: {
+    position: "relative",
+    minHeight: 208,
+    justifyContent: "space-between",
+  },
+  heroImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: "100%",
+    height: "100%",
+  },
+  heroOverlay: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    padding: 12,
+  },
   dateBadge: {
-    width: 52,
-    height: 60,
-    borderRadius: 10,
+    width: 56,
+    height: 64,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    flexShrink: 0,
   },
   dateBadgeDay: {
     color: "#fff",
@@ -318,29 +297,40 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_600SemiBold",
     letterSpacing: 0.5,
   },
-  cardContent: { flex: 1 },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 2,
-    fontFamily: "PlayfairDisplay_600SemiBold",
+  statusBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
-  cardTheme: {
-    fontSize: 13,
-    marginBottom: 8,
-    fontFamily: "Montserrat_400Regular",
-  },
-  badge: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  badgeText: {
+  statusBadgeText: {
     color: "#fff",
     fontSize: 12,
-    fontWeight: "600",
     fontFamily: "Montserrat_600SemiBold",
+  },
+  titleWrap: {
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+    paddingTop: 36,
+    backgroundColor: "rgba(0,0,0,0.28)",
+  },
+  cardBody: {
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  cardTitle: {
+    color: "#fff",
+    fontSize: 22,
+    fontWeight: "700",
+    fontFamily: "PlayfairDisplay_700Bold",
+  },
+  cardTheme: {
+    fontSize: 15,
+    fontFamily: "Montserrat_600SemiBold",
+    marginBottom: 4,
+  },
+  cardMeta: {
+    fontSize: 13,
+    fontFamily: "Montserrat_400Regular",
   },
   placeholder: {
     padding: 24,

@@ -1,6 +1,3 @@
-// Image generation prompt templates for AI-Enhanced Bottle Image Generation
-// PRD-2026-007 Phase 1+2
-
 export interface BottlePayload {
   producer: string | null;
   varietal: string | null;
@@ -8,6 +5,12 @@ export interface BottlePayload {
   region: string | null;
   color: "red" | "white" | "skin-contact" | null;
   is_sparkling?: boolean | null;
+}
+
+export interface EventImagePayload {
+  title: string;
+  theme: string | null;
+  description: string | null;
 }
 
 export const BRAND_SCAFFOLD =
@@ -36,10 +39,10 @@ export function buildBottlePrompt(bottle: BottlePayload): string {
     bottle.color === "red"
       ? "red wine"
       : bottle.color === "white"
-      ? "white wine"
-      : bottle.color === "skin-contact"
-      ? "rosé/orange wine"
-      : "wine";
+        ? "white wine"
+        : bottle.color === "skin-contact"
+          ? "rose/orange wine"
+          : "wine";
 
   const sparklingDesc = bottle.is_sparkling ? " (sparkling)" : "";
   const bottleDesc = [
@@ -54,14 +57,36 @@ export function buildBottlePrompt(bottle: BottlePayload): string {
   return (
     `Generate a professional product photograph of a ${colorDesc}${sparklingDesc} bottle. ` +
     `Wine: ${bottleDesc || "unknown wine"}. ` +
-    `Use the provided reference image to faithfully reproduce the exact label design, typography, ` +
-    `color palette, capsule/foil, and bottle silhouette — do not invent or alter any label details. ` +
+    "Use the provided reference image to faithfully reproduce the exact label design, typography, " +
+    "color palette, capsule/foil, and bottle silhouette - do not invent or alter any label details. " +
     `Style: ${BRAND_SCAFFOLD}. Scene: ${SCENE_CONSTRAINTS}. Constraints: ${NEGATIVE_CONSTRAINTS}.`
   );
 }
 
 export const QUALITY_SCORING_PROMPT =
   "Analyze this wine bottle label photo and rate its quality for image enhancement. " +
-  "Consider: label visibility (0–30pts), focus/sharpness (0–25pts), lighting quality (0–25pts), " +
-  "absence of glare/reflections (0–20pts). " +
-  "Return ONLY a JSON object: { \"score\": <integer 0-100>, \"issues\": [<string>] }";
+  "Consider: label visibility (0-30pts), focus/sharpness (0-25pts), lighting quality (0-25pts), " +
+  "absence of glare/reflections (0-20pts). " +
+  'Return ONLY a JSON object: { "score": <integer 0-100>, "issues": [<string>] }';
+
+export const EVENT_BRAND_SCAFFOLD =
+  "warm editorial photography, golden hour ambient lighting, elegant entertaining atmosphere, " +
+  "rich textures, soft bokeh, heritage-luxury tone";
+
+export const EVENT_SCENE_CONSTRAINTS =
+  "4:3 aspect ratio, optimized for mobile card display, inviting depth";
+
+export function buildEventImagePrompt(title: string, theme: string | null, description: string | null): string {
+  const themeSentence = theme?.trim() ? `Theme: ${theme.trim()}. ` : "";
+  const descriptionSentence = description?.trim() ? `Description: ${description.trim()}. ` : "";
+
+  return (
+    `Generate an elegant editorial photograph for a wine tasting event titled "${title}". ` +
+    themeSentence +
+    descriptionSentence +
+    "Show an inviting, atmospheric wine event scene - think candlelit table settings, " +
+    "curated wine glasses, warm ambient lighting, stylish venue details. " +
+    `Style: ${EVENT_BRAND_SCAFFOLD}. Scene: ${EVENT_SCENE_CONSTRAINTS}. ` +
+    "No text, no logos, no watermarks, no people's faces."
+  );
+}

@@ -6,6 +6,20 @@ const mockPush = jest.fn();
 const mockReplace = jest.fn();
 const mockTrackEvent = jest.fn();
 const mockInvalidateQueries = jest.fn();
+let mockMember: any = {
+  id: "member-1",
+  first_name: "Alex",
+  last_name: "Torelli",
+  phone: null,
+  city: null,
+  state: null,
+  wine_experience: null,
+  birthday: null,
+  created_at: "2026-01-05T00:00:00.000Z",
+  avatar_url: null,
+  avatar_storage_path: null,
+  avatar_source: null,
+};
 
 let mockQueryState: {
   ratings: { data: any[]; isLoading: boolean };
@@ -50,16 +64,7 @@ jest.mock("@/lib/theme", () => ({
 
 jest.mock("@/lib/supabase-context", () => ({
   useSupabase: () => ({
-    member: {
-      id: "member-1",
-      first_name: "Alex",
-      last_name: "Torelli",
-      phone: null,
-      city: null,
-      state: null,
-      wine_experience: null,
-      birthday: null,
-    },
+    member: mockMember,
     session: { user: { id: "member-1", email: "alex@example.com" } },
     refreshMember: jest.fn(),
   }),
@@ -79,7 +84,23 @@ jest.mock("@/lib/supabase", () => ({
     from: jest.fn(() => ({
       update: jest.fn(() => ({ eq: jest.fn() })),
     })),
+    storage: {
+      from: jest.fn(() => ({
+        upload: jest.fn(),
+        getPublicUrl: jest.fn(),
+        remove: jest.fn(),
+      })),
+    },
   },
+}));
+
+jest.mock("expo-image-picker", () => ({
+  requestMediaLibraryPermissionsAsync: jest.fn(),
+  launchImageLibraryAsync: jest.fn(),
+}));
+
+jest.mock("@/lib/alert", () => ({
+  showAlert: jest.fn(),
 }));
 
 jest.mock("@tanstack/react-query", () => ({
@@ -100,6 +121,20 @@ jest.mock("@/components/BirthdayPickerField", () => ({
 
 describe("ProfileScreen", () => {
   beforeEach(() => {
+    mockMember = {
+      id: "member-1",
+      first_name: "Alex",
+      last_name: "Torelli",
+      phone: null,
+      city: null,
+      state: null,
+      wine_experience: null,
+      birthday: null,
+      created_at: "2026-01-05T00:00:00.000Z",
+      avatar_url: null,
+      avatar_storage_path: null,
+      avatar_source: null,
+    };
     mockQueryState = {
       ratings: { data: [], isLoading: false },
       events: { data: 0, isLoading: false },
@@ -123,6 +158,9 @@ describe("ProfileScreen", () => {
     expect(screen.getByText("Your taste profile starts here.")).toBeTruthy();
     expect(screen.queryByText("Your Taste Graph")).toBeNull();
     expect(mockTrackEvent).toHaveBeenCalledWith("profile_empty_state_viewed");
+    expect(screen.getByText("Add photo")).toBeTruthy();
+    expect(screen.queryByText("Remove photo")).toBeNull();
+    expect(screen.getByTestId("profile-avatar-fallback")).toBeTruthy();
   });
 
   it("navigates and tracks when the empty-state CTA is tapped", () => {
@@ -150,5 +188,20 @@ describe("ProfileScreen", () => {
     };
     render(<ProfileScreen />);
     expect(screen.getByText("Your Taste Graph")).toBeTruthy();
+  });
+
+  it("renders the uploaded avatar and photo management actions", () => {
+    mockMember = {
+      ...mockMember,
+      avatar_url: "https://example.com/avatar.jpg",
+      avatar_storage_path: "member-1/avatar.jpg",
+      avatar_source: "upload",
+    };
+
+    render(<ProfileScreen />);
+
+    expect(screen.getByTestId("profile-avatar-image")).toBeTruthy();
+    expect(screen.getByText("Change photo")).toBeTruthy();
+    expect(screen.getByText("Remove photo")).toBeTruthy();
   });
 });

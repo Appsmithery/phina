@@ -1,16 +1,15 @@
 import { useEffect } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Share, Platform } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Share, Platform, Image, Linking } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+
+import { showAlert } from "@/lib/alert";
+import { useEndEvent, useEndRatingRound, useStartRatingRound } from "@/hooks/use-event-actions";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
-import { showAlert } from "@/lib/alert";
-import { useStartRatingRound, useEndRatingRound, useEndEvent } from "@/hooks/use-event-actions";
-import type { Event } from "@/types/database";
-import type { WineWithPricePrivacy } from "@/types/database";
-import type { RatingRound } from "@/types/database";
+import type { Event, RatingRound, WineWithPricePrivacy } from "@/types/database";
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -33,7 +32,11 @@ export default function EventDetailScreen() {
   const { data: wines = [] } = useQuery({
     queryKey: ["wines", id, session?.user?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("wines_with_price_privacy").select("*").eq("event_id", id!).order("created_at", { ascending: true });
+      const { data, error } = await supabase
+        .from("wines_with_price_privacy")
+        .select("*")
+        .eq("event_id", id!)
+        .order("created_at", { ascending: true });
       if (error) throw error;
       return data as WineWithPricePrivacy[];
     },
@@ -89,7 +92,6 @@ export default function EventDetailScreen() {
     enabled: !!id && isAuthenticated,
   });
 
-  // ── Realtime subscriptions for live cross-platform sync ──
   useEffect(() => {
     if (!id || !isAuthenticated) return;
 
@@ -137,18 +139,19 @@ export default function EventDetailScreen() {
   const isDoubleBlind = event?.tasting_mode === "double_blind" && event?.status === "active";
   const hideWineDetails = isDoubleBlind && !isHost;
   const canSeeMetrics = isHost || member?.is_admin;
+  const canDeleteEvent = isHost || member?.is_admin;
   const endEventMutation = useEndEvent(id!);
-
-  const APP_BASE_URL = process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co";
+  const appBaseUrl = process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co";
 
   const handleShareInvite = async () => {
-    const joinUrl = `${APP_BASE_URL}/join/${id}`;
+    const joinUrl = `${appBaseUrl}/join/${id}`;
     const message = `Join my wine tasting event: ${joinUrl}`;
+
     try {
       if (Platform.OS === "web") {
-        if (navigator.share) {
+        if (typeof navigator !== "undefined" && navigator.share) {
           await navigator.share({ title: event?.title ?? "Wine Tasting", url: joinUrl });
-        } else if (navigator.clipboard) {
+        } else if (typeof navigator !== "undefined" && navigator.clipboard) {
           await navigator.clipboard.writeText(joinUrl);
           showAlert("Link copied", "The invite link has been copied to your clipboard.");
         } else {
@@ -157,16 +160,25 @@ export default function EventDetailScreen() {
       } else {
         await Share.share(
           Platform.OS === "ios"
-            ? { url: joinUrl, message: `Join my wine tasting event` }
+            ? { url: joinUrl, message: "Join my wine tasting event" }
             : { message }
         );
       }
     } catch {
-      // user cancelled or share failed silently
+      // Ignore cancelled share sheet.
     }
   };
 
-  const canDeleteEvent = isHost || member?.is_admin;
+  const handleOpenPartiful = async () => {
+    if (!event?.partiful_url) return;
+
+    const url = /^https?:\/\//i.test(event.partiful_url) ? event.partiful_url : `https://${event.partiful_url}`;
+    try {
+      await Linking.openURL(url);
+    } catch (error) {
+      showAlert("Could not open link", error instanceof Error ? error.message : "Please try again.");
+    }
+  };
 
   const handleDeleteEvent = () => {
     showAlert(
@@ -183,6 +195,7 @@ export default function EventDetailScreen() {
               showAlert("Error", error.message ?? "Could not delete event.");
               return;
             }
+
             queryClient.invalidateQueries({ queryKey: ["events"] });
             router.replace("/(tabs)");
           },
@@ -206,6 +219,7 @@ export default function EventDetailScreen() {
               showAlert("Error", error.message ?? "Could not remove wine.");
               return;
             }
+
             queryClient.invalidateQueries({ queryKey: ["wines", id] });
           },
         },
@@ -216,7 +230,7 @@ export default function EventDetailScreen() {
   if (!id) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading…</Text>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading...</Text>
       </View>
     );
   }
@@ -224,12 +238,12 @@ export default function EventDetailScreen() {
   if (!sessionLoaded) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading…</Text>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading...</Text>
       </View>
     );
   }
 
-  if (sessionLoaded && !session) {
+  if (!session) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>Sign in to view this event.</Text>
@@ -246,37 +260,62 @@ export default function EventDetailScreen() {
   if (isLoading || !event) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
-        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading…</Text>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading...</Text>
       </View>
     );
   }
 
+  const eventDateLabel = new Date(`${event.date}T00:00:00`).toLocaleDateString();
+
   const listHeader = (
     <>
+      {event.event_image_url ? (
+        <View style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Image source={{ uri: event.event_image_url }} style={styles.heroImage} resizeMode="cover" />
+        </View>
+      ) : null}
+
       <Text style={[styles.title, { color: theme.text }]}>{event.title}</Text>
       <View style={styles.metaRow}>
-        <View style={[styles.statusBadge, { backgroundColor: theme.primary + "20" }]}>
+        <View style={[styles.statusBadge, { backgroundColor: `${theme.primary}20` }]}>
           <Text style={[styles.statusBadgeText, { color: theme.primary }]}>
             {event.status === "active" ? "ACTIVE EVENT" : "PAST EVENT"}
           </Text>
         </View>
-        {event.tasting_mode && (
-          <View style={[styles.statusBadge, { backgroundColor: event.tasting_mode === "double_blind" ? "#6B4C8A20" : theme.textSecondary + "15" }]}>
-            <Text style={[styles.statusBadgeText, { color: event.tasting_mode === "double_blind" ? "#6B4C8A" : theme.textSecondary }]}>
+        {event.tasting_mode ? (
+          <View
+            style={[
+              styles.statusBadge,
+              {
+                backgroundColor:
+                  event.tasting_mode === "double_blind" ? "#6B4C8A20" : `${theme.textSecondary}15`,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusBadgeText,
+                { color: event.tasting_mode === "double_blind" ? "#6B4C8A" : theme.textSecondary },
+              ]}
+            >
               {event.tasting_mode === "double_blind" ? "DOUBLE BLIND" : "SINGLE BLIND"}
             </Text>
           </View>
-        )}
+        ) : null}
         <Text style={[styles.meta, { color: theme.textSecondary }]}>
-          {event.theme} · {new Date(event.date).toLocaleDateString()}
+          {event.theme} - {eventDateLabel}
         </Text>
       </View>
 
-      {canSeeMetrics && (
+      {event.description ? (
+        <Text style={[styles.description, { color: theme.textSecondary }]}>{event.description}</Text>
+      ) : null}
+
+      {canSeeMetrics ? (
         <View style={styles.metricsRow}>
           <View style={[styles.metricTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Ionicons name="people-outline" size={22} color={theme.textSecondary} />
-            <Text style={[styles.metricValue, { color: theme.text }]}>{guestCount ?? "—"}</Text>
+            <Text style={[styles.metricValue, { color: theme.text }]}>{guestCount ?? "-"}</Text>
             <Text style={[styles.metricLabel, { color: theme.textMuted }]}>Guests</Text>
           </View>
           <View style={[styles.metricTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -285,9 +324,9 @@ export default function EventDetailScreen() {
             <Text style={[styles.metricLabel, { color: theme.textMuted }]}>Wines</Text>
           </View>
         </View>
-      )}
+      ) : null}
 
-      {isHost && (
+      {isHost ? (
         <>
           <TouchableOpacity
             style={[styles.actionRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
@@ -297,6 +336,7 @@ export default function EventDetailScreen() {
             <Text style={[styles.actionLabel, { color: theme.text }]}>Show QR code</Text>
             <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
           </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.actionRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
             onPress={handleShareInvite}
@@ -305,26 +345,38 @@ export default function EventDetailScreen() {
             <Text style={[styles.actionLabel, { color: theme.text }]}>Share invite link</Text>
             <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
           </TouchableOpacity>
-          {event.status === "active" && (
-            <TouchableOpacity
-              style={[styles.actionRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
-              onPress={() =>
-                showAlert("End event?", "Results will be revealed to everyone.", [
-                  { text: "Cancel", style: "cancel" },
-                  { text: "End event", style: "destructive", onPress: () => endEventMutation.mutate() },
-                ])
-              }
-              disabled={endEventMutation.isPending}
-            >
-              <Ionicons name="flag-outline" size={20} color={theme.textMuted} />
-              <Text style={[styles.actionLabel, { color: theme.textMuted }]}>End event</Text>
-              <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
-            </TouchableOpacity>
-          )}
         </>
-      )}
+      ) : null}
 
-      {canDeleteEvent && (
+      {event.partiful_url ? (
+        <TouchableOpacity
+          style={[styles.actionRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
+          onPress={handleOpenPartiful}
+        >
+          <Ionicons name="link-outline" size={20} color={theme.text} />
+          <Text style={[styles.actionLabel, { color: theme.text }]}>View Partiful Invite</Text>
+          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+        </TouchableOpacity>
+      ) : null}
+
+      {isHost && event.status === "active" ? (
+        <TouchableOpacity
+          style={[styles.actionRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
+          onPress={() =>
+            showAlert("End event?", "Results will be revealed to everyone.", [
+              { text: "Cancel", style: "cancel" },
+              { text: "End event", style: "destructive", onPress: () => endEventMutation.mutate() },
+            ])
+          }
+          disabled={endEventMutation.isPending}
+        >
+          <Ionicons name="flag-outline" size={20} color={theme.textMuted} />
+          <Text style={[styles.actionLabel, { color: theme.textMuted }]}>End event</Text>
+          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+        </TouchableOpacity>
+      ) : null}
+
+      {canDeleteEvent ? (
         <TouchableOpacity
           style={[styles.actionRow, { backgroundColor: theme.surface, borderColor: "#B55A5A30" }]}
           onPress={handleDeleteEvent}
@@ -333,25 +385,25 @@ export default function EventDetailScreen() {
           <Text style={[styles.actionLabel, { color: "#B55A5A" }]}>Delete event</Text>
           <Ionicons name="chevron-forward" size={18} color="#B55A5A60" />
         </TouchableOpacity>
-      )}
+      ) : null}
 
       <TouchableOpacity
-        style={[styles.actionRow, { backgroundColor: theme.primary + "15", borderColor: theme.primary + "40" }]}
+        style={[styles.actionRow, { backgroundColor: `${theme.primary}15`, borderColor: `${theme.primary}40` }]}
         onPress={() => router.push(`/event/${id}/add-wine`)}
       >
         <Ionicons name="add-circle-outline" size={20} color={theme.primary} />
         <Text style={[styles.actionLabel, { color: theme.primary }]}>Add wine</Text>
-        <Ionicons name="chevron-forward" size={18} color={theme.primary + "80"} />
+        <Ionicons name="chevron-forward" size={18} color={`${theme.primary}80`} />
       </TouchableOpacity>
 
       <Text style={[styles.sectionTitle, { color: theme.text }]}>Wines</Text>
-      {wines.length === 0 && (
+      {wines.length === 0 ? (
         <View style={[styles.emptyWinesContainer, { borderColor: theme.border }]}>
           <Ionicons name="wine-outline" size={40} color={theme.textMuted} style={styles.emptyIcon} />
           <Text style={[styles.emptyTitle, { color: theme.text }]}>No wines added yet</Text>
-          <Text style={[styles.emptySubtitle, { color: theme.textMuted }]}>Tap "Add wine" above to get started</Text>
+          <Text style={[styles.emptySubtitle, { color: theme.textMuted }]}>Tap "Add wine" above to get started.</Text>
         </View>
-      )}
+      ) : null}
     </>
   );
 
@@ -362,81 +414,106 @@ export default function EventDetailScreen() {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={listHeader}
         renderItem={({ item, index }) => {
-            const activeRound = rounds.find((r) => r.wine_id === item.id && r.is_active);
-            const round = activeRound ?? rounds.find((r) => r.wine_id === item.id);
-            const summary = ratingSummaries.find((s) => s.wine_id === item.id);
-            const canRemove = isHost || item.brought_by === member?.id;
-            const wineLabel = hideWineDetails ? `Wine #${index + 1}` : null;
-            return (
-              <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                <TouchableOpacity onPress={() => router.push(`/event/${id}/wine/${item.id}`)}>
-                  <View style={styles.wineNameRow}>
-                    <Text style={[styles.wineName, { color: theme.text }]}>
-                      {wineLabel ?? `${item.quantity != null && item.quantity > 1 ? `${item.quantity}× ` : ""}${item.producer ?? "Unknown"} ${item.varietal ?? ""} ${item.vintage ?? ""}`}
-                    </Text>
-                    {eventFavorite?.wine_id === item.id && (
-                      <Ionicons name="star" size={18} color={theme.primary} style={styles.favoriteStar} />
-                    )}
-                  </View>
-                  {!hideWineDetails && item.region && (
-                    <Text style={[styles.wineMeta, { color: theme.textSecondary }]}>{item.region}</Text>
-                  )}
-                  {!hideWineDetails && (item.price_cents != null || item.price_range != null) && (
-                    <Text style={[styles.wineMeta, { color: theme.textSecondary }]}>
-                      {item.price_cents != null ? `$${item.price_cents / 100}` : item.price_range ?? ""}
-                    </Text>
-                  )}
+          const activeRound = rounds.find((round) => round.wine_id === item.id && round.is_active);
+          const round = activeRound ?? rounds.find((candidate) => candidate.wine_id === item.id);
+          const summary = ratingSummaries.find((candidate) => candidate.wine_id === item.id);
+          const canRemove = isHost || item.brought_by === member?.id;
+          const wineLabel = hideWineDetails ? `Wine #${index + 1}` : null;
+          const quantityPrefix = item.quantity != null && item.quantity > 1 ? `${item.quantity}x ` : "";
+
+          return (
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <TouchableOpacity onPress={() => router.push(`/event/${id}/wine/${item.id}`)}>
+                <View style={styles.wineNameRow}>
+                  <Text style={[styles.wineName, { color: theme.text }]}>
+                    {wineLabel ?? `${quantityPrefix}${item.producer ?? "Unknown"} ${item.varietal ?? ""} ${item.vintage ?? ""}`.trim()}
+                  </Text>
+                  {eventFavorite?.wine_id === item.id ? (
+                    <Ionicons name="star" size={18} color={theme.primary} style={styles.favoriteStar} />
+                  ) : null}
+                </View>
+
+                {!hideWineDetails && item.region ? (
+                  <Text style={[styles.wineMeta, { color: theme.textSecondary }]}>{item.region}</Text>
+                ) : null}
+
+                {!hideWineDetails && (item.price_cents != null || item.price_range != null) ? (
+                  <Text style={[styles.wineMeta, { color: theme.textSecondary }]}>
+                    {item.price_cents != null ? `$${item.price_cents / 100}` : item.price_range ?? ""}
+                  </Text>
+                ) : null}
+              </TouchableOpacity>
+
+              {event.status === "ended" && summary ? (
+                <View style={styles.resultRow}>
+                  <Text style={[styles.resultText, { color: theme.text }]}>
+                    Up {summary.thumbs_up}  Meh {summary.meh}  Down {summary.thumbs_down}
+                  </Text>
+                </View>
+              ) : null}
+
+              {event.status === "active" && isHost ? (
+                <WineHostActions
+                  eventId={id!}
+                  wine={item}
+                  round={activeRound ?? round}
+                  theme={theme}
+                  onRate={() => router.push(`/event/${id}/rate/${item.id}`)}
+                />
+              ) : null}
+
+              {event.status === "active" && !isHost && activeRound ? (
+                <TouchableOpacity
+                  style={[styles.rateButton, { backgroundColor: theme.secondary }]}
+                  onPress={() => router.push(`/event/${id}/rate/${item.id}`)}
+                >
+                  <Text style={styles.rateButtonText}>Rate</Text>
                 </TouchableOpacity>
-                {event.status === "ended" && summary && (
-                  <View style={styles.resultRow}>
-                    <Text style={[styles.resultText, { color: theme.text }]}>
-                      👍 {summary.thumbs_up}  😐 {summary.meh}  👎 {summary.thumbs_down}
-                    </Text>
-                  </View>
-                )}
-                {event.status === "active" && isHost && (
-                  <WineHostActions
-                    eventId={id!}
-                    wine={item}
-                    round={activeRound ?? round}
-                    theme={theme}
-                    onRate={() => router.push(`/event/${id}/rate/${item.id}`)}
-                  />
-                )}
-                {event.status === "active" && !isHost && activeRound && (
-                  <TouchableOpacity
-                    style={[styles.rateButton, { backgroundColor: theme.secondary }]}
-                    onPress={() => router.push(`/event/${id}/rate/${item.id}`)}
-                  >
-                    <Text style={styles.rateButtonText}>Rate</Text>
-                  </TouchableOpacity>
-                )}
-                {event.status === "active" && !isHost && !activeRound && member?.is_admin && (
-                  <WineAdminReopen eventId={id!} wineId={item.id} theme={theme} />
-                )}
-                {canRemove && (
-                  <TouchableOpacity
-                    style={[styles.removeButton, { borderColor: theme.textMuted }]}
-                    onPress={() => handleRemoveWine(item)}
-                  >
-                    <Text style={[styles.removeButtonText, { color: theme.textMuted }]}>Remove</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            );
-          }}
-        />
+              ) : null}
+
+              {event.status === "active" && !isHost && !activeRound && member?.is_admin ? (
+                <WineAdminReopen eventId={id!} wineId={item.id} theme={theme} />
+              ) : null}
+
+              {canRemove ? (
+                <TouchableOpacity
+                  style={[styles.removeButton, { borderColor: theme.textMuted }]}
+                  onPress={() => handleRemoveWine(item)}
+                >
+                  <Text style={[styles.removeButtonText, { color: theme.textMuted }]}>Remove</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          );
+        }}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
+  heroCard: {
+    borderWidth: 1,
+    borderRadius: 18,
+    overflow: "hidden",
+    marginBottom: 16,
+  },
+  heroImage: {
+    width: "100%",
+    aspectRatio: 4 / 3,
+  },
   title: { fontSize: 28, fontWeight: "700", marginBottom: 8, fontFamily: "PlayfairDisplay_700Bold" },
-  metaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16, flexWrap: "wrap" },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" },
   statusBadge: { borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 },
   statusBadgeText: { fontFamily: "Montserrat_600SemiBold", fontSize: 10, letterSpacing: 0.5 },
   meta: { fontSize: 13, fontFamily: "Montserrat_400Regular" },
+  description: {
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 16,
+    fontFamily: "Montserrat_400Regular",
+  },
   metricsRow: { flexDirection: "row", gap: 12, marginBottom: 16 },
   metricTile: { flex: 1, borderWidth: 1, borderRadius: 14, padding: 14, alignItems: "center", gap: 4 },
   metricValue: { fontSize: 26, fontWeight: "700", fontFamily: "PlayfairDisplay_700Bold", marginTop: 4 },
@@ -502,25 +579,22 @@ function WineHostActions({
 
   const handleStartRound = () => {
     startRound.mutate(undefined, {
-      onError: (err) =>
-        showAlert("Could not start round", err instanceof Error ? err.message : "Something went wrong. Try again."),
+      onError: (error) =>
+        showAlert("Could not start round", error instanceof Error ? error.message : "Something went wrong. Try again."),
     });
   };
 
   const handleEndRound = () => {
     endRound.mutate(undefined, {
-      onError: (err) =>
-        showAlert("Could not end round", err instanceof Error ? err.message : "Something went wrong. Try again."),
+      onError: (error) =>
+        showAlert("Could not end round", error instanceof Error ? error.message : "Something went wrong. Try again."),
     });
   };
 
   if (round?.is_active) {
     return (
       <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
-        <TouchableOpacity
-          style={[styles.rateButton, { backgroundColor: t.secondary }]}
-          onPress={onRate}
-        >
+        <TouchableOpacity style={[styles.rateButton, { backgroundColor: t.secondary }]} onPress={onRate}>
           <Text style={styles.rateButtonText}>Rate</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -533,13 +607,14 @@ function WineHostActions({
       </View>
     );
   }
+
   return (
     <TouchableOpacity
       style={[styles.rateButton, { backgroundColor: t.primary, marginTop: 12 }]}
       onPress={handleStartRound}
       disabled={startRound.isPending}
     >
-      <Text style={styles.rateButtonText}>{startRound.isPending ? "Starting…" : "Start rating round"}</Text>
+      <Text style={styles.rateButtonText}>{startRound.isPending ? "Starting..." : "Start rating round"}</Text>
     </TouchableOpacity>
   );
 }
@@ -554,12 +629,14 @@ function WineAdminReopen({
   theme: ReturnType<typeof useTheme>;
 }) {
   const startRound = useStartRatingRound(eventId, wineId);
+
   const handleReopen = () => {
     startRound.mutate(undefined, {
-      onError: (err) =>
-        showAlert("Could not reopen round", err instanceof Error ? err.message : "Something went wrong. Try again."),
+      onError: (error) =>
+        showAlert("Could not reopen round", error instanceof Error ? error.message : "Something went wrong. Try again."),
     });
   };
+
   return (
     <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
       <TouchableOpacity
@@ -567,7 +644,7 @@ function WineAdminReopen({
         onPress={handleReopen}
         disabled={startRound.isPending}
       >
-        <Text style={styles.rateButtonText}>{startRound.isPending ? "Starting…" : "Reopen ratings"}</Text>
+        <Text style={styles.rateButtonText}>{startRound.isPending ? "Starting..." : "Reopen ratings"}</Text>
       </TouchableOpacity>
     </View>
   );

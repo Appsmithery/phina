@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { AppState, type AppStateStatus } from "react-native";
-import { Session } from "@supabase/supabase-js";
+import { Session, User } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "./supabase";
 import { registerPushTokenIfNeeded } from "./push-registration";
 import { identifyUser, clearUser, trackEvent } from "./observability";
 import type { Member } from "@/types/database";
+import { extractGoogleAvatarUrl, shouldSeedGoogleAvatar } from "./avatar";
 
 type SupabaseContextType = {
   session: Session | null;
@@ -24,21 +25,43 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const [member, setMember] = useState<Member | null>(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
 
-  const fetchMember = async (userId: string, email?: string) => {
-    const { data } = await supabase.from("members").select("*").eq("id", userId).single();
+  const fetchMember = async (user: User) => {
+    const { data } = await supabase.from("members").select("*").eq("id", user.id).single();
     if (data) {
-      setMember(data);
-      identifyUser(userId);
-      registerPushTokenIfNeeded(userId).catch(() => {});
+      let nextMember: Member = data;
+      const googleAvatarUrl = extractGoogleAvatarUrl(user);
+
+      if (googleAvatarUrl && shouldSeedGoogleAvatar(data)) {
+        const { data: updated } = await supabase
+          .from("members")
+          .update({ avatar_url: googleAvatarUrl, avatar_source: "google" })
+          .eq("id", user.id)
+          .select("*")
+          .single();
+        nextMember = updated ?? { ...data, avatar_url: googleAvatarUrl, avatar_source: "google" };
+      }
+
+      setMember(nextMember);
+      identifyUser(user.id);
+      registerPushTokenIfNeeded(user.id).catch(() => {});
       return;
     }
-    if (email) {
-      await supabase.from("members").upsert({ id: userId, email }, { onConflict: "id" });
-      const { data: created } = await supabase.from("members").select("*").eq("id", userId).single();
+
+    if (user.email) {
+      const googleAvatarUrl = extractGoogleAvatarUrl(user);
+      await supabase.from("members").upsert(
+        {
+          id: user.id,
+          email: user.email,
+          ...(googleAvatarUrl ? { avatar_url: googleAvatarUrl, avatar_source: "google" as const } : {}),
+        },
+        { onConflict: "id" }
+      );
+      const { data: created } = await supabase.from("members").select("*").eq("id", user.id).single();
       setMember(created ?? null);
-      identifyUser(userId);
+      identifyUser(user.id);
       trackEvent("user_signed_up");
-      registerPushTokenIfNeeded(userId).catch(() => {});
+      registerPushTokenIfNeeded(user.id).catch(() => {});
     } else {
       setMember(null);
     }
@@ -46,14 +69,14 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 
   const refreshMember = useCallback(async () => {
     const { data: { session: s } } = await supabase.auth.getSession();
-    if (s?.user?.id) await fetchMember(s.user.id, s.user.email ?? undefined);
+    if (s?.user) await fetchMember(s.user);
   }, []);
 
   const setSessionFromAuth = useCallback((s: Session | null) => {
     setSession(s);
     setSessionLoaded(true);
-    if (s?.user?.id) {
-      fetchMember(s.user.id, s.user.email ?? undefined);
+    if (s?.user) {
+      fetchMember(s.user);
     } else {
       setMember(null);
     }
@@ -64,7 +87,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       .getSession()
       .then(({ data: { session: s } }) => {
         setSession(s);
-        if (s?.user?.id) fetchMember(s.user.id, s.user.email ?? undefined).finally(() => setSessionLoaded(true));
+        if (s?.user) fetchMember(s.user).finally(() => setSessionLoaded(true));
         else setSessionLoaded(true);
       })
       .catch(() => setSessionLoaded(true));
@@ -73,7 +96,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
-      if (s?.user?.id) fetchMember(s.user.id, s.user.email ?? undefined);
+      if (s?.user) fetchMember(s.user);
       else { setMember(null); clearUser(); }
       setSessionLoaded(true);
     });
@@ -86,7 +109,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       if (nextState === "active") {
         supabase.auth.getSession().then(({ data: { session: s } }) => {
           setSession(s);
-          if (s?.user?.id) fetchMember(s.user.id, s.user.email ?? undefined);
+          if (s?.user) fetchMember(s.user);
           else setMember(null);
         });
         // Refresh all stale queries when app resumes from background
