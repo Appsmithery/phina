@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, ScrollView, Platform } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, ScrollView, Platform, ActivityIndicator } from "react-native";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
@@ -23,12 +23,41 @@ export default function CreateEventScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [tastingMode, setTastingMode] = useState<"single_blind" | "double_blind">("single_blind");
+  const [showPartifulImport, setShowPartifulImport] = useState(false);
+  const [partifulUrl, setPartifulUrl] = useState("");
+  const [partifulLoading, setPartifulLoading] = useState(false);
 
   const date = selectedDate.toISOString().slice(0, 10);
 
   const onDateChange = (_event: DateTimePickerEvent, picked?: Date) => {
     if (Platform.OS === "android") setShowPicker(false);
     if (picked) setSelectedDate(picked);
+  };
+
+  const importFromPartiful = async () => {
+    const url = partifulUrl.trim();
+    if (!url) return;
+    setPartifulLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-partiful-event", {
+        body: { url },
+      });
+      if (error) throw error;
+      const d = data as { title?: string; date?: string | null; description?: string | null };
+      if (d.title) setTitle(d.title);
+      if (d.date) {
+        // Parse as noon local time to avoid UTC-offset date shift
+        const parsed = new Date(`${d.date}T12:00:00`);
+        if (!isNaN(parsed.getTime())) setSelectedDate(parsed);
+      }
+      setShowPartifulImport(false);
+      setPartifulUrl("");
+      trackEvent("partiful_event_imported");
+    } catch (e: unknown) {
+      showAlert("Import failed", e instanceof Error ? e.message : "Could not import from Partiful. Check the URL and try again.");
+    } finally {
+      setPartifulLoading(false);
+    }
   };
 
   const create = async () => {
@@ -80,6 +109,44 @@ export default function CreateEventScreen() {
         >
       <Text style={[styles.title, { color: theme.text }]}>New event</Text>
       <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <TouchableOpacity
+          style={styles.partifulToggle}
+          onPress={() => setShowPartifulImport(!showPartifulImport)}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.partifulToggleText, { color: theme.primary }]}>
+            {showPartifulImport ? "Cancel" : "Import from Partiful"}
+          </Text>
+        </TouchableOpacity>
+        {showPartifulImport && (
+          <View style={styles.partifulRow}>
+            <TextInput
+              style={[styles.input, styles.partifulInput, { color: theme.text, borderColor: theme.border }]}
+              value={partifulUrl}
+              onChangeText={setPartifulUrl}
+              placeholder="Paste Partiful event URL…"
+              placeholderTextColor={theme.textSecondary}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+            />
+            <TouchableOpacity
+              style={[
+                styles.partifulFetch,
+                { backgroundColor: theme.primary, opacity: partifulLoading || !partifulUrl.trim() ? 0.5 : 1 },
+              ]}
+              onPress={importFromPartiful}
+              disabled={partifulLoading || !partifulUrl.trim()}
+              activeOpacity={0.8}
+            >
+              {partifulLoading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.partifulFetchText}>Fetch</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
         <Text style={[styles.label, { color: theme.textSecondary }]}>Title</Text>
         <TextInput
           style={[styles.input, { color: theme.text, borderColor: theme.border }]}
@@ -192,4 +259,10 @@ const styles = StyleSheet.create({
   modePill: { flex: 1, paddingVertical: 10, alignItems: "center" },
   modePillText: { fontSize: 14, fontFamily: "Montserrat_600SemiBold" },
   modeHint: { fontSize: 12, fontFamily: "Montserrat_400Regular", marginBottom: 16, lineHeight: 16 },
+  partifulToggle: { alignSelf: "flex-end", marginBottom: 12 },
+  partifulToggleText: { fontSize: 13, fontFamily: "Montserrat_600SemiBold" },
+  partifulRow: { flexDirection: "row", gap: 8, alignItems: "center", marginBottom: 12 },
+  partifulInput: { flex: 1, marginBottom: 0 },
+  partifulFetch: { borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, justifyContent: "center", alignItems: "center", minWidth: 60 },
+  partifulFetchText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold", fontSize: 14 },
 });
