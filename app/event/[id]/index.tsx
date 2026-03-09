@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Share, Platform } from "react-native";
@@ -13,7 +13,8 @@ import type { WineWithPricePrivacy } from "@/types/database";
 import type { RatingRound } from "@/types/database";
 
 export default function EventDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, fromPartiful } = useLocalSearchParams<{ id: string; fromPartiful?: string }>();
+  const [partifulBannerVisible, setPartifulBannerVisible] = useState(fromPartiful === "1");
   const { member, session, sessionLoaded } = useSupabase();
   const theme = useTheme();
   const queryClient = useQueryClient();
@@ -166,6 +167,30 @@ export default function EventDetailScreen() {
     }
   };
 
+  const handleShareToPartiful = async () => {
+    const joinUrl = `${APP_BASE_URL}/join/${id}`;
+    const title = event?.title ?? "Wine Tasting";
+    try {
+      if (Platform.OS === "web") {
+        if (navigator.share) {
+          await navigator.share({ title, url: joinUrl });
+        } else if (navigator.clipboard) {
+          await navigator.clipboard.writeText(joinUrl);
+          window.open("https://partiful.com", "_blank");
+        }
+      } else {
+        await Share.share(
+          Platform.OS === "ios"
+            ? { url: joinUrl, message: `Join ${title} on Phína 🍷` }
+            : { message: `Join ${title} on Phína 🍷\n${joinUrl}` }
+        );
+      }
+      setPartifulBannerVisible(false);
+    } catch {
+      // user cancelled
+    }
+  };
+
   const canDeleteEvent = isHost || member?.is_admin;
 
   const handleDeleteEvent = () => {
@@ -253,6 +278,24 @@ export default function EventDetailScreen() {
 
   const listHeader = (
     <>
+      {partifulBannerVisible && (
+        <View style={[styles.partifulBanner, { backgroundColor: theme.primary + "15", borderColor: theme.primary + "40" }]}>
+          <View style={styles.partifulBannerLeft}>
+            <Ionicons name="link-outline" size={16} color={theme.primary} />
+            <Text style={[styles.partifulBannerText, { color: theme.text }]}>
+              Share your join link back to Partiful
+            </Text>
+          </View>
+          <View style={styles.partifulBannerActions}>
+            <TouchableOpacity onPress={handleShareToPartiful} style={styles.partifulBannerShare}>
+              <Text style={[styles.partifulBannerShareText, { color: theme.primary }]}>Share</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setPartifulBannerVisible(false)}>
+              <Ionicons name="close" size={18} color={theme.textMuted} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
       <Text style={[styles.title, { color: theme.text }]}>{event.title}</Text>
       <View style={styles.metaRow}>
         <View style={[styles.statusBadge, { backgroundColor: theme.primary + "20" }]}>
@@ -482,6 +525,22 @@ const styles = StyleSheet.create({
   removeButtonText: { fontSize: 14, fontWeight: "500", fontFamily: "Montserrat_400Regular" },
   resultRow: { marginTop: 12 },
   resultText: { fontSize: 15, fontFamily: "Montserrat_400Regular" },
+  partifulBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 14,
+    gap: 8,
+  },
+  partifulBannerLeft: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
+  partifulBannerText: { fontSize: 13, fontFamily: "Montserrat_400Regular", flex: 1 },
+  partifulBannerActions: { flexDirection: "row", alignItems: "center", gap: 12 },
+  partifulBannerShare: { paddingHorizontal: 4 },
+  partifulBannerShareText: { fontSize: 13, fontFamily: "Montserrat_600SemiBold" },
 });
 
 function WineHostActions({

@@ -26,6 +26,7 @@ export default function CreateEventScreen() {
   const [showPartifulImport, setShowPartifulImport] = useState(false);
   const [partifulUrl, setPartifulUrl] = useState("");
   const [partifulLoading, setPartifulLoading] = useState(false);
+  const [partifulImported, setPartifulImported] = useState(false);
 
   const date = selectedDate.toISOString().slice(0, 10);
 
@@ -50,6 +51,7 @@ export default function CreateEventScreen() {
         const parsed = new Date(`${d.date}T12:00:00`);
         if (!isNaN(parsed.getTime())) setSelectedDate(parsed);
       }
+      setPartifulImported(true);
       setShowPartifulImport(false);
       setPartifulUrl("");
       trackEvent("partiful_event_imported");
@@ -90,7 +92,7 @@ export default function CreateEventScreen() {
       queryClient.invalidateQueries({ queryKey: ["events"] });
       queryClient.invalidateQueries({ queryKey: ["profile", "event_members"] });
       trackEvent("event_created", { event_id: data.id });
-      router.replace(`/event/${data.id}`);
+      router.replace(`/event/${data.id}${partifulImported ? "?fromPartiful=1" : ""}`);
     } catch (e: unknown) {
       showAlert("Error", e instanceof Error ? e.message : "Could not create event");
     } finally {
