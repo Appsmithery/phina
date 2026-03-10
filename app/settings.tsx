@@ -1,14 +1,16 @@
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform } from "react-native";
 import { useEffect, useState } from "react";
 import { Stack, router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
+import { BillingCard } from "@/components/BillingCard";
 import { showAlert } from "@/lib/alert";
 import { formatBirthday, formatBirthdayForStorage, getAge, parseDateOnly } from "@/lib/birthday";
 import { BirthdayPickerField } from "@/components/BirthdayPickerField";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
+import { useBilling } from "@/hooks/use-billing";
 import { US_STATES, getStateLabel } from "@/lib/us-states";
 import { stripPhone, isValidPhone, formatPhone, isValidEmail } from "@/lib/validation";
 import type { Database } from "@/types/database";
@@ -23,6 +25,17 @@ export default function SettingsScreen() {
   const { member, session, refreshMember } = useSupabase();
   const theme = useTheme();
   const queryClient = useQueryClient();
+  const {
+    premiumActive,
+    hostCreditBalance,
+    isLoading: billingLoading,
+    isPurchasingPremium,
+    isPurchasingHostCredit,
+    isRestoringPurchases,
+    purchasePremium,
+    purchaseHostCredit,
+    restorePurchases,
+  } = useBilling();
 
   const [editingInfo, setEditingInfo] = useState(false);
   const [firstName, setFirstName] = useState(member?.first_name ?? "");
@@ -172,6 +185,33 @@ export default function SettingsScreen() {
     router.replace("/(auth)");
   };
 
+  const handlePurchasePremium = async () => {
+    try {
+      await purchasePremium();
+      showAlert("Membership updated", "Your premium cellar access is now active.");
+    } catch (error) {
+      showAlert("Checkout failed", error instanceof Error ? error.message : "Could not start checkout.");
+    }
+  };
+
+  const handlePurchaseHostCredit = async () => {
+    try {
+      await purchaseHostCredit();
+      showAlert("Host credits updated", "Your event hosting balance has been refreshed.");
+    } catch (error) {
+      showAlert("Checkout failed", error instanceof Error ? error.message : "Could not start checkout.");
+    }
+  };
+
+  const handleRestorePurchases = async () => {
+    try {
+      await restorePurchases();
+      showAlert("Purchases restored", "Your Apple purchases have been refreshed.");
+    } catch (error) {
+      showAlert("Restore failed", error instanceof Error ? error.message : "Could not restore purchases.");
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -183,6 +223,63 @@ export default function SettingsScreen() {
         <View style={{ width: 24 }} />
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: 32 }]} showsVerticalScrollIndicator={false}>
+        <View style={styles.billingStack}>
+          <BillingCard
+            icon="sparkles-outline"
+            title={premiumActive ? "Premium active" : "Premium Monthly"}
+            description={
+              premiumActive
+                ? "Your cellar membership is active."
+                : "Unlock your personal cellar, bottle history, and collection management."
+            }
+            badge={premiumActive ? "Active membership" : "Cellar premium"}
+            detail="Event participation stays free. Premium only gates the personal cellar experience."
+            primaryLabel={
+              premiumActive
+                ? "Open Cellar"
+                : isPurchasingPremium
+                ? "Opening checkout..."
+                : Platform.OS === "ios"
+                ? "Start Premium"
+                : "Subscribe with Stripe"
+            }
+            onPrimaryPress={
+              premiumActive
+                ? () => router.push("/(tabs)/cellar")
+                : () => {
+                    void handlePurchasePremium();
+                  }
+            }
+            primaryDisabled={!premiumActive && (isPurchasingPremium || billingLoading)}
+            secondaryLabel={Platform.OS === "ios" ? (isRestoringPurchases ? "Restoring..." : "Restore") : undefined}
+            onSecondaryPress={Platform.OS === "ios" ? () => {
+              void handleRestorePurchases();
+            } : undefined}
+            secondaryDisabled={Platform.OS === "ios" ? isRestoringPurchases : undefined}
+          />
+
+          <BillingCard
+            icon="ticket-outline"
+            title="Host credits"
+            description="Buy one credit per hosted event. A credit is consumed when the event is successfully created."
+            badge={`${hostCreditBalance} host credit${hostCreditBalance === 1 ? "" : "s"} available`}
+            detail="Hosts do not need the monthly premium plan in v1."
+            primaryLabel={
+              isPurchasingHostCredit
+                ? "Opening checkout..."
+                : Platform.OS === "ios"
+                ? "Buy credit for $10"
+                : "Checkout with Stripe"
+            }
+            onPrimaryPress={() => {
+              void handlePurchaseHostCredit();
+            }}
+            primaryDisabled={isPurchasingHostCredit || billingLoading}
+            secondaryLabel={hostCreditBalance > 0 ? "Host an event" : undefined}
+            onSecondaryPress={hostCreditBalance > 0 ? () => router.push("/event/create") : undefined}
+          />
+        </View>
+
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <View style={styles.infoHeader}>
             <Text style={[styles.cardTitle, { color: theme.text }]}>Personal Info</Text>
@@ -351,6 +448,7 @@ const styles = StyleSheet.create({
   },
   scroll: { flex: 1 },
   scrollContent: { padding: 16 },
+  billingStack: { gap: 14, marginBottom: 24 },
   card: { borderWidth: 1, borderRadius: 14, padding: 16, marginBottom: 24 },
   cardTitle: { fontFamily: "Montserrat_600SemiBold", fontSize: 16 },
   input: { borderWidth: 1, borderRadius: 12, padding: 12, fontSize: 16, marginBottom: 16, fontFamily: "Montserrat_400Regular" },

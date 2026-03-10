@@ -4,14 +4,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
-import { BillingCard } from "@/components/BillingCard";
 import { ProfileEmptyState } from "@/components/ProfileEmptyState";
 import { trackEvent } from "@/lib/observability";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
-import { useBilling } from "@/hooks/use-billing";
 
 let ImagePicker: typeof import("expo-image-picker") | undefined;
 if (Platform.OS !== "web") {
@@ -37,17 +35,6 @@ export default function ProfileScreen() {
   const { member, session, refreshMember } = useSupabase();
   const theme = useTheme();
   const queryClient = useQueryClient();
-  const {
-    premiumActive,
-    hostCreditBalance,
-    isLoading: billingLoading,
-    isPurchasingPremium,
-    isPurchasingHostCredit,
-    isRestoringPurchases,
-    purchasePremium,
-    purchaseHostCredit,
-    restorePurchases,
-  } = useBilling();
   const webFileInputRef = useRef<HTMLInputElement | null>(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
 
@@ -172,33 +159,6 @@ export default function ProfileScreen() {
       await Share.share({ message: "Check out my taste profile on Phina!" });
     } catch {
       // user cancelled
-    }
-  };
-
-  const handlePurchasePremium = async () => {
-    try {
-      await purchasePremium();
-      showAlert("Membership updated", "Your premium cellar access is now active.");
-    } catch (error) {
-      showAlert("Checkout failed", error instanceof Error ? error.message : "Could not start checkout.");
-    }
-  };
-
-  const handlePurchaseHostCredit = async () => {
-    try {
-      await purchaseHostCredit();
-      showAlert("Host credits updated", "Your event hosting balance has been refreshed.");
-    } catch (error) {
-      showAlert("Checkout failed", error instanceof Error ? error.message : "Could not start checkout.");
-    }
-  };
-
-  const handleRestorePurchases = async () => {
-    try {
-      await restorePurchases();
-      showAlert("Purchases restored", "Your Apple purchases have been refreshed.");
-    } catch (error) {
-      showAlert("Restore failed", error instanceof Error ? error.message : "Could not restore purchases.");
     }
   };
 
@@ -477,63 +437,6 @@ export default function ProfileScreen() {
           ) : null}
         </View>
 
-        <View style={styles.billingStack}>
-          <BillingCard
-            icon="sparkles-outline"
-            title={premiumActive ? "Premium active" : "Premium Monthly"}
-            description={
-              premiumActive
-                ? "Your cellar membership is active."
-                : "Unlock your personal cellar, bottle history, and collection management."
-            }
-            badge={premiumActive ? "Active membership" : "Cellar premium"}
-            detail="Event participation stays free. Premium only gates the personal cellar experience."
-            primaryLabel={
-              premiumActive
-                ? "Open Cellar"
-                : isPurchasingPremium
-                ? "Opening checkout..."
-                : Platform.OS === "ios"
-                ? "Start Premium"
-                : "Subscribe with Stripe"
-            }
-            onPrimaryPress={
-              premiumActive
-                ? () => router.push("/(tabs)/cellar")
-                : () => {
-                    void handlePurchasePremium();
-                  }
-            }
-            primaryDisabled={!premiumActive && isPurchasingPremium}
-            secondaryLabel={Platform.OS === "ios" ? (isRestoringPurchases ? "Restoring..." : "Restore") : undefined}
-            onSecondaryPress={Platform.OS === "ios" ? () => {
-              void handleRestorePurchases();
-            } : undefined}
-            secondaryDisabled={Platform.OS === "ios" ? isRestoringPurchases : undefined}
-          />
-
-          <BillingCard
-            icon="ticket-outline"
-            title="Host credits"
-            description="Buy one credit per hosted event. A credit is consumed when the event is successfully created."
-            badge={`${hostCreditBalance} host credit${hostCreditBalance === 1 ? "" : "s"} available`}
-            detail="Hosts do not need the monthly premium plan in v1."
-            primaryLabel={
-              isPurchasingHostCredit
-                ? "Opening checkout..."
-                : Platform.OS === "ios"
-                ? "Buy credit for $10"
-                : "Checkout with Stripe"
-            }
-            onPrimaryPress={() => {
-              void handlePurchaseHostCredit();
-            }}
-            primaryDisabled={isPurchasingHostCredit || billingLoading}
-            secondaryLabel={hostCreditBalance > 0 ? "Host an event" : undefined}
-            onSecondaryPress={hostCreditBalance > 0 ? () => router.push("/event/create") : undefined}
-          />
-        </View>
-
         {renderTopSection()}
 
         {Platform.OS !== "ios" && (
@@ -625,7 +528,6 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_400Regular",
   },
   card: { borderWidth: 1, borderRadius: 14, padding: 16, marginBottom: 24 },
-  billingStack: { gap: 14, marginBottom: 24 },
   cardTitle: { fontFamily: "Montserrat_600SemiBold", fontSize: 16 },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 16 },
   statTile: { width: "48%", borderWidth: 1, borderRadius: 14, padding: 16, alignItems: "center" },
