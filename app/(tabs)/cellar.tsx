@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Image } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Image, Alert } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "@/lib/supabase";
@@ -135,7 +135,14 @@ export default function CellarScreen() {
       <View style={styles.titleRow}>
         <Ionicons name="wine-outline" size={22} color={theme.primary} />
         <Text style={[styles.title, { color: theme.text }]}>My Cellar</Text>
-        <Ionicons name="notifications-outline" size={22} color={theme.textMuted} />
+        <TouchableOpacity
+          onPress={() =>
+            Alert.alert("Coming soon", "Cellar alerts will notify you when wines are approaching their drinking window.")
+          }
+          hitSlop={8}
+        >
+          <Ionicons name="notifications-outline" size={22} color={theme.textMuted} />
+        </TouchableOpacity>
       </View>
       <View style={styles.tabRow}>
         <TouchableOpacity

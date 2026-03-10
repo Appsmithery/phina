@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Image } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Image, Alert } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -132,6 +132,12 @@ export default function EventsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => Alert.alert("Coming soon", "Event Credits let hosts create paid events.")}
+          hitSlop={8}
+        >
+          <Ionicons name="settings-outline" size={22} color={theme.text} />
+        </TouchableOpacity>
         <Text style={[styles.title, { color: theme.text }]}>Events</Text>
         <TouchableOpacity
           style={[styles.createButton, { backgroundColor: theme.primary }]}

@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Share, Platform, Image, Linking } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+import QRCode from "react-native-qrcode-svg";
 import { showAlert } from "@/lib/alert";
 import { generateEventImage } from "@/lib/event-image-generation";
 import { useEndEvent, useEndRatingRound, useStartRatingRound } from "@/hooks/use-event-actions";
@@ -135,6 +136,8 @@ export default function EventDetailScreen() {
       supabase.removeChannel(channel);
     };
   }, [id, isAuthenticated, queryClient]);
+
+  const [qrExpanded, setQrExpanded] = useState(false);
 
   const isHost = event?.created_by === member?.id;
   const isDoubleBlind = event?.tasting_mode === "double_blind" && event?.status === "active";
@@ -362,12 +365,20 @@ export default function EventDetailScreen() {
         <>
           <TouchableOpacity
             style={[styles.actionRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
-            onPress={() => router.push(`/event/${id}/qr`)}
+            onPress={() => setQrExpanded((v) => !v)}
           >
             <Ionicons name="qr-code-outline" size={20} color={theme.text} />
             <Text style={[styles.actionLabel, { color: theme.text }]}>Show QR code</Text>
-            <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+            <Ionicons name={qrExpanded ? "chevron-up" : "chevron-down"} size={18} color={theme.textSecondary} />
           </TouchableOpacity>
+          {qrExpanded ? (
+            <View style={[styles.qrContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <QRCode value={`${appBaseUrl}/join/${id}`} size={220} />
+              <Text style={[styles.qrHint, { color: theme.textMuted }]}>
+                Members scan this code at the venue to join.
+              </Text>
+            </View>
+          ) : null}
 
           <TouchableOpacity
             style={[styles.actionRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
@@ -424,32 +435,34 @@ export default function EventDetailScreen() {
         </TouchableOpacity>
       ) : null}
 
-      {isHost && event.status === "active" ? (
-        <TouchableOpacity
-          style={[styles.actionRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
-          onPress={() =>
-            showAlert("End event?", "Results will be revealed to everyone.", [
-              { text: "Cancel", style: "cancel" },
-              { text: "End event", style: "destructive", onPress: () => endEventMutation.mutate() },
-            ])
-          }
-          disabled={endEventMutation.isPending}
-        >
-          <Ionicons name="flag-outline" size={20} color={theme.textMuted} />
-          <Text style={[styles.actionLabel, { color: theme.textMuted }]}>End event</Text>
-          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
-        </TouchableOpacity>
-      ) : null}
+      {(isHost && event.status === "active") || canDeleteEvent ? (
+        <View style={styles.dangerRow}>
+          {isHost && event.status === "active" ? (
+            <TouchableOpacity
+              style={[styles.actionRowHalf, { backgroundColor: theme.surface, borderColor: theme.border }]}
+              onPress={() =>
+                showAlert("End event?", "Results will be revealed to everyone.", [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "End event", style: "destructive", onPress: () => endEventMutation.mutate() },
+                ])
+              }
+              disabled={endEventMutation.isPending}
+            >
+              <Ionicons name="flag-outline" size={20} color={theme.textMuted} />
+              <Text style={[styles.actionLabel, { color: theme.textMuted }]}>End event</Text>
+            </TouchableOpacity>
+          ) : null}
 
-      {canDeleteEvent ? (
-        <TouchableOpacity
-          style={[styles.actionRow, { backgroundColor: theme.surface, borderColor: "#B55A5A30" }]}
-          onPress={handleDeleteEvent}
-        >
-          <Ionicons name="trash-outline" size={20} color="#B55A5A" />
-          <Text style={[styles.actionLabel, { color: "#B55A5A" }]}>Delete event</Text>
-          <Ionicons name="chevron-forward" size={18} color="#B55A5A60" />
-        </TouchableOpacity>
+          {canDeleteEvent ? (
+            <TouchableOpacity
+              style={[styles.actionRowHalf, { backgroundColor: theme.surface, borderColor: "#B55A5A30" }]}
+              onPress={handleDeleteEvent}
+            >
+              <Ionicons name="trash-outline" size={20} color="#B55A5A" />
+              <Text style={[styles.actionLabel, { color: "#B55A5A" }]}>Delete event</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       ) : null}
 
       <TouchableOpacity
@@ -629,6 +642,34 @@ const styles = StyleSheet.create({
     marginTop: -2,
     marginBottom: 12,
     fontFamily: "Montserrat_400Regular",
+  },
+  qrContainer: {
+    alignItems: "center",
+    padding: 20,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 10,
+    gap: 12,
+  },
+  qrHint: {
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 13,
+    textAlign: "center",
+  },
+  dangerRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 10,
+  },
+  actionRowHalf: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    justifyContent: "center",
   },
 });
 
