@@ -38,6 +38,30 @@ interface EventImageFunctionResponse {
   metadata?: EventImageMetadata;
 }
 
+export function getEventImageErrorMessage(failureReason: string, fallbackError?: string): string {
+  switch (failureReason) {
+    case "rate_limited":
+      return "Hero image generation is temporarily unavailable. Try again in a few minutes.";
+    case "provider_unavailable":
+      return "Hero image generation is temporarily unavailable. Try again shortly.";
+    case "model_unavailable":
+      return "Hero image generation is temporarily unavailable right now. Try again later.";
+    case "storage_upload_failed":
+      return "The hero image was generated but could not be saved. Try again.";
+    case "missing_gemini_api_key":
+      return "Hero image generation is not configured yet.";
+    case "invoke_error":
+      return "Could not reach hero image generation. Try again.";
+    default: {
+      const normalized = fallbackError?.toLowerCase() ?? "";
+      if (normalized.includes("resource_exhausted") || normalized.includes("rate limit") || normalized.includes("429")) {
+        return "Hero image generation is temporarily unavailable. Try again in a few minutes.";
+      }
+      return "Hero image generation failed. Try again later.";
+    }
+  }
+}
+
 export async function generateEventImage(
   eventId: string,
   title: string,
@@ -62,7 +86,7 @@ export async function generateEventImage(
         event_image_url: null,
         event_image_status: "failed",
         failure_reason: "invoke_error",
-        error: error.message ?? "Could not reach the event image function.",
+        error: getEventImageErrorMessage("invoke_error", error.message),
       };
     }
 
@@ -81,7 +105,7 @@ export async function generateEventImage(
       event_image_url: result?.event_image_url ?? null,
       event_image_status: "failed",
       failure_reason: result?.failure_reason ?? "generation_failed",
-      error: result?.error ?? "Hero image generation failed.",
+      error: getEventImageErrorMessage(result?.failure_reason ?? "generation_failed", result?.error),
       metadata: result?.metadata,
     };
   } catch (error) {
@@ -92,7 +116,10 @@ export async function generateEventImage(
       event_image_url: null,
       event_image_status: "failed",
       failure_reason: "unexpected_error",
-      error: error instanceof Error ? error.message : "Unexpected event image generation error.",
+      error: getEventImageErrorMessage(
+        "unexpected_error",
+        error instanceof Error ? error.message : "Unexpected event image generation error."
+      ),
     };
   }
 }

@@ -3,11 +3,12 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
 const IMAGE_MODELS = [
-  "gemini-2.5-flash-image",
-  "gemini-3.1-flash-image-preview",
+  { id: "gemini-2.5-flash-image", aspectRatio: "4:3" },
+  { id: "gemini-3.1-flash-image-preview", aspectRatio: "4:3" },
+  { id: "gemini-2.0-flash-exp-image-generation" },
 ] as const;
 const EVENT_IMAGES_BUCKET = "event-images";
-const PROMPT_VERSION = "1.0";
+const PROMPT_VERSION = "1.1";
 
 const EVENT_BRAND_SCAFFOLD =
   "warm editorial photography, golden hour ambient lighting, elegant entertaining atmosphere, " +
@@ -34,6 +35,7 @@ interface ImageGenerationAttempt {
   message: string;
   retryable: boolean;
   latencyMs: number;
+  failureReason: string;
 }
 
 interface AdminClient {
@@ -150,13 +152,48 @@ async function logError(eventId: string, errorType: string, details: Record<stri
   }
 }
 
-function isRetryableImageModelFailure(status: number, message: string): boolean {
-  if (status === 404) return true;
+function normalizeImageModelFailure(status: number, message: string): {
+  retryable: boolean;
+  failureReason: string;
+} {
   const normalized = message.toLowerCase();
-  return normalized.includes("not found") ||
+  if (status === 429 || normalized.includes("resource_exhausted") || normalized.includes("rate limit")) {
+    return { retryable: true, failureReason: "rate_limited" };
+  }
+  if ([500, 502, 503, 504].includes(status) || normalized.includes("unavailable") || normalized.includes("overloaded")) {
+    return { retryable: true, failureReason: "provider_unavailable" };
+  }
+  if (status === 404 ||
+    normalized.includes("not found") ||
     normalized.includes("not supported for generatecontent") ||
-    normalized.includes("unsupported") ||
-    normalized.includes("no image bytes returned");
+    normalized.includes("unsupported")) {
+    return { retryable: true, failureReason: "model_unavailable" };
+  }
+  if (normalized.includes("no image bytes returned")) {
+    return { retryable: true, failureReason: "empty_image_response" };
+  }
+  return { retryable: false, failureReason: "provider_error" };
+}
+
+function normalizeUserFacingError(failureReason: string): string {
+  switch (failureReason) {
+    case "rate_limited":
+      return "Hero image generation is temporarily unavailable. Try again in a few minutes.";
+    case "provider_unavailable":
+      return "Hero image generation is temporarily unavailable. Try again shortly.";
+    case "model_unavailable":
+      return "Hero image generation is temporarily unavailable right now. Try again later.";
+    case "storage_upload_failed":
+      return "The hero image was generated but could not be saved. Try again.";
+    case "missing_gemini_api_key":
+      return "Hero image generation is not configured yet.";
+    default:
+      return "Hero image generation failed. Try again later.";
+  }
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function base64ToUint8Array(b64: string): Uint8Array {
@@ -169,25 +206,33 @@ function base64ToUint8Array(b64: string): Uint8Array {
 }
 
 async function geminiGenerateImageForModel(apiKey: string, modelId: string, prompt: string): Promise<GeneratedImage> {
+  const modelConfig = IMAGE_MODELS.find((candidate) => candidate.id === modelId);
+  const generationConfig: Record<string, unknown> = {
+    responseModalities: ["IMAGE", "TEXT"],
+    temperature: 0.6,
+  };
+
+  if (modelConfig?.aspectRatio) {
+    generationConfig.imageConfig = { aspectRatio: modelConfig.aspectRatio };
+  }
+
   const response = await fetch(`${GEMINI_BASE}/models/${modelId}:generateContent?key=${apiKey}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseModalities: ["IMAGE", "TEXT"],
-        temperature: 0.6,
-        imageConfig: { aspectRatio: "4:3" },
-      },
+      generationConfig,
     }),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
     const message = `Gemini image gen error ${response.status}: ${errorText.slice(0, 200)}`;
-    const error = new Error(message) as Error & { retryable?: boolean; status?: number };
-    error.retryable = isRetryableImageModelFailure(response.status, errorText);
+    const { retryable, failureReason } = normalizeImageModelFailure(response.status, errorText);
+    const error = new Error(message) as Error & { retryable?: boolean; status?: number; failureReason?: string };
+    error.retryable = retryable;
     error.status = response.status;
+    error.failureReason = failureReason;
     throw error;
   }
 
@@ -210,8 +255,12 @@ async function geminiGenerateImageForModel(apiKey: string, modelId: string, prom
     }
   }
 
-  const error = new Error("Gemini image gen error: no image bytes returned") as Error & { retryable?: boolean };
+  const error = new Error("Gemini image gen error: no image bytes returned") as Error & {
+    retryable?: boolean;
+    failureReason?: string;
+  };
   error.retryable = true;
+  error.failureReason = "empty_image_response";
   throw error;
 }
 
@@ -221,25 +270,29 @@ async function generateImageWithFallback(
 ): Promise<{ image: GeneratedImage | null; attempts: ImageGenerationAttempt[] }> {
   const attempts: ImageGenerationAttempt[] = [];
 
-  for (const modelId of IMAGE_MODELS) {
+  for (const { id: modelId } of IMAGE_MODELS) {
     const startMs = Date.now();
 
     try {
       const image = await geminiGenerateImageForModel(apiKey, modelId, prompt);
       return { image, attempts };
     } catch (error) {
-      const attemptError = error as Error & { retryable?: boolean };
+      const attemptError = error as Error & { retryable?: boolean; failureReason?: string };
       const attempt: ImageGenerationAttempt = {
         modelId,
         message: attemptError.message,
         retryable: attemptError.retryable === true,
         latencyMs: Date.now() - startMs,
+        failureReason: attemptError.failureReason ?? "provider_error",
       };
       attempts.push(attempt);
       console.warn(
         `generate-event-image: image generation failed for model=${modelId} retryable=${attempt.retryable} latency=${attempt.latencyMs}ms`,
         attempt.message
       );
+      if (attempt.retryable) {
+        await sleep(600);
+      }
       if (!attempt.retryable) break;
     }
   }
@@ -320,13 +373,14 @@ Deno.serve(async (req: Request) => {
         prompt_version: PROMPT_VERSION,
         attempts,
       });
+      const finalFailureReason = attempts[attempts.length - 1]?.failureReason ?? "provider_error";
       return jsonResponse({
         event_image_url: null,
         event_image_status: "failed",
-        failure_reason: "image_generation_failed",
-        error: attempts[attempts.length - 1]?.message ?? "Hero image generation failed.",
+        failure_reason: finalFailureReason,
+        error: normalizeUserFacingError(finalFailureReason),
         metadata: {
-          model_id: attempts[attempts.length - 1]?.modelId ?? IMAGE_MODELS[0],
+          model_id: attempts[attempts.length - 1]?.modelId ?? IMAGE_MODELS[0].id,
           prompt_version: PROMPT_VERSION,
           latency_ms: Date.now() - startMs,
           image_generation_attempts: attempts.map((attempt) => ({
@@ -334,6 +388,7 @@ Deno.serve(async (req: Request) => {
             latency_ms: attempt.latencyMs,
             retryable: attempt.retryable,
             message: attempt.message,
+            failure_reason: attempt.failureReason,
           })),
         },
       });
@@ -350,7 +405,7 @@ Deno.serve(async (req: Request) => {
         event_image_url: null,
         event_image_status: "failed",
         failure_reason: "storage_upload_failed",
-        error: "Could not upload the generated hero image.",
+        error: normalizeUserFacingError("storage_upload_failed"),
         metadata: {
           model_id: image.modelId,
           prompt_version: PROMPT_VERSION,
@@ -360,6 +415,7 @@ Deno.serve(async (req: Request) => {
             latency_ms: attempt.latencyMs,
             retryable: attempt.retryable,
             message: attempt.message,
+            failure_reason: attempt.failureReason,
           })),
         },
       });
@@ -382,6 +438,7 @@ Deno.serve(async (req: Request) => {
           latency_ms: attempt.latencyMs,
           retryable: attempt.retryable,
           message: attempt.message,
+          failure_reason: attempt.failureReason,
         })),
       },
     });
@@ -395,9 +452,9 @@ Deno.serve(async (req: Request) => {
       event_image_url: null,
       event_image_status: "failed",
       failure_reason: "unhandled_error",
-      error: error instanceof Error ? error.message : "Unhandled event image generation error.",
+      error: normalizeUserFacingError("unhandled_error"),
       metadata: {
-        model_id: IMAGE_MODELS[0],
+        model_id: IMAGE_MODELS[0].id,
         prompt_version: PROMPT_VERSION,
         latency_ms: Date.now() - startMs,
       },
