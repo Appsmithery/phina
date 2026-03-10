@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
 # push-env-to-eas.sh
-# Promotes EXPO_PUBLIC_* variables from .env to EAS production environment.
+# Promotes EXPO_PUBLIC_* variables from .env to an EAS environment.
 # Run from the project root: bash scripts/push-env-to-eas.sh
 #
 # Usage:
-#   bash scripts/push-env-to-eas.sh           # dry run (prints commands, does not execute)
-#   bash scripts/push-env-to-eas.sh --apply   # actually creates/updates the vars in EAS
+#   bash scripts/push-env-to-eas.sh                          # dry run → production
+#   bash scripts/push-env-to-eas.sh --apply                  # apply  → production
+#   bash scripts/push-env-to-eas.sh --env development        # dry run → development
+#   bash scripts/push-env-to-eas.sh --env development --apply# apply  → development
+#
+# EAS environments: production | preview | development
+# - Local dev (expo start) reads .env directly — no EAS vars needed.
+# - EAS vars are only used during eas build runs on EAS infrastructure.
 
 set -euo pipefail
 
@@ -13,8 +19,18 @@ ENV_FILE=".env"
 ENVIRONMENT="production"
 DRY_RUN=true
 
-if [[ "${1:-}" == "--apply" ]]; then
-  DRY_RUN=false
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --apply) DRY_RUN=false ;;
+    --env)   ENVIRONMENT="${2:?--env requires a value: production|preview|development}"; shift ;;
+    *) echo "Unknown argument: $1"; exit 1 ;;
+  esac
+  shift
+done
+
+if [[ "$ENVIRONMENT" != "production" && "$ENVIRONMENT" != "preview" && "$ENVIRONMENT" != "development" ]]; then
+  echo "❌ Invalid environment '$ENVIRONMENT'. Must be: production | preview | development"
+  exit 1
 fi
 
 if [[ ! -f "$ENV_FILE" ]]; then
@@ -35,7 +51,7 @@ declare -A VISIBILITY=(
   [EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID]="plaintext"
   [EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID]="plaintext"
   [EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME]="plaintext"
-  [EXPO_PUBLIC_REVENUECAT_IOS_API_KEY]="secret"
+  [EXPO_PUBLIC_REVENUECAT_IOS_API_KEY]="sensitive"
   [EXPO_PUBLIC_REVENUECAT_PREMIUM_PACKAGE_ID]="plaintext"
   [EXPO_PUBLIC_REVENUECAT_HOST_CREDIT_PRODUCT_ID]="plaintext"
   [EXPO_PUBLIC_SENTRY_DSN]="plaintext"
@@ -58,7 +74,7 @@ while IFS='=' read -r key value || [[ -n "$key" ]]; do
   value="${value%%#*}"           # remove inline comment
   value="${value#\"}" ; value="${value%\"}"   # strip double quotes
   value="${value#\'}" ; value="${value%\'}"   # strip single quotes
-  value="${value%"${value##*[![:space:]]}"}"  # rtrim whitespace
+  value="${value%% }"  # rtrim trailing space
   ENV_VALUES["$key"]="$value"
 done < "$ENV_FILE"
 
@@ -90,8 +106,8 @@ for var in "${!VISIBILITY[@]}"; do
       echo -n "(exists, updating) "
       if npx eas env:update \
           --environment "$ENVIRONMENT" \
-          --name "$var" \
-          --value "$val" \
+          --variable-name "$var" \
+          --variable-value "$val" \
           --non-interactive 2>/dev/null; then
         echo "✅"
       else
