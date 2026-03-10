@@ -24,6 +24,11 @@ jest.mock("@/lib/oauth-google", () => ({
   signInWithGoogle: jest.fn(() => Promise.resolve(null)),
 }));
 
+jest.mock("@/lib/oauth-apple", () => ({
+  signInWithApple: jest.fn(() => Promise.resolve(null)),
+  isAppleAuthAvailable: jest.fn(() => true),
+}));
+
 jest.mock("@/lib/theme", () => ({
   useTheme: () => ({
     background: "#F2EFE9",
@@ -43,6 +48,7 @@ describe("AuthScreen", () => {
     expect(screen.getByText("Enter your email to receive a secure sign-in magic link.")).toBeTruthy();
     expect(screen.getByText("Send magic link")).toBeTruthy();
     expect(screen.getByText("Sign in with Google")).toBeTruthy();
+    expect(screen.getByText("Sign in with Apple")).toBeTruthy();
     expect(screen.getByText("sign in with password")).toBeTruthy();
   });
 

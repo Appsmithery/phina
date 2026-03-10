@@ -66,6 +66,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-router",
     "expo-camera",
     "expo-web-browser",
+    "expo-apple-authentication",
     "@react-native-community/datetimepicker",
     ["@sentry/react-native/expo", {
       url: "https://sentry.io/",

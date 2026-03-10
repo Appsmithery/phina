@@ -19,6 +19,7 @@ import { getRedirectUrl } from "@/lib/auth-redirect";
 import { setLastUsedEmail } from "@/lib/last-email";
 import { useSupabase } from "@/lib/supabase-context";
 import { signInWithGoogle } from "@/lib/oauth-google";
+import { signInWithApple, isAppleAuthAvailable } from "@/lib/oauth-apple";
 import { navigateAfterAuth } from "@/lib/post-auth-navigate";
 
 const UNAUTHORIZED_HINT =
@@ -34,6 +35,7 @@ export default function AuthScreen() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
   const [errorHint, setErrorHint] = useState<string | null>(null);
   const [magicLinkSentTo, setMagicLinkSentTo] = useState<string | null>(null);
   const [resendCooldownSeconds, setResendCooldownSeconds] = useState(0);
@@ -160,6 +162,27 @@ export default function AuthScreen() {
     }
   };
 
+  const handleAppleSignIn = async () => {
+    setAppleLoading(true);
+    setErrorHint(null);
+    try {
+      const session = await signInWithApple();
+      if (session) {
+        setSessionFromAuth(session);
+        await navigateAfterAuth();
+      } else {
+        setErrorHint("Apple sign-in was cancelled or failed");
+      }
+    } catch (error) {
+      console.error("[auth] Apple sign-in error:", error);
+      setErrorHint(error instanceof Error ? error.message : "Apple sign-in failed");
+    } finally {
+      setAppleLoading(false);
+    }
+  };
+
+  const socialLoading = googleLoading || appleLoading;
+
   const inputStyle = [
     styles.input,
     {
@@ -285,7 +308,7 @@ export default function AuthScreen() {
                 },
               ]}
               onPress={handleGoogleSignIn}
-              disabled={googleLoading || loading}
+              disabled={socialLoading || loading}
               accessibilityRole="button"
               accessibilityLabel="Sign in with Google"
             >
@@ -293,6 +316,19 @@ export default function AuthScreen() {
                 {googleLoading ? "Signing in..." : "Sign in with Google"}
               </Text>
             </TouchableOpacity>
+            {isAppleAuthAvailable() ? (
+              <TouchableOpacity
+                style={styles.appleButton}
+                onPress={handleAppleSignIn}
+                disabled={socialLoading || loading}
+                accessibilityRole="button"
+                accessibilityLabel="Sign in with Apple"
+              >
+                <Text style={styles.appleButtonText}>
+                  {appleLoading ? "Signing in..." : "Sign in with Apple"}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
           </>
         )}
         {!magicLinkSentTo ? (
@@ -487,5 +523,18 @@ const styles = StyleSheet.create({
   googleButtonText: {
     fontFamily: "Montserrat_600SemiBold",
     fontSize: 16,
+  },
+  appleButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    alignItems: "center" as const,
+    backgroundColor: "#000000",
+    marginBottom: 12,
+  },
+  appleButtonText: {
+    fontFamily: "Montserrat_600SemiBold",
+    fontSize: 16,
+    color: "#FFFFFF",
   },
 });
