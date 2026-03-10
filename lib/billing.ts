@@ -121,15 +121,13 @@ export async function startStripeCheckout(kind: CheckoutKind): Promise<void> {
   await openExternalUrl(checkoutUrl);
 }
 
-function getPremiumPackage(
-  offerings: Awaited<ReturnType<NonNullable<Awaited<ReturnType<typeof getPurchasesModule>>>["default"]["getOfferings"]>>
-) {
+function getPremiumPackage(offerings: any) {
   const currentOffering = offerings.current;
   if (!currentOffering) return null;
 
   if (REVENUECAT_PREMIUM_PACKAGE_ID) {
     const explicitMatch = currentOffering.availablePackages.find(
-      (pkg) => pkg.identifier === REVENUECAT_PREMIUM_PACKAGE_ID
+      (pkg: { identifier: string }) => pkg.identifier === REVENUECAT_PREMIUM_PACKAGE_ID
     );
     if (explicitMatch) return explicitMatch;
   }

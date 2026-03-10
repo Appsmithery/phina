@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import type { Event } from "@/types/database";
+import { useBilling } from "@/hooks/use-billing";
 
 type EventsTab = "upcoming" | "past" | "my-events";
 
@@ -20,6 +21,7 @@ const TAB_LABELS: Record<EventsTab, string> = {
 export default function EventsScreen() {
   const theme = useTheme();
   const { member } = useSupabase();
+  const { hostCreditBalance } = useBilling();
   const [activeTab, setActiveTab] = useState<EventsTab>("upcoming");
   const [search, setSearch] = useState("");
 
@@ -133,10 +135,17 @@ export default function EventsScreen() {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => Alert.alert("Coming soon", "Event Credits let hosts create paid events.")}
+          style={[styles.creditChip, { borderColor: theme.border, backgroundColor: theme.surface }]}
+          onPress={() =>
+            Alert.alert(
+              "Host credits",
+              `You currently have ${hostCreditBalance} host credit${hostCreditBalance === 1 ? "" : "s"}. Buy more from your profile any time.`
+            )
+          }
           hitSlop={8}
         >
-          <Ionicons name="settings-outline" size={22} color={theme.text} />
+          <Ionicons name="ticket-outline" size={16} color={theme.primary} />
+          <Text style={[styles.creditChipText, { color: theme.text }]}>{hostCreditBalance}</Text>
         </TouchableOpacity>
         <Text style={[styles.title, { color: theme.text }]}>Events</Text>
         <TouchableOpacity
@@ -208,6 +217,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 8,
+  },
+  creditChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  creditChipText: {
+    fontSize: 12,
+    fontFamily: "Montserrat_600SemiBold",
   },
   title: {
     fontSize: 22,

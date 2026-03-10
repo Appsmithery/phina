@@ -1,11 +1,10 @@
-import { Platform, View, Text, StyleSheet } from "react-native";
+import { KeyboardAvoidingView, Platform, View, Text, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { trackEvent } from "@/lib/observability";
 import { AddWineForm } from "@/components/AddWineForm";
-import { KeyboardAvoidingView, Platform } from "react-native";
 import { BillingCard } from "@/components/BillingCard";
 import { useBilling } from "@/hooks/use-billing";
 import { showAlert } from "@/lib/alert";

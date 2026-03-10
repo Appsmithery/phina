@@ -6,6 +6,9 @@ const mockPush = jest.fn();
 const mockReplace = jest.fn();
 const mockTrackEvent = jest.fn();
 const mockInvalidateQueries = jest.fn();
+const mockPurchasePremium = jest.fn();
+const mockPurchaseHostCredit = jest.fn();
+const mockRestorePurchases = jest.fn();
 let mockMember: any = {
   id: "member-1",
   first_name: "Alex",
@@ -29,6 +32,17 @@ let mockQueryState: {
   ratings: { data: [], isLoading: false },
   events: { data: 0, isLoading: false },
   favorites: { data: 0, isLoading: false },
+};
+let mockBillingState = {
+  premiumActive: false,
+  hostCreditBalance: 0,
+  isLoading: false,
+  isPurchasingPremium: false,
+  isPurchasingHostCredit: false,
+  isRestoringPurchases: false,
+  purchasePremium: mockPurchasePremium,
+  purchaseHostCredit: mockPurchaseHostCredit,
+  restorePurchases: mockRestorePurchases,
 };
 
 jest.mock("expo-linear-gradient", () => ({
@@ -103,6 +117,10 @@ jest.mock("@/lib/alert", () => ({
   showAlert: jest.fn(),
 }));
 
+jest.mock("@/hooks/use-billing", () => ({
+  useBilling: () => mockBillingState,
+}));
+
 jest.mock("@tanstack/react-query", () => ({
   useQuery: jest.fn(({ queryKey }: { queryKey: string[] }) => {
     if (queryKey[1] === "ratings") return mockQueryState.ratings;
@@ -144,6 +162,20 @@ describe("ProfileScreen", () => {
     mockReplace.mockReset();
     mockTrackEvent.mockReset();
     mockInvalidateQueries.mockReset();
+    mockPurchasePremium.mockReset();
+    mockPurchaseHostCredit.mockReset();
+    mockRestorePurchases.mockReset();
+    mockBillingState = {
+      premiumActive: false,
+      hostCreditBalance: 0,
+      isLoading: false,
+      isPurchasingPremium: false,
+      isPurchasingHostCredit: false,
+      isRestoringPurchases: false,
+      purchasePremium: mockPurchasePremium,
+      purchaseHostCredit: mockPurchaseHostCredit,
+      restorePurchases: mockRestorePurchases,
+    };
   });
 
   it("hides the top section while ratings are loading", () => {
