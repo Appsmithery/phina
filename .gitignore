@@ -26,6 +26,10 @@ web-build/
 # Google Play service account key — never commit
 google-play-service-account.json
 
+# Apple APNs/Auth keys in repo root — never commit
+/AuthKey_*.p8
+/iOS_AuthKey_*.p8
+
 # Supabase local
 supabase/.temp/
 supabase/.env
