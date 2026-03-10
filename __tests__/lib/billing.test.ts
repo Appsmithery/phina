@@ -7,7 +7,7 @@ jest.mock("@/lib/supabase", () => ({
   },
 }));
 
-import { getDefaultBillingStatus, isPremiumActive } from "@/lib/billing";
+import { getDefaultBillingStatus, getEffectiveBillingAccess, isPremiumActive } from "@/lib/billing";
 
 describe("billing helpers", () => {
   it("returns an inactive default billing status", () => {
@@ -39,5 +39,43 @@ describe("billing helpers", () => {
         host_credit_balance: 0,
       })
     ).toBe(false);
+  });
+
+  it("grants admin bypass to premium and hosting access", () => {
+    expect(
+      getEffectiveBillingAccess(
+        {
+          premium_active: false,
+          premium_source: "none",
+          premium_expires_at: null,
+          host_credit_balance: 0,
+        },
+        true
+      )
+    ).toEqual({
+      hasAdminBillingBypass: true,
+      effectivePremiumActive: true,
+      effectiveHostingAccess: true,
+      billingAccessLabel: "Admin override",
+    });
+  });
+
+  it("keeps hosting access false for unpaid non-admins with no credits", () => {
+    expect(
+      getEffectiveBillingAccess(
+        {
+          premium_active: false,
+          premium_source: "none",
+          premium_expires_at: null,
+          host_credit_balance: 0,
+        },
+        false
+      )
+    ).toEqual({
+      hasAdminBillingBypass: false,
+      effectivePremiumActive: false,
+      effectiveHostingAccess: false,
+      billingAccessLabel: null,
+    });
   });
 });

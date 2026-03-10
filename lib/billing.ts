@@ -1,15 +1,24 @@
 import { Linking, Platform } from "react-native";
+import { isRunningInExpoGo } from "expo";
 
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
 export type BillingStatus = Database["public"]["Functions"]["get_my_billing_status"]["Returns"][number];
 export type CheckoutKind = "premium" | "host_credit";
+export type EffectiveBillingAccess = {
+  hasAdminBillingBypass: boolean;
+  effectivePremiumActive: boolean;
+  effectiveHostingAccess: boolean;
+  billingAccessLabel: string | null;
+};
 
 const APP_URL = process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co";
 const REVENUECAT_IOS_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY ?? "";
 const REVENUECAT_PREMIUM_PACKAGE_ID = process.env.EXPO_PUBLIC_REVENUECAT_PREMIUM_PACKAGE_ID ?? "";
 const REVENUECAT_HOST_CREDIT_PRODUCT_ID = process.env.EXPO_PUBLIC_REVENUECAT_HOST_CREDIT_PRODUCT_ID ?? "";
+export const EXPO_GO_NATIVE_PURCHASES_MESSAGE =
+  "Native purchases are not available in Expo Go. Install the iOS development build or use TestFlight to test purchases.";
 
 let configuredRevenueCatUserId: string | null = null;
 
@@ -19,7 +28,44 @@ function wait(ms: number) {
 
 async function getPurchasesModule() {
   if (Platform.OS !== "ios") return null;
+  if (!getNativePurchasesAvailability().nativePurchasesAvailable) return null;
   return import("react-native-purchases");
+}
+
+export function getNativePurchasesAvailability(): {
+  nativePurchasesAvailable: boolean;
+  unsupportedReason: string | null;
+} {
+  if (Platform.OS !== "ios") {
+    return {
+      nativePurchasesAvailable: false,
+      unsupportedReason: null,
+    };
+  }
+
+  if (isRunningInExpoGo()) {
+    return {
+      nativePurchasesAvailable: false,
+      unsupportedReason: EXPO_GO_NATIVE_PURCHASES_MESSAGE,
+    };
+  }
+
+  if (!REVENUECAT_IOS_API_KEY) {
+    return {
+      nativePurchasesAvailable: false,
+      unsupportedReason: "RevenueCat is not configured for this iOS build.",
+    };
+  }
+
+  return {
+    nativePurchasesAvailable: true,
+    unsupportedReason: null,
+  };
+}
+
+function getUnsupportedNativePurchasesError() {
+  const { unsupportedReason } = getNativePurchasesAvailability();
+  return new Error(unsupportedReason ?? "RevenueCat is not configured for iOS purchases.");
 }
 
 export function getDefaultBillingStatus(): BillingStatus {
@@ -37,6 +83,22 @@ export function isPremiumActive(status: BillingStatus | null | undefined): boole
   return new Date(status.premium_expires_at).getTime() > Date.now();
 }
 
+export function getEffectiveBillingAccess(
+  status: BillingStatus | null | undefined,
+  isAdmin: boolean | null | undefined
+): EffectiveBillingAccess {
+  const hasAdminBillingBypass = isAdmin === true;
+  const premiumActive = isPremiumActive(status);
+  const hostCreditBalance = status?.host_credit_balance ?? 0;
+
+  return {
+    hasAdminBillingBypass,
+    effectivePremiumActive: hasAdminBillingBypass || premiumActive,
+    effectiveHostingAccess: hasAdminBillingBypass || hostCreditBalance > 0,
+    billingAccessLabel: hasAdminBillingBypass ? "Admin override" : null,
+  };
+}
+
 export async function fetchBillingStatus(): Promise<BillingStatus> {
   const { data, error } = await supabase.rpc("get_my_billing_status");
   if (error) throw error;
@@ -44,7 +106,8 @@ export async function fetchBillingStatus(): Promise<BillingStatus> {
 }
 
 export async function configureRevenueCatForMember(memberId: string, email?: string | null): Promise<boolean> {
-  if (Platform.OS !== "ios" || !REVENUECAT_IOS_API_KEY) return false;
+  if (Platform.OS !== "ios") return false;
+  if (!getNativePurchasesAvailability().nativePurchasesAvailable) return false;
 
   const PurchasesModule = await getPurchasesModule();
   if (!PurchasesModule) return false;
@@ -141,9 +204,13 @@ export async function purchasePremium(memberId: string, email?: string | null): 
     return;
   }
 
+  if (!getNativePurchasesAvailability().nativePurchasesAvailable) {
+    throw getUnsupportedNativePurchasesError();
+  }
+
   const configured = await configureRevenueCatForMember(memberId, email);
   if (!configured) {
-    throw new Error("RevenueCat is not configured for iOS purchases.");
+    throw getUnsupportedNativePurchasesError();
   }
 
   const PurchasesModule = await getPurchasesModule();
@@ -166,13 +233,17 @@ export async function purchaseHostCredit(memberId: string, email?: string | null
     return;
   }
 
+  if (!getNativePurchasesAvailability().nativePurchasesAvailable) {
+    throw getUnsupportedNativePurchasesError();
+  }
+
   if (!REVENUECAT_HOST_CREDIT_PRODUCT_ID) {
     throw new Error("Host credit product is not configured.");
   }
 
   const configured = await configureRevenueCatForMember(memberId, email);
   if (!configured) {
-    throw new Error("RevenueCat is not configured for iOS purchases.");
+    throw getUnsupportedNativePurchasesError();
   }
 
   const PurchasesModule = await getPurchasesModule();
@@ -195,9 +266,13 @@ export async function purchaseHostCredit(memberId: string, email?: string | null
 export async function restoreNativePurchases(memberId: string, email?: string | null): Promise<void> {
   if (Platform.OS !== "ios") return;
 
+  if (!getNativePurchasesAvailability().nativePurchasesAvailable) {
+    throw getUnsupportedNativePurchasesError();
+  }
+
   const configured = await configureRevenueCatForMember(memberId, email);
   if (!configured) {
-    throw new Error("RevenueCat is not configured for iOS purchases.");
+    throw getUnsupportedNativePurchasesError();
   }
 
   const PurchasesModule = await getPurchasesModule();

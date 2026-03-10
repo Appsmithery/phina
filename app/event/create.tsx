@@ -32,6 +32,11 @@ export default function CreateEventScreen() {
   const [isCreating, setIsCreating] = useState(false);
   const {
     hostCreditBalance,
+    hasAdminBillingBypass,
+    effectiveHostingAccess,
+    billingAccessLabel,
+    nativePurchasesAvailable,
+    unsupportedReason,
     isLoading: billingLoading,
     isPurchasingHostCredit,
     isRestoringPurchases,
@@ -153,7 +158,11 @@ export default function CreateEventScreen() {
     );
   }
 
-  if (hostCreditBalance < 1) {
+  if (!effectiveHostingAccess) {
+    const hostCreditDetail =
+      unsupportedReason && Platform.OS === "ios" && !nativePurchasesAvailable
+        ? `Your credit is consumed only when the event is successfully created. ${unsupportedReason}`
+        : "Your credit is consumed only when the event is successfully created.";
     return (
       <View style={[styles.paywallScreen, { backgroundColor: theme.background }]}>
         <Text style={[styles.paywallTitle, { color: theme.text }]}>Host your next tasting</Text>
@@ -165,17 +174,17 @@ export default function CreateEventScreen() {
           title="1 Host Credit"
           description="Buy a single event credit and unlock the host flow immediately."
           badge="0 credits available"
-          detail="Your credit is consumed only when the event is successfully created."
-          primaryLabel={isPurchasingHostCredit ? "Opening checkout..." : Platform.OS === "ios" ? "Buy for $10" : "Checkout with Stripe"}
+          detail={hostCreditDetail}
+          primaryLabel={Platform.OS === "ios" && !nativePurchasesAvailable ? "Use iOS Dev Build" : isPurchasingHostCredit ? "Opening checkout..." : Platform.OS === "ios" ? "Buy for $10" : "Checkout with Stripe"}
           onPrimaryPress={() => {
             void handlePurchaseHostCredit();
           }}
-          primaryDisabled={isPurchasingHostCredit}
-          secondaryLabel={Platform.OS === "ios" ? (isRestoringPurchases ? "Restoring..." : "Restore") : undefined}
-          onSecondaryPress={Platform.OS === "ios" ? () => {
+          primaryDisabled={isPurchasingHostCredit || (Platform.OS === "ios" && !nativePurchasesAvailable)}
+          secondaryLabel={Platform.OS === "ios" && nativePurchasesAvailable ? (isRestoringPurchases ? "Restoring..." : "Restore") : undefined}
+          onSecondaryPress={Platform.OS === "ios" && nativePurchasesAvailable ? () => {
             void handleRestorePurchases();
           } : undefined}
-          secondaryDisabled={Platform.OS === "ios" ? isRestoringPurchases : undefined}
+          secondaryDisabled={Platform.OS === "ios" && nativePurchasesAvailable ? isRestoringPurchases : undefined}
         />
       </View>
     );
@@ -186,7 +195,9 @@ export default function CreateEventScreen() {
       <View style={[styles.creditBanner, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.creditBannerTitle, { color: theme.text }]}>Ready to host</Text>
         <Text style={[styles.creditBannerBody, { color: theme.textSecondary }]}>
-          {hostCreditBalance} host credit{hostCreditBalance === 1 ? "" : "s"} available
+          {hasAdminBillingBypass
+            ? billingAccessLabel ?? "Admin override"
+            : `${hostCreditBalance} host credit${hostCreditBalance === 1 ? "" : "s"} available`}
         </Text>
       </View>
       <EventForm

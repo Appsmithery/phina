@@ -21,7 +21,7 @@ const TAB_LABELS: Record<EventsTab, string> = {
 export default function EventsScreen() {
   const theme = useTheme();
   const { member } = useSupabase();
-  const { hostCreditBalance } = useBilling();
+  const { hostCreditBalance, hasAdminBillingBypass, billingAccessLabel } = useBilling();
   const [activeTab, setActiveTab] = useState<EventsTab>("upcoming");
   const [search, setSearch] = useState("");
 
@@ -138,14 +138,22 @@ export default function EventsScreen() {
           style={[styles.creditChip, { borderColor: theme.border, backgroundColor: theme.surface }]}
           onPress={() =>
             Alert.alert(
-              "Host credits",
-              `You currently have ${hostCreditBalance} host credit${hostCreditBalance === 1 ? "" : "s"}. Buy more from your profile any time.`
+              hasAdminBillingBypass ? "Admin override" : "Host credits",
+              hasAdminBillingBypass
+                ? "This admin account can host events without purchasing or consuming host credits."
+                : `You currently have ${hostCreditBalance} host credit${hostCreditBalance === 1 ? "" : "s"}. Buy more from your profile any time.`
             )
           }
           hitSlop={8}
         >
-          <Ionicons name="ticket-outline" size={16} color={theme.primary} />
-          <Text style={[styles.creditChipText, { color: theme.text }]}>{hostCreditBalance}</Text>
+          <Ionicons
+            name={hasAdminBillingBypass ? "shield-checkmark-outline" : "ticket-outline"}
+            size={16}
+            color={theme.primary}
+          />
+          <Text style={[styles.creditChipText, { color: theme.text }]}>
+            {hasAdminBillingBypass ? (billingAccessLabel ?? "Admin") : hostCreditBalance}
+          </Text>
         </TouchableOpacity>
         <Text style={[styles.title, { color: theme.text }]}>Events</Text>
         <TouchableOpacity

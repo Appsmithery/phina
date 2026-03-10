@@ -5,6 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchBillingStatus,
   getDefaultBillingStatus,
+  getEffectiveBillingAccess,
+  getNativePurchasesAvailability,
   isPremiumActive,
   pollBillingStatus,
   purchaseHostCredit,
@@ -18,6 +20,7 @@ import { useSupabase } from "@/lib/supabase-context";
 export function useBilling() {
   const { member, session } = useSupabase();
   const queryClient = useQueryClient();
+  const nativePurchases = getNativePurchasesAvailability();
 
   const billingQuery = useQuery({
     queryKey: ["billing", member?.id],
@@ -88,12 +91,16 @@ export function useBilling() {
   });
 
   const status = billingQuery.data ?? getDefaultBillingStatus();
+  const effectiveAccess = getEffectiveBillingAccess(status, member?.is_admin);
 
   return {
     ...billingQuery,
     status,
     premiumActive: isPremiumActive(status),
     hostCreditBalance: status.host_credit_balance ?? 0,
+    ...effectiveAccess,
+    nativePurchasesAvailable: nativePurchases.nativePurchasesAvailable,
+    unsupportedReason: nativePurchases.unsupportedReason,
     refreshBilling,
     purchasePremium: premiumMutation.mutateAsync,
     purchaseHostCredit: hostCreditMutation.mutateAsync,

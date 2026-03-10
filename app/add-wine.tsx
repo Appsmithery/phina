@@ -14,7 +14,11 @@ export default function AddWineScreen() {
   const theme = useTheme();
   const queryClient = useQueryClient();
   const {
-    premiumActive,
+    hasAdminBillingBypass,
+    effectivePremiumActive,
+    billingAccessLabel,
+    nativePurchasesAvailable,
+    unsupportedReason,
     isLoading: billingLoading,
     isPurchasingPremium,
     isRestoringPurchases,
@@ -83,7 +87,11 @@ export default function AddWineScreen() {
     );
   }
 
-  if (!premiumActive) {
+  if (!effectivePremiumActive) {
+    const premiumDetail =
+      unsupportedReason && Platform.OS === "ios" && !nativePurchasesAvailable
+        ? `Join and rate events for free, then upgrade when you want long-term collection tracking. ${unsupportedReason}`
+        : "Join and rate events for free, then upgrade when you want long-term collection tracking.";
     return (
       <View style={[styles.container, styles.paywallContainer, { backgroundColor: theme.background }]}>
         <Text style={[styles.title, { color: theme.text }]}>Add to cellar</Text>
@@ -91,18 +99,18 @@ export default function AddWineScreen() {
           icon="sparkles-outline"
           title="Premium required"
           description="Adding bottles to your personal cellar is part of the premium membership."
-          badge="Cellar premium"
-          detail="Join and rate events for free, then upgrade when you want long-term collection tracking."
-          primaryLabel={isPurchasingPremium ? "Opening checkout..." : Platform.OS === "ios" ? "Start Premium" : "Subscribe with Stripe"}
+          badge={hasAdminBillingBypass ? (billingAccessLabel ?? "Admin override") : "Cellar premium"}
+          detail={premiumDetail}
+          primaryLabel={Platform.OS === "ios" && !nativePurchasesAvailable ? "Use iOS Dev Build" : isPurchasingPremium ? "Opening checkout..." : Platform.OS === "ios" ? "Start Premium" : "Subscribe with Stripe"}
           onPrimaryPress={() => {
             void handlePurchasePremium();
           }}
-          primaryDisabled={isPurchasingPremium}
-          secondaryLabel={Platform.OS === "ios" ? (isRestoringPurchases ? "Restoring..." : "Restore") : undefined}
-          onSecondaryPress={Platform.OS === "ios" ? () => {
+          primaryDisabled={isPurchasingPremium || (Platform.OS === "ios" && !nativePurchasesAvailable)}
+          secondaryLabel={Platform.OS === "ios" && nativePurchasesAvailable ? (isRestoringPurchases ? "Restoring..." : "Restore") : undefined}
+          onSecondaryPress={Platform.OS === "ios" && nativePurchasesAvailable ? () => {
             void handleRestorePurchases();
           } : undefined}
-          secondaryDisabled={Platform.OS === "ios" ? isRestoringPurchases : undefined}
+          secondaryDisabled={Platform.OS === "ios" && nativePurchasesAvailable ? isRestoringPurchases : undefined}
         />
       </View>
     );
