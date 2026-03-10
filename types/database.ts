@@ -3,6 +3,33 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export interface Database {
   public: {
     Tables: {
+      billing_customers: {
+        Row: {
+          member_id: string;
+          stripe_customer_id: string | null;
+          revenuecat_app_user_id: string | null;
+          revenuecat_original_app_user_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          member_id: string;
+          stripe_customer_id?: string | null;
+          revenuecat_app_user_id?: string | null;
+          revenuecat_original_app_user_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          member_id?: string;
+          stripe_customer_id?: string | null;
+          revenuecat_app_user_id?: string | null;
+          revenuecat_original_app_user_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       members: {
         Row: {
           id: string;
@@ -243,6 +270,93 @@ export interface Database {
         };
         Relationships: [];
       };
+      member_entitlements: {
+        Row: {
+          member_id: string;
+          premium_active: boolean;
+          source: "apple" | "stripe" | "admin" | "none";
+          started_at: string | null;
+          expires_at: string | null;
+          original_transaction_ref: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          member_id: string;
+          premium_active?: boolean;
+          source?: "apple" | "stripe" | "admin" | "none";
+          started_at?: string | null;
+          expires_at?: string | null;
+          original_transaction_ref?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          member_id?: string;
+          premium_active?: boolean;
+          source?: "apple" | "stripe" | "admin" | "none";
+          started_at?: string | null;
+          expires_at?: string | null;
+          original_transaction_ref?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      host_credit_ledger: {
+        Row: {
+          id: string;
+          member_id: string;
+          delta: number;
+          source: "apple" | "stripe" | "admin" | "event_creation" | "adjustment";
+          purchase_ref: string | null;
+          event_id: string | null;
+          metadata: Record<string, Json | undefined>;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          member_id: string;
+          delta: number;
+          source: "apple" | "stripe" | "admin" | "event_creation" | "adjustment";
+          purchase_ref?: string | null;
+          event_id?: string | null;
+          metadata?: Record<string, Json | undefined>;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          member_id?: string;
+          delta?: number;
+          source?: "apple" | "stripe" | "admin" | "event_creation" | "adjustment";
+          purchase_ref?: string | null;
+          event_id?: string | null;
+          metadata?: Record<string, Json | undefined>;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      billing_webhook_events: {
+        Row: {
+          provider: "stripe" | "revenuecat";
+          event_id: string;
+          payload: Json;
+          processed_at: string;
+          created_at: string;
+        };
+        Insert: {
+          provider: "stripe" | "revenuecat";
+          event_id: string;
+          payload: Json;
+          processed_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          provider?: "stripe" | "revenuecat";
+          event_id?: string;
+          payload?: Json;
+          processed_at?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       ratings: {
         Row: {
           id: string;
@@ -427,6 +541,26 @@ export interface Database {
       };
     };
     Functions: {
+      create_hosted_event: {
+        Args: {
+          p_title: string;
+          p_theme: string;
+          p_date: string;
+          p_tasting_mode?: string;
+          p_description?: string | null;
+          p_partiful_url?: string | null;
+        };
+        Returns: string;
+      };
+      get_my_billing_status: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          premium_active: boolean;
+          premium_source: string;
+          premium_expires_at: string | null;
+          host_credit_balance: number;
+        }[];
+      };
       get_event_wine_ratings: {
         Args: { p_event_id: string };
         Returns: { wine_id: string; thumbs_up: number; meh: number; thumbs_down: number }[];
@@ -435,12 +569,19 @@ export interface Database {
         Args: { p_event_id: string };
         Returns: { wine_id: string; tag: string; tag_count: number }[];
       };
+      grant_host_credits: {
+        Args: { p_member_id: string; p_quantity: number; p_reason?: string | null };
+        Returns: void;
+      };
     };
     Enums: Record<string, never>;
   };
 }
 
 export type Member = Database["public"]["Tables"]["members"]["Row"];
+export type BillingCustomer = Database["public"]["Tables"]["billing_customers"]["Row"];
+export type MemberEntitlement = Database["public"]["Tables"]["member_entitlements"]["Row"];
+export type HostCreditLedgerEntry = Database["public"]["Tables"]["host_credit_ledger"]["Row"];
 export type Event = Database["public"]["Tables"]["events"]["Row"];
 export type EventMember = Database["public"]["Tables"]["event_members"]["Row"];
 export type Wine = Database["public"]["Tables"]["wines"]["Row"];

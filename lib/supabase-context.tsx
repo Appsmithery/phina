@@ -7,6 +7,7 @@ import { registerPushTokenIfNeeded } from "./push-registration";
 import { identifyUser, clearUser, trackEvent } from "./observability";
 import type { Member } from "@/types/database";
 import { extractGoogleAvatarUrl, shouldSeedGoogleAvatar } from "./avatar";
+import { configureRevenueCatForMember, resetRevenueCatUser } from "./billing";
 
 type SupabaseContextType = {
   session: Session | null;
@@ -43,6 +44,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 
       setMember(nextMember);
       identifyUser(user.id);
+      configureRevenueCatForMember(user.id, user.email).catch(() => {});
       registerPushTokenIfNeeded(user.id).catch(() => {});
       return;
     }
@@ -61,6 +63,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       setMember(created ?? null);
       identifyUser(user.id);
       trackEvent("user_signed_up");
+      configureRevenueCatForMember(user.id, user.email).catch(() => {});
       registerPushTokenIfNeeded(user.id).catch(() => {});
     } else {
       setMember(null);
@@ -79,6 +82,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       fetchMember(s.user);
     } else {
       setMember(null);
+      resetRevenueCatUser().catch(() => {});
     }
   }, []);
 
@@ -97,7 +101,11 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       if (s?.user) fetchMember(s.user);
-      else { setMember(null); clearUser(); }
+      else {
+        setMember(null);
+        clearUser();
+        resetRevenueCatUser().catch(() => {});
+      }
       setSessionLoaded(true);
     });
 
@@ -110,7 +118,10 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
         supabase.auth.getSession().then(({ data: { session: s } }) => {
           setSession(s);
           if (s?.user) fetchMember(s.user);
-          else setMember(null);
+          else {
+            setMember(null);
+            resetRevenueCatUser().catch(() => {});
+          }
         });
         // Refresh all stale queries when app resumes from background
         queryClient.invalidateQueries();
