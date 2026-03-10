@@ -1,14 +1,17 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Image, Alert } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Image, Alert, Platform } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { BillingCard } from "@/components/BillingCard";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { trackEvent, captureError } from "@/lib/observability";
 import type { WineWithPricePrivacy } from "@/types/database";
 import type { Event } from "@/types/database";
+import { useBilling } from "@/hooks/use-billing";
+import { showAlert } from "@/lib/alert";
 
 type CellarTab = "storage" | "history";
 
@@ -19,6 +22,14 @@ type WineWithEvent = WineWithPricePrivacy & {
 export default function CellarScreen() {
   const theme = useTheme();
   const { member } = useSupabase();
+  const {
+    premiumActive,
+    isLoading: billingLoading,
+    isPurchasingPremium,
+    isRestoringPurchases,
+    purchasePremium,
+    restorePurchases,
+  } = useBilling();
   const params = useLocalSearchParams<{ tab?: string }>();
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<CellarTab>(params.tab === "history" ? "history" : "storage");
@@ -71,7 +82,7 @@ export default function CellarScreen() {
         event: w.event_id != null ? (eventsMap.get(w.event_id) ?? null) : null,
       })) as WineWithEvent[];
     },
-    enabled: !!member?.id,
+    enabled: !!member?.id && premiumActive,
   });
 
   const filtered = useMemo(() => {
@@ -107,6 +118,60 @@ export default function CellarScreen() {
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>
           Sign in to see your cellar.
         </Text>
+      </View>
+    );
+  }
+
+  const handlePurchasePremium = async () => {
+    try {
+      await purchasePremium();
+      showAlert("Membership updated", "Your premium cellar access is now active.");
+    } catch (error) {
+      showAlert("Checkout failed", error instanceof Error ? error.message : "Could not start checkout.");
+    }
+  };
+
+  const handleRestorePurchases = async () => {
+    try {
+      await restorePurchases();
+      showAlert("Purchases restored", "Your Apple purchases have been refreshed.");
+    } catch (error) {
+      showAlert("Restore failed", error instanceof Error ? error.message : "Could not restore purchases.");
+    }
+  };
+
+  if (billingLoading) {
+    return (
+      <View style={[styles.container, styles.centeredState, { backgroundColor: theme.background }]}>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Checking your membership...</Text>
+      </View>
+    );
+  }
+
+  if (!premiumActive) {
+    return (
+      <View style={[styles.container, styles.paywallContainer, { backgroundColor: theme.background }]}>
+        <Text style={[styles.paywallTitle, { color: theme.text }]}>My Cellar</Text>
+        <Text style={[styles.paywallBody, { color: theme.textSecondary }]}>
+          Premium unlocks your personal cellar, wine history, and collection management.
+        </Text>
+        <BillingCard
+          icon="wine-outline"
+          title="Premium Monthly"
+          description="Track bottles at home, browse your tasting history, and keep your collection organized."
+          badge="Cellar premium"
+          detail="Guests can still join and rate events for free."
+          primaryLabel={isPurchasingPremium ? "Opening checkout..." : Platform.OS === "ios" ? "Start Premium" : "Subscribe with Stripe"}
+          onPrimaryPress={() => {
+            void handlePurchasePremium();
+          }}
+          primaryDisabled={isPurchasingPremium}
+          secondaryLabel={Platform.OS === "ios" ? (isRestoringPurchases ? "Restoring..." : "Restore") : undefined}
+          onSecondaryPress={Platform.OS === "ios" ? () => {
+            void handleRestorePurchases();
+          } : undefined}
+          secondaryDisabled={Platform.OS === "ios" ? isRestoringPurchases : undefined}
+        />
       </View>
     );
   }
@@ -300,6 +365,15 @@ export default function CellarScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  centeredState: { justifyContent: "center" },
+  paywallContainer: { justifyContent: "center", padding: 16, gap: 16 },
+  paywallTitle: { fontSize: 30, textAlign: "center", fontFamily: "PlayfairDisplay_700Bold" },
+  paywallBody: {
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: "center",
+    fontFamily: "Montserrat_400Regular",
+  },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
