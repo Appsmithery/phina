@@ -240,29 +240,6 @@ export default function EventDetailScreen() {
     );
   };
 
-  const handleRemoveWine = (wine: WineWithPricePrivacy) => {
-    showAlert(
-      "Remove wine",
-      "Remove this wine from the event?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: async () => {
-            const { error } = await supabase.from("wines").delete().eq("id", wine.id);
-            if (error) {
-              showAlert("Error", error.message ?? "Could not remove wine.");
-              return;
-            }
-
-            queryClient.invalidateQueries({ queryKey: ["wines", id] });
-          },
-        },
-      ]
-    );
-  };
-
   if (!id) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -307,7 +284,11 @@ export default function EventDetailScreen() {
     <>
       {event.event_image_url ? (
         <View style={[styles.heroCard, { backgroundColor: theme.surface }]}>
-          <Image source={{ uri: event.event_image_url }} style={styles.heroImage} resizeMode="cover" />
+          <Image
+            source={{ uri: event.event_image_url }}
+            style={[styles.heroImage, { backgroundColor: theme.surface }]}
+            resizeMode="cover"
+          />
         </View>
       ) : null}
 
@@ -497,7 +478,6 @@ export default function EventDetailScreen() {
           const activeRound = rounds.find((round) => round.wine_id === item.id && round.is_active);
           const round = activeRound ?? rounds.find((candidate) => candidate.wine_id === item.id);
           const summary = ratingSummaries.find((candidate) => candidate.wine_id === item.id);
-          const canRemove = isHost || item.brought_by === member?.id;
           const wineLabel = hideWineDetails ? `Wine #${index + 1}` : null;
           const quantityPrefix = item.quantity != null && item.quantity > 1 ? `${item.quantity}x ` : "";
           const photoUrl = !hideWineDetails ? item.display_photo_url ?? item.label_photo_url ?? null : null;
@@ -586,15 +566,6 @@ export default function EventDetailScreen() {
               {event.status === "active" && !isHost && !activeRound && member?.is_admin ? (
                 <WineAdminReopen eventId={id!} wineId={item.id} theme={theme} />
               ) : null}
-
-              {canRemove ? (
-                <TouchableOpacity
-                  style={[styles.removeButton, { borderColor: theme.textMuted }]}
-                  onPress={() => handleRemoveWine(item)}
-                >
-                  <Text style={[styles.removeButtonText, { color: theme.textMuted }]}>Remove</Text>
-                </TouchableOpacity>
-              ) : null}
             </View>
           );
         }}
@@ -614,6 +585,7 @@ const styles = StyleSheet.create({
   heroImage: {
     width: "100%",
     aspectRatio: 4 / 3,
+    borderRadius: 18,
   },
   title: { fontSize: 28, fontWeight: "700", marginBottom: 8, fontFamily: "PlayfairDisplay_700Bold" },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" },
@@ -680,8 +652,6 @@ const styles = StyleSheet.create({
   emptySubtitle: { fontFamily: "Montserrat_400Regular", fontSize: 13, textAlign: "center" },
   rateButton: { borderRadius: 12, padding: 10, alignItems: "center", marginTop: 12 },
   rateButtonText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
-  removeButton: { borderWidth: 1, borderRadius: 10, padding: 8, alignItems: "center", marginTop: 8, alignSelf: "flex-start" },
-  removeButtonText: { fontSize: 14, fontWeight: "500", fontFamily: "Montserrat_400Regular" },
   resultRow: { marginTop: 12 },
   resultText: { fontSize: 15, fontFamily: "Montserrat_400Regular" },
   statusMessage: {

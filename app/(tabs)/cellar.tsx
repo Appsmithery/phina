@@ -31,7 +31,6 @@ export default function CellarScreen() {
     effectivePremiumActive,
     billingAccessLabel,
     nativePurchasesAvailable,
-    unsupportedReason,
     isLoading: billingLoading,
     isPurchasingPremium,
     isRestoringPurchases,
@@ -158,6 +157,50 @@ export default function CellarScreen() {
     }
   };
 
+  const cellarUpsell = !effectivePremiumActive ? (
+    <View style={styles.upsellSection}>
+      <BillingCard
+        compact
+        icon="wine-outline"
+        title="Unlock Personal Cellar"
+        description="Track your at-home bottles, uploads, and private cellar history."
+        badge={hasAdminBillingBypass ? (billingAccessLabel ?? "Admin override") : "Cellar premium"}
+        primaryLabel={
+          Platform.OS === "ios" && !nativePurchasesAvailable
+            ? "Use iOS Dev Build"
+            : isPurchasingPremium
+              ? "Opening checkout..."
+              : Platform.OS === "ios"
+                ? "Start Premium"
+                : "Subscribe with Stripe"
+        }
+        onPrimaryPress={() => {
+          void handlePurchasePremium();
+        }}
+        primaryDisabled={isPurchasingPremium || (Platform.OS === "ios" && !nativePurchasesAvailable)}
+        secondaryLabel={
+          Platform.OS === "ios" && nativePurchasesAvailable
+            ? (isRestoringPurchases ? "Restoring..." : "Restore")
+            : undefined
+        }
+        onSecondaryPress={
+          Platform.OS === "ios" && nativePurchasesAvailable
+            ? () => {
+                void handleRestorePurchases();
+              }
+            : undefined
+        }
+        secondaryDisabled={Platform.OS === "ios" && nativePurchasesAvailable ? isRestoringPurchases : undefined}
+      />
+      {hiddenPersonalWineCount > 0 ? (
+        <Text style={[styles.upsellHint, { color: theme.textMuted }]}>
+          Premium is required to view {hiddenPersonalWineCount} personal cellar
+          {hiddenPersonalWineCount === 1 ? " wine" : " wines"} that are not tied to an event.
+        </Text>
+      ) : null}
+    </View>
+  ) : null;
+
   if (billingLoading) {
     return (
       <View style={[styles.container, styles.centeredState, { backgroundColor: theme.background }]}>
@@ -245,70 +288,33 @@ export default function CellarScreen() {
           onChangeText={setSearch}
         />
       </View>
-      {!effectivePremiumActive ? (
-        <View style={styles.upsellSection}>
-          <BillingCard
-            icon="wine-outline"
-            title="Personal Cellar Premium"
-            description="Event wines you bring stay visible here. Premium unlocks your at-home collection, bottle history, and personal cellar uploads."
-            badge={hasAdminBillingBypass ? (billingAccessLabel ?? "Admin override") : "Cellar premium"}
-            detail={
-              unsupportedReason && Platform.OS === "ios" && !nativePurchasesAvailable
-                ? `Your event wines remain visible without a subscription. ${unsupportedReason}`
-                : "Your event wines remain visible without a subscription."
-            }
-            primaryLabel={
-              Platform.OS === "ios" && !nativePurchasesAvailable
-                ? "Use iOS Dev Build"
-                : isPurchasingPremium
-                  ? "Opening checkout..."
-                  : Platform.OS === "ios"
-                    ? "Start Premium"
-                    : "Subscribe with Stripe"
-            }
-            onPrimaryPress={() => {
-              void handlePurchasePremium();
-            }}
-            primaryDisabled={isPurchasingPremium || (Platform.OS === "ios" && !nativePurchasesAvailable)}
-            secondaryLabel={
-              Platform.OS === "ios" && nativePurchasesAvailable
-                ? (isRestoringPurchases ? "Restoring..." : "Restore")
-                : undefined
-            }
-            onSecondaryPress={
-              Platform.OS === "ios" && nativePurchasesAvailable
-                ? () => {
-                    void handleRestorePurchases();
-                  }
-                : undefined
-            }
-            secondaryDisabled={Platform.OS === "ios" && nativePurchasesAvailable ? isRestoringPurchases : undefined}
-          />
-          {hiddenPersonalWineCount > 0 ? (
-            <Text style={[styles.upsellHint, { color: theme.textMuted }]}>
-              Premium is required to view {hiddenPersonalWineCount} personal cellar
-              {hiddenPersonalWineCount === 1 ? " wine" : " wines"} that are not tied to an event.
-            </Text>
-          ) : null}
-        </View>
-      ) : null}
       {isLoading ? (
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading your cellar...</Text>
       ) : filtered.length === 0 ? (
-        <Text style={[styles.placeholder, { color: theme.textMuted }]}>
-          {accessibleWines.length === 0
-            ? effectivePremiumActive
-              ? "Add wines to your personal cellar to track what you have at home."
-              : "Bring a wine to an event to see it here, or start premium to unlock your personal cellar."
-            : tab === "storage"
-            ? "No wines in storage."
-            : "No consumed wines yet."}
-        </Text>
+        <>
+          <Text style={[styles.placeholder, { color: theme.textMuted }]}>
+            {accessibleWines.length === 0
+              ? effectivePremiumActive
+                ? "Add wines to your personal cellar to track what you have at home."
+                : "Bring a wine to an event to get started here, or unlock your personal cellar."
+              : tab === "storage"
+              ? "No wines in storage."
+              : "No consumed wines yet."}
+          </Text>
+          {cellarUpsell}
+        </>
       ) : (
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={[styles.list, { paddingBottom: getTabContentBottomPadding(tabBarHeight, 0) + 64 }]}
+          contentContainerStyle={[
+            styles.list,
+            {
+              paddingBottom:
+                getTabContentBottomPadding(tabBarHeight, 0) + (effectivePremiumActive ? 64 : 16),
+            },
+          ]}
+          ListFooterComponent={cellarUpsell ? <View style={styles.listFooter}>{cellarUpsell}</View> : null}
           renderItem={({ item }) => {
             const isEventWine = item.event_id != null;
             const wineLine = [
@@ -421,6 +427,7 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 14, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   upsellSection: { paddingHorizontal: PAGE_HORIZONTAL_PADDING, marginBottom: 16, gap: 8 },
   upsellHint: { fontSize: 12, lineHeight: 18, fontFamily: "Montserrat_400Regular" },
+  listFooter: { paddingTop: 8 },
   searchWrapper: {
     flexDirection: "row",
     alignItems: "center",

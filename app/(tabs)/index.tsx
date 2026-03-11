@@ -103,7 +103,11 @@ export default function EventsScreen() {
       >
         <View style={[styles.heroShell, { backgroundColor: `${theme.primary}12` }]}>
           {item.event_image_url ? (
-            <Image source={{ uri: item.event_image_url }} style={styles.heroImage} resizeMode="cover" />
+            <Image
+              source={{ uri: item.event_image_url }}
+              style={[styles.heroImage, { backgroundColor: theme.surface }]}
+              resizeMode="cover"
+            />
           ) : null}
 
           <View style={styles.heroOverlay} pointerEvents="none">
@@ -300,11 +304,14 @@ const styles = StyleSheet.create({
     position: "relative",
     minHeight: 208,
     justifyContent: "space-between",
+    overflow: "hidden",
   },
   heroImage: {
     ...StyleSheet.absoluteFillObject,
     width: "100%",
     height: "100%",
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
   },
   heroOverlay: {
     flexDirection: "row",

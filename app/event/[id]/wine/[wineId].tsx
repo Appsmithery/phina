@@ -110,12 +110,17 @@ export default function WineDetailScreen() {
   const hideDetails = isDoubleBlind && !isHost;
   const wineIndex = eventWines.findIndex((w) => w.id === wineId);
   const blindLabel = wineIndex >= 0 ? `Wine #${wineIndex + 1}` : "Wine";
+  const hasGeneratedImage = wine?.image_generation_status === "generated" && !!wine.display_photo_url;
+  const isImagePending = wine?.image_generation_status === "pending" && !wine.display_photo_url;
+  const fallbackPhotoUrl =
+    !hasGeneratedImage && !isImagePending ? (wine?.display_photo_url ?? wine?.label_photo_url ?? null) : null;
 
-  const canRemove = Boolean(
+  const canEdit = Boolean(
     wine &&
       eventId &&
       (member?.id === wine.brought_by || event?.created_by === member?.id)
   );
+  const canRemove = Boolean(wine && eventId && event?.created_by === member?.id);
 
   const handleRemove = () => {
     if (!wine?.id || !eventId) return;
@@ -161,12 +166,25 @@ export default function WineDetailScreen() {
         </>
       ) : (
         <>
-          {wine.label_photo_url ? (
-            <Image
-              source={{ uri: wine.label_photo_url }}
-              style={styles.photo}
-              resizeMode="contain"
-            />
+          {isImagePending ? (
+            <View style={[styles.heroContainer, styles.pendingHero, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Ionicons name="image-outline" size={34} color={theme.primary} style={styles.pendingIcon} />
+              <Text style={[styles.pendingHeroTitle, { color: theme.text }]}>Image generation in progress</Text>
+              <Text style={[styles.pendingHeroBody, { color: theme.textSecondary }]}>
+                Your enhanced bottle photo will appear here shortly.
+              </Text>
+            </View>
+          ) : hasGeneratedImage ? (
+            <View style={styles.heroContainer}>
+              <Image source={{ uri: wine.display_photo_url ?? "" }} style={styles.photo} resizeMode="cover" />
+              <View style={[styles.enhancedBadge, { backgroundColor: theme.primary + "20" }]}>
+                <Text style={[styles.enhancedBadgeText, { color: theme.primary }]}>Enhanced from scan</Text>
+              </View>
+            </View>
+          ) : fallbackPhotoUrl ? (
+            <View style={[styles.heroContainer, { backgroundColor: theme.surface }]}>
+              <Image source={{ uri: fallbackPhotoUrl }} style={styles.photo} resizeMode="contain" />
+            </View>
           ) : null}
           <Text style={[styles.producer, { color: theme.text }]}>{wine.producer ?? "Unknown producer"}</Text>
           <Text style={[styles.meta, { color: theme.textSecondary }]}>
@@ -345,22 +363,26 @@ export default function WineDetailScreen() {
           <Text style={[styles.sectionBody, { color: theme.text }]}>{wine.ai_summary}</Text>
         </>
       ) : null}
-      {canRemove && (
+      {canEdit || canRemove ? (
         <>
-          <TouchableOpacity
-            style={[styles.editButton, { backgroundColor: theme.primary }]}
-            onPress={() => router.push(`/wine/${wine.id}/edit`)}
-          >
-            <Text style={styles.editButtonText}>Edit</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.removeButton, { borderColor: theme.textMuted }]}
-            onPress={handleRemove}
-          >
-            <Text style={[styles.removeButtonText, { color: theme.textMuted }]}>Remove from event</Text>
-          </TouchableOpacity>
+          {canEdit ? (
+            <TouchableOpacity
+              style={[styles.editButton, { backgroundColor: theme.primary }]}
+              onPress={() => router.push(`/wine/${wine.id}/edit`)}
+            >
+              <Text style={styles.editButtonText}>Edit</Text>
+            </TouchableOpacity>
+          ) : null}
+          {canRemove ? (
+            <TouchableOpacity
+              style={[styles.removeButton, { borderColor: theme.textMuted }]}
+              onPress={handleRemove}
+            >
+              <Text style={[styles.removeButtonText, { color: theme.textMuted }]}>Remove from event</Text>
+            </TouchableOpacity>
+          ) : null}
         </>
-      )}
+      ) : null}
     </ScrollView>
   );
 }
@@ -368,7 +390,43 @@ export default function WineDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 16, paddingBottom: 32 },
-  photo: { width: "100%", height: 200, borderRadius: 14, marginBottom: 16 },
+  heroContainer: {
+    width: "100%",
+    aspectRatio: 3 / 4,
+    marginBottom: 16,
+    borderRadius: 14,
+    overflow: "hidden",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  pendingHero: {
+    borderWidth: 1,
+    paddingHorizontal: 28,
+  },
+  pendingIcon: { marginBottom: 14 },
+  pendingHeroTitle: {
+    fontSize: 20,
+    fontFamily: "PlayfairDisplay_600SemiBold",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  pendingHeroBody: {
+    fontSize: 14,
+    lineHeight: 22,
+    fontFamily: "Montserrat_400Regular",
+    textAlign: "center",
+    maxWidth: 240,
+  },
+  photo: { width: "100%", height: "100%" },
+  enhancedBadge: {
+    position: "absolute",
+    bottom: 12,
+    right: 12,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  enhancedBadgeText: { fontSize: 10, fontFamily: "Montserrat_600SemiBold" },
   producer: { fontSize: 22, fontWeight: "700", marginBottom: 4, fontFamily: "PlayfairDisplay_700Bold" },
   meta: { fontSize: 16, marginBottom: 8, fontFamily: "Montserrat_400Regular" },
   quantityText: { fontSize: 14, marginBottom: 16, fontFamily: "Montserrat_400Regular" },
