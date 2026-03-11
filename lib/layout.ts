@@ -2,7 +2,7 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 
 export const PAGE_HORIZONTAL_PADDING = 16;
 export const PAGE_BOTTOM_PADDING = 32;
-export const TAB_HEADER_TOP_OFFSET = 8;
+export const TAB_HEADER_TOP_OFFSET = 4;
 export const TAB_CONTENT_BOTTOM_SPACING = 24;
 
 export function getScreenBottomPadding(bottomInset: number, extra = PAGE_BOTTOM_PADDING): number {
