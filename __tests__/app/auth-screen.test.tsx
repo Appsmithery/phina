@@ -49,7 +49,7 @@ describe("AuthScreen", () => {
     expect(screen.getByText("Send magic link")).toBeTruthy();
     expect(screen.getByText("Sign in with Google")).toBeTruthy();
     expect(screen.getByText("Sign in with Apple")).toBeTruthy();
-    expect(screen.getByText("sign in with password")).toBeTruthy();
+    expect(screen.getByText("Sign in with password")).toBeTruthy();
   });
 
   it("has email input only", () => {
