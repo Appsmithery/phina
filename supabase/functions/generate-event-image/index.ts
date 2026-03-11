@@ -8,20 +8,18 @@ const IMAGE_MODELS = [
   { id: "gemini-2.0-flash-exp-image-generation" },
 ] as const;
 const EVENT_IMAGES_BUCKET = "event-images";
-const PROMPT_VERSION = "1.1";
+const PROMPT_VERSION = "2.0";
 
-const EVENT_BRAND_SCAFFOLD =
-  "warm editorial photography, golden hour ambient lighting, elegant entertaining atmosphere, " +
-  "rich textures, soft bokeh, heritage-luxury tone";
-
-const EVENT_SCENE_CONSTRAINTS =
-  "4:3 aspect ratio, optimized for mobile card display, inviting depth";
+const EVENT_IMAGE_PROMPT =
+  "An archival photograph of a physical 16th-century Italian Renaissance fresco. " +
+  "The scene is wine-themed — incorporate era-appropriate wine elements such as " +
+  "terracotta jugs, blown-glass goblets, grapes, or vine leaves naturally into the composition. " +
+  "Authentic degradation: matte chalky pigment, faded earth tones, chipped and aged " +
+  "wall plaster, visible network of fine hairline cracks (craquelure). " +
+  "Flat, ambient museum lighting with no artificial glow or digital sheen.";
 
 interface ReqBody {
   event_id?: string | null;
-  title?: string | null;
-  theme?: string | null;
-  description?: string | null;
 }
 
 interface GeneratedImage {
@@ -57,28 +55,8 @@ interface AdminClient {
   };
 }
 
-function buildEventImagePrompt(title: string, theme: string | null, description: string | null): string {
-  const normalizedTitle = sanitizePromptField(title, 100) ?? "Wine tasting";
-  const normalizedTheme = sanitizePromptField(theme, 80);
-  const normalizedDescription = sanitizePromptField(description, 220);
-  const themeSentence = normalizedTheme ? `Theme: ${normalizedTheme}. ` : "";
-  const descriptionSentence = normalizedDescription ? `Description: ${normalizedDescription}. ` : "";
-
-  return (
-    `Generate an elegant editorial photograph for a wine tasting event titled "${normalizedTitle}". ` +
-    themeSentence +
-    descriptionSentence +
-    "Show an inviting, atmospheric wine event scene - think candlelit table settings, " +
-    "curated wine glasses, warm ambient lighting, stylish venue details. " +
-    `Style: ${EVENT_BRAND_SCAFFOLD}. Scene: ${EVENT_SCENE_CONSTRAINTS}. ` +
-    "No text, no logos, no watermarks, no people's faces."
-  );
-}
-
-function sanitizePromptField(value: string | null | undefined, maxLength: number): string | null {
-  const normalized = value?.replace(/\s+/g, " ").trim();
-  if (!normalized) return null;
-  return normalized.slice(0, maxLength);
+function buildEventImagePrompt(): string {
+  return EVENT_IMAGE_PROMPT;
 }
 
 async function verifyAuth(req: Request): Promise<Response | null> {
@@ -209,7 +187,7 @@ async function geminiGenerateImageForModel(apiKey: string, modelId: string, prom
   const modelConfig = IMAGE_MODELS.find((candidate) => candidate.id === modelId);
   const generationConfig: Record<string, unknown> = {
     responseModalities: ["IMAGE", "TEXT"],
-    temperature: 0.6,
+    temperature: 0.8,
   };
 
   if (modelConfig?.aspectRatio) {
@@ -340,12 +318,9 @@ Deno.serve(async (req: Request) => {
   }
 
   const eventId = body.event_id?.trim();
-  const title = body.title?.trim();
-  const theme = body.theme?.trim() ?? null;
-  const description = body.description?.trim() ?? null;
 
-  if (!eventId || !title) {
-    return jsonResponse({ error: "event_id and title are required" }, 400);
+  if (!eventId) {
+    return jsonResponse({ error: "event_id is required" }, 400);
   }
 
   const apiKey = Deno.env.get("GEMINI_API_KEY");
@@ -364,7 +339,7 @@ Deno.serve(async (req: Request) => {
   const startMs = Date.now();
 
   try {
-    const prompt = buildEventImagePrompt(title, theme, description);
+    const prompt = buildEventImagePrompt();
     const { image, attempts } = await generateImageWithFallback(apiKey, prompt);
 
     if (!image) {

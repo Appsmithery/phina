@@ -7,12 +7,6 @@ export interface BottlePayload {
   is_sparkling?: boolean | null;
 }
 
-export interface EventImagePayload {
-  title: string;
-  theme: string | null;
-  description: string | null;
-}
-
 export const BRAND_SCAFFOLD =
   "premium wine product photography, warm natural golden hour light, elegant editorial feel, " +
   "soft shadows, shallow depth of field, subtle glass reflections, minimal background distraction, " +
@@ -69,33 +63,10 @@ export const QUALITY_SCORING_PROMPT =
   "absence of glare/reflections (0-20pts). " +
   'Return ONLY a JSON object: { "score": <integer 0-100>, "issues": [<string>] }';
 
-export const EVENT_BRAND_SCAFFOLD =
-  "warm editorial photography, golden hour ambient lighting, elegant entertaining atmosphere, " +
-  "rich textures, soft bokeh, heritage-luxury tone";
-
-export const EVENT_SCENE_CONSTRAINTS =
-  "4:3 aspect ratio, optimized for mobile card display, inviting depth";
-
-export function buildEventImagePrompt(title: string, theme: string | null, description: string | null): string {
-  const normalizedTitle = sanitizePromptField(title, 100) ?? "Wine tasting";
-  const normalizedTheme = sanitizePromptField(theme, 80);
-  const normalizedDescription = sanitizePromptField(description, 220);
-  const themeSentence = normalizedTheme ? `Theme: ${normalizedTheme}. ` : "";
-  const descriptionSentence = normalizedDescription ? `Description: ${normalizedDescription}. ` : "";
-
-  return (
-    `Generate an elegant editorial photograph for a wine tasting event titled "${normalizedTitle}". ` +
-    themeSentence +
-    descriptionSentence +
-    "Show an inviting, atmospheric wine event scene - think candlelit table settings, " +
-    "curated wine glasses, warm ambient lighting, stylish venue details. " +
-    `Style: ${EVENT_BRAND_SCAFFOLD}. Scene: ${EVENT_SCENE_CONSTRAINTS}. ` +
-    "No text, no logos, no watermarks, no people's faces."
-  );
-}
-
-function sanitizePromptField(value: string | null | undefined, maxLength: number): string | null {
-  const normalized = value?.replace(/\s+/g, " ").trim();
-  if (!normalized) return null;
-  return normalized.slice(0, maxLength);
-}
+export const EVENT_IMAGE_PROMPT =
+  "An archival photograph of a physical 16th-century Italian Renaissance fresco. " +
+  "The scene is wine-themed — incorporate era-appropriate wine elements such as " +
+  "terracotta jugs, blown-glass goblets, grapes, or vine leaves naturally into the composition. " +
+  "Authentic degradation: matte chalky pigment, faded earth tones, chipped and aged " +
+  "wall plaster, visible network of fine hairline cracks (craquelure). " +
+  "Flat, ambient museum lighting with no artificial glow or digital sheen.";
