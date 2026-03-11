@@ -13,12 +13,7 @@ interface TabScreenHeaderProps {
 
 export function TabScreenHeader({ title, left, right }: TabScreenHeaderProps) {
   const theme = useTheme();
-  let topInset = 0;
-  try {
-    topInset = useSafeAreaInsets().top;
-  } catch {
-    topInset = 0;
-  }
+  const topInset = useSafeAreaInsets().top;
 
   return (
     <View style={[styles.header, { paddingTop: getTabHeaderPadding(topInset) }]}>

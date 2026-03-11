@@ -47,6 +47,10 @@ jest.mock("@/hooks/use-billing", () => ({
   useBilling: () => mockBillingState,
 }));
 
+jest.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
+
 describe("EventsScreen", () => {
   beforeEach(() => {
     mockMember = null;
