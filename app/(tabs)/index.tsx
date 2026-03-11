@@ -117,7 +117,7 @@ export default function EventsScreen() {
                 styles.statusBadge,
                 item.status === "ended"
                   ? { backgroundColor: "rgba(0,0,0,0.55)" }
-                  : { backgroundColor: "rgba(181, 90, 90, 0.9)" },
+                  : { backgroundColor: "rgba(75, 140, 75, 0.9)" },
               ]}
             >
               <Text style={styles.statusBadgeText}>{item.status === "ended" ? "Ended" : "Active"}</Text>
