@@ -25,11 +25,13 @@ export default function EventsScreen() {
   const [activeTab, setActiveTab] = useState<EventsTab>("upcoming");
   const [search, setSearch] = useState("");
 
-  const { data: events = [], isLoading } = useQuery({
+  const { data: events = [], isLoading, isError, error: eventsError } = useQuery({
     queryKey: ["events", member?.id],
     enabled: !!member?.id,
     queryFn: async () => {
+      if (__DEV__) console.log("[events] Fetching events for member", member?.id);
       const { data, error } = await supabase.from("events").select("*").order("date", { ascending: false });
+      if (__DEV__) console.log("[events] Result:", { count: data?.length ?? 0, error: error?.message ?? null });
       if (error) throw error;
       return data as Event[];
     },
@@ -198,6 +200,10 @@ export default function EventsScreen() {
 
       {isLoading ? (
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading...</Text>
+      ) : isError ? (
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>
+          {"Failed to load events" + (eventsError instanceof Error ? `: ${eventsError.message}` : "")}
+        </Text>
       ) : filteredEvents.length === 0 ? (
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>{emptyMessage}</Text>
       ) : (
