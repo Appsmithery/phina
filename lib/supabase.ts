@@ -32,7 +32,10 @@ function getAuthStorage() {
         return await SecureStore.getItemAsync(key);
       } catch (e) {
         if (__DEV__) {
-          console.warn("[Supabase auth storage] getItem failed (e.g. user interaction not allowed):", e);
+          console.warn("[Supabase auth storage] getItem failed", {
+            key,
+            message: e instanceof Error ? e.message : String(e),
+          });
         }
         return null;
       }
@@ -42,7 +45,11 @@ function getAuthStorage() {
         await SecureStore.setItemAsync(key, value);
       } catch (e) {
         if (__DEV__) {
-          console.warn("[Supabase auth storage] setItem failed:", e);
+          console.warn("[Supabase auth storage] setItem failed", {
+            key,
+            valueLength: value.length,
+            message: e instanceof Error ? e.message : String(e),
+          });
         }
       }
     },
@@ -51,7 +58,10 @@ function getAuthStorage() {
         await SecureStore.deleteItemAsync(key);
       } catch (e) {
         if (__DEV__) {
-          console.warn("[Supabase auth storage] removeItem failed:", e);
+          console.warn("[Supabase auth storage] removeItem failed", {
+            key,
+            message: e instanceof Error ? e.message : String(e),
+          });
         }
       }
     },

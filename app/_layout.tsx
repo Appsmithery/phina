@@ -121,7 +121,9 @@ function SupabaseLayout() {
 
     const handleUrl = async (event: { url: string }) => {
       const url = event.url;
-      console.log("[deep-link] Received URL:", url);
+      if (__DEV__) {
+        console.log("[deep-link] Received URL", { url });
+      }
 
       if (!url || url === processedUrl) return;
 
@@ -131,7 +133,9 @@ function SupabaseLayout() {
         url.includes("refresh_token") ||
         url.includes("code=");
 
-      console.log("[deep-link] isOAuthCallback:", isOAuthCallback);
+      if (__DEV__) {
+        console.log("[deep-link] OAuth callback check", { isOAuthCallback });
+      }
 
       if (isOAuthCallback) {
         console.log("[deep-link] ✅ Detected OAuth callback, creating session from URL");
@@ -149,6 +153,9 @@ function SupabaseLayout() {
 
     // Handle initial URL (app opened via deep link)
     Linking.getInitialURL().then((url) => {
+      if (__DEV__) {
+        console.log("[deep-link] Initial URL", { url });
+      }
       if (url) handleUrl({ url });
     });
 

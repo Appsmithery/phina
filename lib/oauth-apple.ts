@@ -9,6 +9,12 @@ import { supabase } from "@/lib/supabase";
 export async function signInWithApple() {
   if (Platform.OS !== "ios") return null;
 
+  if (__DEV__) {
+    console.log("[oauth-apple] Using native Apple Sign-In SDK path", {
+      platform: Platform.OS,
+    });
+  }
+
   const credential = await AppleAuthentication.signInAsync({
     requestedScopes: [
       AppleAuthentication.AppleAuthenticationScope.FULL_NAME,

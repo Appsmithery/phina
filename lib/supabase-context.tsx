@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import { Session, User } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
@@ -20,11 +20,19 @@ type SupabaseContextType = {
 
 const SupabaseContext = createContext<SupabaseContextType | undefined>(undefined);
 
+function logAuthTransition(message: string, data?: Record<string, unknown>) {
+  if (__DEV__) {
+    console.log("[auth]", message, data ?? {});
+  }
+}
+
 export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
   const [member, setMember] = useState<Member | null>(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
+  const sessionRef = useRef<Session | null>(null);
+  const resumeRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchMember = async (user: User) => {
     const { data } = await supabase.from("members").select("*").eq("id", user.id).single();
@@ -71,11 +79,22 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshMember = useCallback(async () => {
-    const { data: { session: s } } = await supabase.auth.getSession();
+    const {
+      data: { session: s },
+    } = await supabase.auth.getSession();
+    logAuthTransition("refreshMember getSession resolved", {
+      hasSession: !!s,
+      userId: s?.user?.id ?? null,
+    });
     if (s?.user) await fetchMember(s.user);
   }, []);
 
   const setSessionFromAuth = useCallback((s: Session | null) => {
+    logAuthTransition("setSessionFromAuth called", {
+      hasSession: !!s,
+      userId: s?.user?.id ?? null,
+    });
+    sessionRef.current = s;
     setSession(s);
     setSessionLoaded(true);
     if (s?.user) {
@@ -90,15 +109,31 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     supabase.auth
       .getSession()
       .then(({ data: { session: s } }) => {
+        logAuthTransition("initial getSession resolved", {
+          hasSession: !!s,
+          userId: s?.user?.id ?? null,
+        });
+        sessionRef.current = s;
         setSession(s);
         if (s?.user) fetchMember(s.user).finally(() => setSessionLoaded(true));
         else setSessionLoaded(true);
       })
-      .catch(() => setSessionLoaded(true));
+      .catch((error) => {
+        logAuthTransition("initial getSession failed", {
+          message: error instanceof Error ? error.message : String(error),
+        });
+        setSessionLoaded(true);
+      });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, s) => {
+    } = supabase.auth.onAuthStateChange((event, s) => {
+      logAuthTransition("onAuthStateChange", {
+        event,
+        hasSession: !!s,
+        userId: s?.user?.id ?? null,
+      });
+      sessionRef.current = s;
       setSession(s);
       if (s?.user) fetchMember(s.user);
       else {
@@ -109,27 +144,100 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       setSessionLoaded(true);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      if (resumeRetryTimeoutRef.current) {
+        clearTimeout(resumeRetryTimeoutRef.current);
+      }
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
     const handleAppStateChange = (nextState: AppStateStatus) => {
+      logAuthTransition("AppState change", {
+        nextState,
+        hasLocalSession: !!sessionRef.current,
+        userId: sessionRef.current?.user?.id ?? null,
+      });
       if (nextState === "active") {
-        supabase.auth.getSession().then(({ data: { session: s } }) => {
-          setSession(s);
-          if (s?.user) fetchMember(s.user);
-          else {
+        const resolveForegroundSession = (attempt: "initial" | "retry") => {
+          supabase.auth.getSession().then(({ data: { session: s } }) => {
+            logAuthTransition(`AppState active -> getSession (${attempt}) resolved`, {
+              hasSession: !!s,
+              userId: s?.user?.id ?? null,
+              hadLocalSession: !!sessionRef.current,
+            });
+
+            if (s?.user) {
+              sessionRef.current = s;
+              setSession(s);
+              fetchMember(s.user);
+              return;
+            }
+
+            if (attempt === "initial" && sessionRef.current) {
+              logAuthTransition("AppState active preserving in-memory session before retry", {
+                userId: sessionRef.current.user?.id ?? null,
+              });
+              if (resumeRetryTimeoutRef.current) {
+                clearTimeout(resumeRetryTimeoutRef.current);
+              }
+              resumeRetryTimeoutRef.current = setTimeout(() => {
+                resolveForegroundSession("retry");
+              }, 400);
+              return;
+            }
+
+            sessionRef.current = null;
+            setSession(null);
             setMember(null);
             resetRevenueCatUser().catch(() => {});
-          }
-        });
+          }).catch((error) => {
+            logAuthTransition(`AppState active -> getSession (${attempt}) failed`, {
+              message: error instanceof Error ? error.message : String(error),
+            });
+            if (attempt === "retry" && !sessionRef.current) {
+              setSession(null);
+              setMember(null);
+              resetRevenueCatUser().catch(() => {});
+            }
+          });
+        };
+
+        if (resumeRetryTimeoutRef.current) {
+          clearTimeout(resumeRetryTimeoutRef.current);
+          resumeRetryTimeoutRef.current = null;
+        }
+
+        resolveForegroundSession("initial");
         // Refresh all stale queries when app resumes from background
         queryClient.invalidateQueries();
       }
     };
     const sub = AppState.addEventListener("change", handleAppStateChange);
-    return () => sub.remove();
+    return () => {
+      if (resumeRetryTimeoutRef.current) {
+        clearTimeout(resumeRetryTimeoutRef.current);
+        resumeRetryTimeoutRef.current = null;
+      }
+      sub.remove();
+    };
   }, [queryClient]);
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+
+  useEffect(() => {
+    if (__DEV__) {
+      logAuthTransition("context state updated", {
+        sessionLoaded,
+        hasSession: !!session,
+        userId: session?.user?.id ?? null,
+        hasMember: !!member,
+      });
+    }
+  }, [sessionLoaded, session, member]);
 
   return (
     <SupabaseContext.Provider value={{ session, member, sessionLoaded, refreshMember, setSessionFromAuth }}>

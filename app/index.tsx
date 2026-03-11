@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
 import { Redirect } from "expo-router";
 import { useSupabase } from "@/lib/supabase-context";
-import { supabase } from "@/lib/supabase";
 import { getPendingJoinEventId, clearPendingJoinEventId, setPendingJoinEventId } from "@/lib/pending-join";
 
 const loadingStyles = StyleSheet.create({
@@ -11,30 +10,30 @@ const loadingStyles = StyleSheet.create({
 });
 
 export default function Index() {
-  const { session, sessionLoaded, member, setSessionFromAuth } = useSupabase();
+  const { session, sessionLoaded, member } = useSupabase();
   const [pendingJoinId, setPendingJoinId] = useState<string | null>(null);
   const [pendingJoinCheckDone, setPendingJoinCheckDone] = useState(false);
-  const [nullSessionRecheckDone, setNullSessionRecheckDone] = useState(false);
-  const didRecheckForNullSession = useRef(false);
 
   useEffect(() => {
-    if (!sessionLoaded || session) {
-      if (session) setNullSessionRecheckDone(true);
-      return;
+    if (__DEV__) {
+      console.log("[auth] index state", {
+        sessionLoaded,
+        hasSession: !!session,
+        userId: session?.user?.id ?? null,
+        hasMember: !!member,
+        pendingJoinCheckDone,
+        pendingJoinId,
+      });
     }
-    if (didRecheckForNullSession.current) return;
-    didRecheckForNullSession.current = true;
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      if (s) setSessionFromAuth(s);
-      setNullSessionRecheckDone(true);
-    });
-  }, [sessionLoaded, session, setSessionFromAuth]);
+  }, [sessionLoaded, session, member, pendingJoinCheckDone, pendingJoinId]);
 
   useEffect(() => {
     if (!sessionLoaded || !session) {
       setPendingJoinCheckDone(false);
+      setPendingJoinId(null);
       return;
     }
+
     getPendingJoinEventId()
       .then((id) => {
         if (id) {
@@ -50,30 +49,21 @@ export default function Index() {
     return (
       <View style={loadingStyles.container}>
         <ActivityIndicator size="large" />
-        <Text style={loadingStyles.text}>Loading…</Text>
-      </View>
-    );
-  }
-
-  // When context says no session, recheck with Supabase once before redirecting to auth
-  // (avoids redirecting to auth when we landed here right after sign-in with stale context)
-  if (!session && !nullSessionRecheckDone) {
-    return (
-      <View style={loadingStyles.container}>
-        <ActivityIndicator size="large" />
-        <Text style={loadingStyles.text}>Loading…</Text>
+        <Text style={loadingStyles.text}>Loading...</Text>
       </View>
     );
   }
 
   if (session && !pendingJoinCheckDone) {
-    return null;
+    return (
+      <View style={loadingStyles.container}>
+        <ActivityIndicator size="large" />
+        <Text style={loadingStyles.text}>Loading...</Text>
+      </View>
+    );
   }
 
-  // Onboarding takes priority — must complete profile before anything else.
-  // The onboarding screen checks for pending join IDs after submission.
   if (session && member && !member.profile_complete) {
-    // Stash the pending join ID back so onboarding can use it after completion
     if (pendingJoinId) {
       setPendingJoinEventId(pendingJoinId);
     }
@@ -85,6 +75,11 @@ export default function Index() {
   }
 
   if (session) {
+    if (__DEV__) {
+      console.log("[auth] index redirect to tabs", {
+        userId: session.user.id,
+      });
+    }
     return <Redirect href="/(tabs)" />;
   }
 
@@ -92,8 +87,9 @@ export default function Index() {
     console.log("[auth] index redirect to auth", {
       sessionLoaded,
       hasSession: !!session,
-      nullSessionRecheckDone,
+      pendingJoinCheckDone,
     });
   }
+
   return <Redirect href="/(auth)" />;
 }
