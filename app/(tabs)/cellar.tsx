@@ -90,12 +90,22 @@ export default function CellarScreen() {
         event: w.event_id != null ? (eventsMap.get(w.event_id) ?? null) : null,
       })) as WineWithEvent[];
     },
-    enabled: !!member?.id && effectivePremiumActive,
+    enabled: !!member?.id,
   });
+
+  const accessibleWines = useMemo(() => {
+    if (effectivePremiumActive) return wines;
+    return wines.filter((wine) => wine.event_id != null);
+  }, [effectivePremiumActive, wines]);
+
+  const hiddenPersonalWineCount = useMemo(() => {
+    if (effectivePremiumActive) return 0;
+    return wines.filter((wine) => wine.event_id == null).length;
+  }, [effectivePremiumActive, wines]);
 
   const filtered = useMemo(() => {
     // First filter by tab
-    const tabFiltered = wines.filter((w) =>
+    const tabFiltered = accessibleWines.filter((w) =>
       tab === "storage" ? w.status !== "consumed" : w.status === "consumed"
     );
     // Then filter by search
@@ -115,10 +125,10 @@ export default function CellarScreen() {
         vintage.includes(q)
       );
     });
-  }, [wines, search, tab]);
+  }, [accessibleWines, search, tab]);
 
-  const storageCt = useMemo(() => wines.filter((w) => w.status !== "consumed").length, [wines]);
-  const historyCt = useMemo(() => wines.filter((w) => w.status === "consumed").length, [wines]);
+  const storageCt = useMemo(() => accessibleWines.filter((w) => w.status !== "consumed").length, [accessibleWines]);
+  const historyCt = useMemo(() => accessibleWines.filter((w) => w.status === "consumed").length, [accessibleWines]);
 
   if (!member?.id) {
     return (
@@ -152,38 +162,6 @@ export default function CellarScreen() {
     return (
       <View style={[styles.container, styles.centeredState, { backgroundColor: theme.background }]}>
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>Checking your membership...</Text>
-      </View>
-    );
-  }
-
-  if (!effectivePremiumActive) {
-    const premiumDetail =
-      unsupportedReason && Platform.OS === "ios" && !nativePurchasesAvailable
-        ? `Guests can still join and rate events for free. ${unsupportedReason}`
-        : "Guests can still join and rate events for free.";
-    return (
-      <View style={[styles.container, styles.paywallContainer, { backgroundColor: theme.background }]}>
-        <TabScreenHeader title="My Cellar" />
-        <Text style={[styles.paywallBody, { color: theme.textSecondary }]}>
-          Premium unlocks your personal cellar, wine history, and collection management.
-        </Text>
-        <BillingCard
-          icon="wine-outline"
-          title="Premium Monthly"
-          description="Track bottles at home, browse your tasting history, and keep your collection organized."
-          badge={hasAdminBillingBypass ? (billingAccessLabel ?? "Admin override") : "Cellar premium"}
-          detail={premiumDetail}
-          primaryLabel={Platform.OS === "ios" && !nativePurchasesAvailable ? "Use iOS Dev Build" : isPurchasingPremium ? "Opening checkout..." : Platform.OS === "ios" ? "Start Premium" : "Subscribe with Stripe"}
-          onPrimaryPress={() => {
-            void handlePurchasePremium();
-          }}
-          primaryDisabled={isPurchasingPremium || (Platform.OS === "ios" && !nativePurchasesAvailable)}
-          secondaryLabel={Platform.OS === "ios" && nativePurchasesAvailable ? (isRestoringPurchases ? "Restoring..." : "Restore") : undefined}
-          onSecondaryPress={Platform.OS === "ios" && nativePurchasesAvailable ? () => {
-            void handleRestorePurchases();
-          } : undefined}
-          secondaryDisabled={Platform.OS === "ios" && nativePurchasesAvailable ? isRestoringPurchases : undefined}
-        />
       </View>
     );
   }
@@ -267,12 +245,61 @@ export default function CellarScreen() {
           onChangeText={setSearch}
         />
       </View>
+      {!effectivePremiumActive ? (
+        <View style={styles.upsellSection}>
+          <BillingCard
+            icon="wine-outline"
+            title="Personal Cellar Premium"
+            description="Event wines you bring stay visible here. Premium unlocks your at-home collection, bottle history, and personal cellar uploads."
+            badge={hasAdminBillingBypass ? (billingAccessLabel ?? "Admin override") : "Cellar premium"}
+            detail={
+              unsupportedReason && Platform.OS === "ios" && !nativePurchasesAvailable
+                ? `Your event wines remain visible without a subscription. ${unsupportedReason}`
+                : "Your event wines remain visible without a subscription."
+            }
+            primaryLabel={
+              Platform.OS === "ios" && !nativePurchasesAvailable
+                ? "Use iOS Dev Build"
+                : isPurchasingPremium
+                  ? "Opening checkout..."
+                  : Platform.OS === "ios"
+                    ? "Start Premium"
+                    : "Subscribe with Stripe"
+            }
+            onPrimaryPress={() => {
+              void handlePurchasePremium();
+            }}
+            primaryDisabled={isPurchasingPremium || (Platform.OS === "ios" && !nativePurchasesAvailable)}
+            secondaryLabel={
+              Platform.OS === "ios" && nativePurchasesAvailable
+                ? (isRestoringPurchases ? "Restoring..." : "Restore")
+                : undefined
+            }
+            onSecondaryPress={
+              Platform.OS === "ios" && nativePurchasesAvailable
+                ? () => {
+                    void handleRestorePurchases();
+                  }
+                : undefined
+            }
+            secondaryDisabled={Platform.OS === "ios" && nativePurchasesAvailable ? isRestoringPurchases : undefined}
+          />
+          {hiddenPersonalWineCount > 0 ? (
+            <Text style={[styles.upsellHint, { color: theme.textMuted }]}>
+              Premium is required to view {hiddenPersonalWineCount} personal cellar
+              {hiddenPersonalWineCount === 1 ? " wine" : " wines"} that are not tied to an event.
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
       {isLoading ? (
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading your cellar...</Text>
       ) : filtered.length === 0 ? (
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>
-          {wines.length === 0
-            ? "Add wines to your personal cellar to track what you have at home."
+          {accessibleWines.length === 0
+            ? effectivePremiumActive
+              ? "Add wines to your personal cellar to track what you have at home."
+              : "Bring a wine to an event to see it here, or start premium to unlock your personal cellar."
             : tab === "storage"
             ? "No wines in storage."
             : "No consumed wines yet."}
@@ -365,14 +392,16 @@ export default function CellarScreen() {
           }}
         />
       )}
-      <View style={[styles.bottomButtonWrapper, { bottom: getTabContentBottomPadding(tabBarHeight, 0) - 8 }]}>
-        <TouchableOpacity
-          style={[styles.addButton, { backgroundColor: theme.primary }]}
-          onPress={() => router.push("/add-wine")}
-        >
-          <Text style={styles.addButtonText}>+ Add Wine</Text>
-        </TouchableOpacity>
-      </View>
+      {effectivePremiumActive ? (
+        <View style={[styles.bottomButtonWrapper, { bottom: getTabContentBottomPadding(tabBarHeight, 0) - 8 }]}>
+          <TouchableOpacity
+            style={[styles.addButton, { backgroundColor: theme.primary }]}
+            onPress={() => router.push("/add-wine")}
+          >
+            <Text style={styles.addButtonText}>+ Add Wine</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -380,14 +409,6 @@ export default function CellarScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   centeredState: { justifyContent: "center" },
-  paywallContainer: { justifyContent: "center", padding: 16, gap: 16 },
-  paywallTitle: { fontSize: 30, textAlign: "center", fontFamily: "PlayfairDisplay_700Bold" },
-  paywallBody: {
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: "center",
-    fontFamily: "Montserrat_400Regular",
-  },
   bottomButtonWrapper: { position: "absolute", left: 0, right: 0, padding: PAGE_HORIZONTAL_PADDING },
   addButton: { borderRadius: 12, paddingVertical: 14, alignItems: "center" },
   addButtonText: { color: "#fff", fontSize: 15, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
@@ -398,6 +419,8 @@ const styles = StyleSheet.create({
   tabRow: { flexDirection: "row", marginHorizontal: PAGE_HORIZONTAL_PADDING, marginBottom: 12 },
   tab: { flex: 1, alignItems: "center", paddingVertical: 8, borderBottomWidth: 2, borderBottomColor: "transparent" },
   tabText: { fontSize: 14, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
+  upsellSection: { paddingHorizontal: PAGE_HORIZONTAL_PADDING, marginBottom: 16, gap: 8 },
+  upsellHint: { fontSize: 12, lineHeight: 18, fontFamily: "Montserrat_400Regular" },
   searchWrapper: {
     flexDirection: "row",
     alignItems: "center",

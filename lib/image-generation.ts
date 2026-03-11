@@ -51,6 +51,7 @@ export async function generateBottleImage(
         wineId,
         invoke_ms: Date.now() - invokeStartMs,
         error,
+        hint: "Check generate-bottle-image deployment, Verify JWT setting, and GEMINI_API_KEY.",
       });
       return { display_photo_url: rawImageUrl, confidence_score: 0, generation_status: "failed" };
     }
@@ -75,6 +76,7 @@ export async function generateBottleImage(
       wineId,
       invoke_ms: Date.now() - invokeStartMs,
       error: e,
+      hint: "Check generate-bottle-image deployment, Verify JWT setting, and GEMINI_API_KEY.",
     });
     return { display_photo_url: rawImageUrl, confidence_score: 0, generation_status: "failed" };
   }

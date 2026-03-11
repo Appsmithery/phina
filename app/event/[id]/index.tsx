@@ -500,28 +500,60 @@ export default function EventDetailScreen() {
           const canRemove = isHost || item.brought_by === member?.id;
           const wineLabel = hideWineDetails ? `Wine #${index + 1}` : null;
           const quantityPrefix = item.quantity != null && item.quantity > 1 ? `${item.quantity}x ` : "";
+          const photoUrl = !hideWineDetails ? item.display_photo_url ?? item.label_photo_url ?? null : null;
+          const quantityLabel =
+            item.quantity != null && item.quantity >= 1
+              ? `${item.quantity} bottle${item.quantity === 1 ? "" : "s"}`
+              : null;
+          const titleText =
+            wineLabel ??
+            `${quantityPrefix}${item.producer ?? "Unknown"} ${item.varietal ?? ""} ${item.vintage ?? ""}`.trim();
+          const subtitleText = hideWineDetails
+            ? "Details stay hidden during this double-blind tasting."
+            : item.region ?? null;
+          const priceText =
+            !hideWineDetails && (item.price_cents != null || item.price_range != null)
+              ? item.price_cents != null
+                ? `$${item.price_cents / 100}`
+                : item.price_range ?? ""
+              : null;
 
           return (
             <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               <TouchableOpacity onPress={() => router.push(`/event/${id}/wine/${item.id}`)}>
-                <View style={styles.wineNameRow}>
-                  <Text style={[styles.wineName, { color: theme.text }]}>
-                    {wineLabel ?? `${quantityPrefix}${item.producer ?? "Unknown"} ${item.varietal ?? ""} ${item.vintage ?? ""}`.trim()}
-                  </Text>
-                  {eventFavorite?.wine_id === item.id ? (
-                    <Ionicons name="star" size={18} color={theme.primary} style={styles.favoriteStar} />
-                  ) : null}
+                <View style={styles.cardRow}>
+                  <View style={[styles.thumbnail, { backgroundColor: theme.border }]}>
+                    {photoUrl ? (
+                      <Image source={{ uri: photoUrl }} style={styles.thumbnailImage} resizeMode="cover" />
+                    ) : (
+                      <Ionicons name={hideWineDetails ? "eye-off-outline" : "wine-outline"} size={20} color={theme.textMuted} />
+                    )}
+                  </View>
+                  <View style={styles.cardContent}>
+                    <View style={styles.wineNameRow}>
+                      <Text style={[styles.wineName, { color: theme.text }]} numberOfLines={2}>
+                        {titleText}
+                      </Text>
+                      {eventFavorite?.wine_id === item.id ? (
+                        <Ionicons name="star" size={18} color={theme.primary} style={styles.favoriteStar} />
+                      ) : null}
+                    </View>
+
+                    {subtitleText ? (
+                      <Text style={[styles.wineMeta, { color: theme.textSecondary }]} numberOfLines={2}>
+                        {subtitleText}
+                      </Text>
+                    ) : null}
+
+                    {priceText ? (
+                      <Text style={[styles.wineMeta, { color: theme.textSecondary }]}>{priceText}</Text>
+                    ) : null}
+
+                    {quantityLabel ? (
+                      <Text style={[styles.cardBottleCount, { color: theme.textMuted }]}>{quantityLabel}</Text>
+                    ) : null}
+                  </View>
                 </View>
-
-                {!hideWineDetails && item.region ? (
-                  <Text style={[styles.wineMeta, { color: theme.textSecondary }]}>{item.region}</Text>
-                ) : null}
-
-                {!hideWineDetails && (item.price_cents != null || item.price_range != null) ? (
-                  <Text style={[styles.wineMeta, { color: theme.textSecondary }]}>
-                    {item.price_cents != null ? `$${item.price_cents / 100}` : item.price_range ?? ""}
-                  </Text>
-                ) : null}
               </TouchableOpacity>
 
               {event.status === "ended" && summary ? (
@@ -618,10 +650,23 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
+  cardRow: { flexDirection: "row", gap: 12 },
+  thumbnail: {
+    width: 64,
+    height: 80,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+    flexShrink: 0,
+  },
+  thumbnailImage: { width: "100%", height: "100%" },
+  cardContent: { flex: 1 },
   wineNameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   wineName: { fontSize: 16, fontWeight: "600", flex: 1, fontFamily: "Montserrat_600SemiBold" },
   favoriteStar: { marginLeft: 4 },
   wineMeta: { fontSize: 14, marginTop: 4, fontFamily: "Montserrat_400Regular" },
+  cardBottleCount: { fontSize: 12, marginTop: 8, fontFamily: "Montserrat_400Regular" },
   placeholder: { padding: 16, fontFamily: "Montserrat_400Regular" },
   emptyWinesContainer: {
     borderWidth: 1,
@@ -729,7 +774,7 @@ function WineHostActions({
       onPress={handleStartRound}
       disabled={startRound.isPending}
     >
-      <Text style={styles.rateButtonText}>{startRound.isPending ? "Starting..." : "Start rating round"}</Text>
+      <Text style={styles.rateButtonText}>{startRound.isPending ? "Starting..." : "Start Rating"}</Text>
     </TouchableOpacity>
   );
 }

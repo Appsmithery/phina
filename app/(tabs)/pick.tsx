@@ -41,6 +41,9 @@ export default function PickScreen() {
       <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
         AI-powered recommendations based on your taste profile.
       </Text>
+      <Text style={[styles.premiumNote, { color: theme.textMuted }]}>
+        Help Me Pick will be included with Premium.
+      </Text>
 
       {FEATURES.map((f) => (
         <View key={f.title} style={[styles.featureCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -60,6 +63,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: PAGE_HORIZONTAL_PADDING },
   comingSoon: { fontSize: 13, fontFamily: "Montserrat_600SemiBold", letterSpacing: 1, marginBottom: 6 },
   subtitle: { fontSize: 14, fontFamily: "Montserrat_400Regular", lineHeight: 20, marginBottom: 24 },
+  premiumNote: { fontSize: 13, fontFamily: "Montserrat_500Medium", lineHeight: 18, marginBottom: 20 },
   featureCard: {
     flexDirection: "row",
     alignItems: "flex-start",

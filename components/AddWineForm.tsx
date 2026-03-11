@@ -238,9 +238,15 @@ export function AddWineForm({
       if (!data?.id) throw new Error("Wine was not saved. Please try again.");
       if (__DEV__) console.log("[add-wine] insert success, id:", data.id);
 
-      await onSuccess();
-
       if (isScannedEntry && pendingLabelPhotoUrl) {
+        if (__DEV__) {
+          console.log("[add-wine] starting background bottle image generation", {
+            wineId: data.id,
+            eventId,
+            memberId,
+            hasLabelPhoto: true,
+          });
+        }
         enhanceBottleImageInBackground({
           wineId: data.id,
           memberId,
@@ -255,6 +261,14 @@ export function AddWineForm({
             is_sparkling: isSparkling,
           },
           queryClient,
+        });
+      } else if (__DEV__) {
+        console.log("[add-wine] skipping background bottle image generation", {
+          wineId: data.id,
+          eventId,
+          memberId,
+          isScannedEntry,
+          hasLabelPhoto: !!pendingLabelPhotoUrl,
         });
       }
 
@@ -271,6 +285,8 @@ export function AddWineForm({
           queryClient,
         });
       }
+
+      await onSuccess();
     } catch (e: unknown) {
       const message =
         e instanceof Error
