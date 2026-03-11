@@ -8,6 +8,7 @@ import QRCode from "react-native-qrcode-svg";
 import { showAlert } from "@/lib/alert";
 import { generateEventImage } from "@/lib/event-image-generation";
 import { useEndEvent, useEndRatingRound, useStartRatingRound } from "@/hooks/use-event-actions";
+import { getScreenBottomPadding } from "@/lib/layout";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
@@ -490,6 +491,7 @@ export default function EventDetailScreen() {
       <FlatList
         data={wines}
         keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
         ListHeaderComponent={listHeader}
         renderItem={({ item, index }) => {
           const activeRound = rounds.find((round) => round.wine_id === item.id && round.is_active);
@@ -570,7 +572,8 @@ export default function EventDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
+  container: { flex: 1, paddingHorizontal: 16 },
+  listContent: { paddingTop: 16, paddingBottom: getScreenBottomPadding(0) },
   heroCard: {
     borderWidth: 1,
     borderRadius: 18,

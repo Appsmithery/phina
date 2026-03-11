@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
+import { Stack, useLocalSearchParams, router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Slider from "@react-native-community/slider";
@@ -306,7 +306,12 @@ export default function RateWineScreen() {
   const canVote = !!member && round?.is_active && !submitting;
 
   return (
-    <ScrollView style={[styles.scroll, { backgroundColor: theme.background }]} contentContainerStyle={styles.scrollContent}>
+    <ScrollView
+      style={[styles.scroll, { backgroundColor: theme.background }]}
+      contentContainerStyle={styles.scrollContent}
+      contentInsetAdjustmentBehavior="automatic"
+    >
+      <Stack.Screen options={{ title: "Rate Wine" }} />
       {/* Wine header */}
       <View style={styles.wineHeader}>
         <Text style={[styles.wineName, { color: theme.text }]}>

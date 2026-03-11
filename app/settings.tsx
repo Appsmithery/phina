@@ -3,11 +3,11 @@ import { useEffect, useState } from "react";
 import { Stack, router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BillingCard } from "@/components/BillingCard";
 import { showAlert } from "@/lib/alert";
 import { formatBirthday, formatBirthdayForStorage, getAge, parseDateOnly } from "@/lib/birthday";
 import { BirthdayPickerField } from "@/components/BirthdayPickerField";
+import { PAGE_HORIZONTAL_PADDING, getScreenBottomPadding } from "@/lib/layout";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
@@ -26,7 +26,6 @@ export default function SettingsScreen() {
   const { member, session, refreshMember } = useSupabase();
   const theme = useTheme();
   const queryClient = useQueryClient();
-  const insets = useSafeAreaInsets();
   const {
     premiumActive,
     hostCreditBalance,
@@ -237,15 +236,13 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={16} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Settings</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-      <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: 32 }]} showsVerticalScrollIndicator={false}>
+      <Stack.Screen options={{ title: "Settings" }} />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        contentInsetAdjustmentBehavior="automatic"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.billingStack}>
           <BillingCard
             icon="sparkles-outline"
@@ -472,28 +469,8 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: -6,
-  },
-  headerSpacer: { width: 36, height: 36 },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    fontFamily: "PlayfairDisplay_700Bold",
-  },
   scroll: { flex: 1 },
-  scrollContent: { padding: 16 },
+  scrollContent: { padding: PAGE_HORIZONTAL_PADDING, paddingBottom: getScreenBottomPadding(0) },
   billingStack: { gap: 14, marginBottom: 24 },
   card: { borderWidth: 1, borderRadius: 14, padding: 16, marginBottom: 24 },
   cardTitle: { fontFamily: "Montserrat_600SemiBold", fontSize: 16 },

@@ -117,9 +117,11 @@ export default function PersonalWineDetailScreen() {
     <ScrollView
       style={[styles.container, { backgroundColor: theme.background }]}
       contentContainerStyle={styles.content}
+      contentInsetAdjustmentBehavior="automatic"
     >
       <Stack.Screen
         options={{
+          title: "",
           headerLeft: () => (
             <TouchableOpacity onPress={handleBackPress} style={styles.headerBackButton} hitSlop={10}>
               <Ionicons name="arrow-back" size={24} color={theme.primary} />

@@ -1,17 +1,18 @@
 import * as Clipboard from "expo-clipboard";
-import { router } from "expo-router";
+import { Stack, router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Platform, Text, View, StyleSheet } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 
 import { BillingCard } from "@/components/BillingCard";
 import { EventForm, type EventFormValues } from "@/components/EventForm";
 import { showAlert } from "@/lib/alert";
 import { generateEventImage } from "@/lib/event-image-generation";
+import { useBilling } from "@/hooks/use-billing";
+import { PAGE_HORIZONTAL_PADDING } from "@/lib/layout";
 import { trackEvent } from "@/lib/observability";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
-import { useBilling } from "@/hooks/use-billing";
 import { useTheme } from "@/lib/theme";
 
 function formatDisplayDate(dateString: string): string {
@@ -48,43 +49,39 @@ export default function CreateEventScreen() {
     const joinUrl = `${APP_BASE_URL}/join/${eventId}`;
     const shareMessage = `I'm using Phina for our wine tasting on ${formatDisplayDate(date)}! Set up your account before the event so you're ready to rate: ${joinUrl}`;
 
-    showAlert(
-      "Share in Partiful",
-      "Post this in your Partiful event so guests can set up before the tasting.",
-      [
-        {
-          text: "Copy Message",
-          onPress: async () => {
-            let copied = false;
+    showAlert("Share in Partiful", "Post this in your Partiful event so guests can set up before the tasting.", [
+      {
+        text: "Copy Message",
+        onPress: async () => {
+          let copied = false;
 
-            try {
-              await Clipboard.setStringAsync(shareMessage);
+          try {
+            await Clipboard.setStringAsync(shareMessage);
+            copied = true;
+          } catch (error) {
+            if (typeof navigator !== "undefined" && navigator.clipboard) {
+              await navigator.clipboard.writeText(shareMessage);
               copied = true;
-            } catch (error) {
-              if (typeof navigator !== "undefined" && navigator.clipboard) {
-                await navigator.clipboard.writeText(shareMessage);
-                copied = true;
-              } else {
-                console.warn("[create-event] clipboard copy failed:", error);
-              }
+            } else {
+              console.warn("[create-event] clipboard copy failed:", error);
             }
+          }
 
-            showAlert(
-              copied ? "Copied" : "Copy failed",
-              copied
-                ? "Message copied to clipboard. Paste it into your Partiful event."
-                : "We could not copy the message automatically. You can still share your join link from the event page."
-            );
-            router.replace(`/event/${eventId}`);
-          },
+          showAlert(
+            copied ? "Copied" : "Copy failed",
+            copied
+              ? "Message copied to clipboard. Paste it into your Partiful event."
+              : "We could not copy the message automatically. You can still share your join link from the event page."
+          );
+          router.replace(`/event/${eventId}`);
         },
-        {
-          text: "Skip",
-          style: "cancel",
-          onPress: () => router.replace(`/event/${eventId}`),
-        },
-      ]
-    );
+      },
+      {
+        text: "Skip",
+        style: "cancel",
+        onPress: () => router.replace(`/event/${eventId}`),
+      },
+    ]);
   };
 
   const create = async (values: EventFormValues) => {
@@ -142,6 +139,7 @@ export default function CreateEventScreen() {
   if (!session?.user?.id) {
     return (
       <View style={[styles.emptyState, { backgroundColor: theme.background }]}>
+        <Stack.Screen options={{ title: "Host an Event" }} />
         <Text style={[styles.emptyTitle, { color: theme.text }]}>Host an event</Text>
         <Text style={[styles.emptyBody, { color: theme.textSecondary }]}>
           Sign in to create a paid hosted event.
@@ -153,6 +151,7 @@ export default function CreateEventScreen() {
   if (billingLoading) {
     return (
       <View style={[styles.emptyState, { backgroundColor: theme.background }]}>
+        <Stack.Screen options={{ title: "Host an Event" }} />
         <Text style={[styles.emptyTitle, { color: theme.text }]}>Checking host credits...</Text>
       </View>
     );
@@ -163,8 +162,10 @@ export default function CreateEventScreen() {
       unsupportedReason && Platform.OS === "ios" && !nativePurchasesAvailable
         ? `Your credit is consumed only when the event is successfully created. ${unsupportedReason}`
         : "Your credit is consumed only when the event is successfully created.";
+
     return (
       <View style={[styles.paywallScreen, { backgroundColor: theme.background }]}>
+        <Stack.Screen options={{ title: "Host an Event" }} />
         <Text style={[styles.paywallTitle, { color: theme.text }]}>Host your next tasting</Text>
         <Text style={[styles.paywallBody, { color: theme.textSecondary }]}>
           Hosting costs one $10 event credit. Event participation stays free for guests.
@@ -175,15 +176,31 @@ export default function CreateEventScreen() {
           description="Buy a single event credit and unlock the host flow immediately."
           badge="0 credits available"
           detail={hostCreditDetail}
-          primaryLabel={Platform.OS === "ios" && !nativePurchasesAvailable ? "Use iOS Dev Build" : isPurchasingHostCredit ? "Opening checkout..." : Platform.OS === "ios" ? "Buy for $10" : "Checkout with Stripe"}
+          primaryLabel={
+            Platform.OS === "ios" && !nativePurchasesAvailable
+              ? "Use iOS Dev Build"
+              : isPurchasingHostCredit
+                ? "Opening checkout..."
+                : Platform.OS === "ios"
+                  ? "Buy for $10"
+                  : "Checkout with Stripe"
+          }
           onPrimaryPress={() => {
             void handlePurchaseHostCredit();
           }}
           primaryDisabled={isPurchasingHostCredit || (Platform.OS === "ios" && !nativePurchasesAvailable)}
-          secondaryLabel={Platform.OS === "ios" && nativePurchasesAvailable ? (isRestoringPurchases ? "Restoring..." : "Restore") : undefined}
-          onSecondaryPress={Platform.OS === "ios" && nativePurchasesAvailable ? () => {
-            void handleRestorePurchases();
-          } : undefined}
+          secondaryLabel={
+            Platform.OS === "ios" && nativePurchasesAvailable
+              ? (isRestoringPurchases ? "Restoring..." : "Restore")
+              : undefined
+          }
+          onSecondaryPress={
+            Platform.OS === "ios" && nativePurchasesAvailable
+              ? () => {
+                  void handleRestorePurchases();
+                }
+              : undefined
+          }
           secondaryDisabled={Platform.OS === "ios" && nativePurchasesAvailable ? isRestoringPurchases : undefined}
         />
       </View>
@@ -192,6 +209,7 @@ export default function CreateEventScreen() {
 
   return (
     <View style={[styles.formScreen, { backgroundColor: theme.background }]}>
+      <Stack.Screen options={{ title: "Host an Event" }} />
       <View style={[styles.creditBanner, { backgroundColor: theme.surface, borderColor: theme.border }]}>
         <Text style={[styles.creditBannerTitle, { color: theme.text }]}>Ready to host</Text>
         <Text style={[styles.creditBannerBody, { color: theme.textSecondary }]}>
@@ -202,6 +220,7 @@ export default function CreateEventScreen() {
       </View>
       <EventForm
         heading="New event"
+        showHeading={false}
         submitLabel="Create"
         initialValues={{
           title: "",
@@ -222,9 +241,9 @@ export default function CreateEventScreen() {
 const styles = StyleSheet.create({
   formScreen: {
     flex: 1,
+    paddingHorizontal: PAGE_HORIZONTAL_PADDING,
   },
   creditBanner: {
-    marginHorizontal: 16,
     marginTop: 16,
     marginBottom: -4,
     borderWidth: 1,
@@ -243,7 +262,7 @@ const styles = StyleSheet.create({
   },
   paywallScreen: {
     flex: 1,
-    padding: 16,
+    padding: PAGE_HORIZONTAL_PADDING,
     justifyContent: "center",
     gap: 16,
   },

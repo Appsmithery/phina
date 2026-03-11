@@ -3,11 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Image, Alert, Platform } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+
 import { BillingCard } from "@/components/BillingCard";
+import { TabScreenHeader } from "@/components/layout/TabScreenHeader";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { trackEvent, captureError } from "@/lib/observability";
+import { PAGE_HORIZONTAL_PADDING, getTabContentBottomPadding, useOptionalBottomTabBarHeight } from "@/lib/layout";
 import type { WineWithPricePrivacy } from "@/types/database";
 import type { Event } from "@/types/database";
 import { useBilling } from "@/hooks/use-billing";
@@ -21,6 +24,7 @@ type WineWithEvent = WineWithPricePrivacy & {
 
 export default function CellarScreen() {
   const theme = useTheme();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
   const { member } = useSupabase();
   const {
     hasAdminBillingBypass,
@@ -159,7 +163,7 @@ export default function CellarScreen() {
         : "Guests can still join and rate events for free.";
     return (
       <View style={[styles.container, styles.paywallContainer, { backgroundColor: theme.background }]}>
-        <Text style={[styles.paywallTitle, { color: theme.text }]}>My Cellar</Text>
+        <TabScreenHeader title="My Cellar" />
         <Text style={[styles.paywallBody, { color: theme.textSecondary }]}>
           Premium unlocks your personal cellar, wine history, and collection management.
         </Text>
@@ -205,18 +209,20 @@ export default function CellarScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={styles.titleRow}>
-        <Ionicons name="wine-outline" size={22} color={theme.primary} />
-        <Text style={[styles.title, { color: theme.text }]}>My Cellar</Text>
-        <TouchableOpacity
-          onPress={() =>
-            Alert.alert("Coming soon", "Cellar alerts will notify you when wines are approaching their drinking window.")
-          }
-          hitSlop={8}
-        >
-          <Ionicons name="notifications-outline" size={22} color={theme.textMuted} />
-        </TouchableOpacity>
-      </View>
+      <TabScreenHeader
+        title="My Cellar"
+        left={<Ionicons name="wine-outline" size={22} color={theme.primary} />}
+        right={
+          <TouchableOpacity
+            onPress={() =>
+              Alert.alert("Coming soon", "Cellar alerts will notify you when wines are approaching their drinking window.")
+            }
+            hitSlop={8}
+          >
+            <Ionicons name="notifications-outline" size={22} color={theme.textMuted} />
+          </TouchableOpacity>
+        }
+      />
       <View style={styles.tabRow}>
         <TouchableOpacity
           style={[
@@ -275,7 +281,7 @@ export default function CellarScreen() {
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={[styles.list, { paddingBottom: 80 }]}
+          contentContainerStyle={[styles.list, { paddingBottom: getTabContentBottomPadding(tabBarHeight, 0) + 64 }]}
           renderItem={({ item }) => {
             const isEventWine = item.event_id != null;
             const wineLine = [
@@ -359,7 +365,7 @@ export default function CellarScreen() {
           }}
         />
       )}
-      <View style={styles.bottomButtonWrapper}>
+      <View style={[styles.bottomButtonWrapper, { bottom: getTabContentBottomPadding(tabBarHeight, 0) - 8 }]}>
         <TouchableOpacity
           style={[styles.addButton, { backgroundColor: theme.primary }]}
           onPress={() => router.push("/add-wine")}
@@ -382,23 +388,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontFamily: "Montserrat_400Regular",
   },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 12,
-  },
-  title: { fontSize: 20, fontWeight: "700", fontFamily: "PlayfairDisplay_700Bold" },
-  bottomButtonWrapper: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 16, paddingBottom: 24 },
+  bottomButtonWrapper: { position: "absolute", left: 0, right: 0, padding: PAGE_HORIZONTAL_PADDING },
   addButton: { borderRadius: 12, paddingVertical: 14, alignItems: "center" },
   addButtonText: { color: "#fff", fontSize: 15, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   errorState: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24 },
   errorTitle: { fontSize: 20, fontWeight: "700", marginBottom: 12, fontFamily: "PlayfairDisplay_700Bold" },
   retryButton: { borderRadius: 12, paddingVertical: 12, paddingHorizontal: 20, marginTop: 8 },
   retryButtonText: { color: "#fff", fontSize: 14, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
-  tabRow: { flexDirection: "row", marginHorizontal: 16, marginBottom: 12 },
+  tabRow: { flexDirection: "row", marginHorizontal: PAGE_HORIZONTAL_PADDING, marginBottom: 12 },
   tab: { flex: 1, alignItems: "center", paddingVertical: 8, borderBottomWidth: 2, borderBottomColor: "transparent" },
   tabText: { fontSize: 14, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   searchWrapper: {
@@ -406,7 +403,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderRadius: 12,
-    marginHorizontal: 16,
+    marginHorizontal: PAGE_HORIZONTAL_PADDING,
     marginBottom: 16,
     paddingHorizontal: 12,
   },
@@ -417,7 +414,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "Montserrat_400Regular",
   },
-  list: { padding: 16, paddingTop: 0 },
+  list: { padding: PAGE_HORIZONTAL_PADDING, paddingTop: 0 },
   card: {
     borderWidth: 1,
     borderRadius: 14,

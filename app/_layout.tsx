@@ -203,21 +203,21 @@ function SupabaseLayout() {
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="join/[eventId]" />
-      <Stack.Screen name="event/create" />
-      <Stack.Screen name="event/[id]/index" />
-      <Stack.Screen name="event/[id]/add-wine" />
+      <Stack.Screen name="event/create" options={{ title: "Host an Event" }} />
+      <Stack.Screen name="event/[id]/index" options={{ title: "Event" }} />
+      <Stack.Screen name="event/[id]/add-wine" options={{ title: "Add Wine" }} />
       <Stack.Screen name="event/[id]/qr" />
-      <Stack.Screen name="event/[id]/wine/[wineId]" />
-      <Stack.Screen name="event/[id]/rate/[wineId]" />
-      <Stack.Screen name="add-wine" />
+      <Stack.Screen name="event/[id]/wine/[wineId]" options={{ title: "Wine" }} />
+      <Stack.Screen name="event/[id]/rate/[wineId]" options={{ title: "Rate Wine" }} />
+      <Stack.Screen name="add-wine" options={{ title: "Add to Cellar" }} />
       <Stack.Screen name="scan-label" />
-      <Stack.Screen name="wine/[wineId]/index" />
-      <Stack.Screen name="wine/[wineId]/edit" />
-      <Stack.Screen name="wine/[wineId]/rate" />
+      <Stack.Screen name="wine/[wineId]/index" options={{ title: "Wine" }} />
+      <Stack.Screen name="wine/[wineId]/edit" options={{ title: "Edit Wine" }} />
+      <Stack.Screen name="wine/[wineId]/rate" options={{ title: "Rate Wine" }} />
       <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
-      <Stack.Screen name="settings" />
-      <Stack.Screen name="privacy" />
-      <Stack.Screen name="terms" />
+      <Stack.Screen name="settings" options={{ title: "Settings" }} />
+      <Stack.Screen name="privacy" options={{ title: "Privacy Policy" }} />
+      <Stack.Screen name="terms" options={{ title: "Terms of Service" }} />
     </Stack>
   );
 }

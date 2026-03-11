@@ -291,6 +291,7 @@ export function AddWineForm({
     <ScrollView
       style={styles.scrollView}
       contentContainerStyle={styles.scrollContent}
+      contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >

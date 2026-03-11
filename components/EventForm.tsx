@@ -27,6 +27,7 @@ interface EventFormProps {
   submitLabel: string;
   initialValues: EventFormInitialValues;
   isSubmitting?: boolean;
+  showHeading?: boolean;
   minDate?: Date;
   tastingModeLocked?: boolean;
   tastingModeLockedReason?: string;
@@ -53,6 +54,7 @@ export function EventForm({
   submitLabel,
   initialValues,
   isSubmitting = false,
+  showHeading = true,
   minDate,
   tastingModeLocked = false,
   tastingModeLockedReason,
@@ -107,10 +109,11 @@ export function EventForm({
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
+          contentInsetAdjustmentBehavior="automatic"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={[styles.title, { color: theme.text }]}>{heading}</Text>
+          {showHeading ? <Text style={[styles.title, { color: theme.text }]}>{heading}</Text> : null}
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Text style={[styles.label, { color: theme.textSecondary }]}>Title</Text>
             <TextInput

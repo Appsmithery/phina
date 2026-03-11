@@ -4,8 +4,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { TabScreenHeader } from "@/components/layout/TabScreenHeader";
 import { ProfileEmptyState } from "@/components/ProfileEmptyState";
+import { PAGE_HORIZONTAL_PADDING, getTabContentBottomPadding, useOptionalBottomTabBarHeight } from "@/lib/layout";
 import { trackEvent } from "@/lib/observability";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
@@ -36,7 +38,7 @@ export default function ProfileScreen() {
   const { member, session, refreshMember } = useSupabase();
   const theme = useTheme();
   const queryClient = useQueryClient();
-  const insets = useSafeAreaInsets();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
   const webFileInputRef = useRef<HTMLInputElement | null>(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
 
@@ -387,16 +389,24 @@ export default function ProfileScreen() {
           style={{ display: "none" }}
         />
       )}
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => router.push("/settings")} hitSlop={12}>
-          <Ionicons name="settings-outline" size={22} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.text }]}>Profile</Text>
-        <TouchableOpacity onPress={handleShare} hitSlop={12}>
-          <Ionicons name="share-outline" size={22} color={theme.text} />
-        </TouchableOpacity>
-      </View>
-      <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingBottom: 32 }]} showsVerticalScrollIndicator={false}>
+      <TabScreenHeader
+        title="Profile"
+        left={
+          <TouchableOpacity onPress={() => router.push("/settings")} hitSlop={12}>
+            <Ionicons name="settings-outline" size={22} color={theme.text} />
+          </TouchableOpacity>
+        }
+        right={
+          <TouchableOpacity onPress={handleShare} hitSlop={12}>
+            <Ionicons name="share-outline" size={22} color={theme.text} />
+          </TouchableOpacity>
+        }
+      />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: getTabContentBottomPadding(tabBarHeight, 0) }]}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.profileSummary}>
           <View style={styles.avatarWrap}>
             {hasAvatar ? (
@@ -469,16 +479,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { flex: 1 },
-  scrollContent: { padding: 16 },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  title: { fontSize: 22, fontWeight: "700", fontFamily: "PlayfairDisplay_700Bold" },
+  scrollContent: { padding: PAGE_HORIZONTAL_PADDING },
   profileSummary: { alignItems: "center", marginBottom: 20 },
   avatarWrap: {
     position: "relative",

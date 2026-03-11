@@ -1,5 +1,8 @@
-import { View, Text, StyleSheet } from "react-native";
+import { ScrollView, View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+
+import { TabScreenHeader } from "@/components/layout/TabScreenHeader";
+import { PAGE_HORIZONTAL_PADDING, getTabContentBottomPadding, useOptionalBottomTabBarHeight } from "@/lib/layout";
 import { useTheme } from "@/lib/theme";
 
 const FEATURES = [
@@ -22,13 +25,17 @@ const FEATURES = [
 
 export default function PickScreen() {
   const theme = useTheme();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={styles.titleRow}>
-        <Ionicons name="search-outline" size={22} color={theme.primary} />
-        <Text style={[styles.title, { color: theme.text }]}>Help Me Pick</Text>
-        <View style={{ width: 22 }} />
-      </View>
+    <ScrollView
+      style={[styles.container, { backgroundColor: theme.background }]}
+      contentContainerStyle={[styles.content, { paddingBottom: getTabContentBottomPadding(tabBarHeight, 0) }]}
+      showsVerticalScrollIndicator={false}
+    >
+      <TabScreenHeader
+        title="Help Me Pick"
+        left={<Ionicons name="search-outline" size={22} color={theme.primary} />}
+      />
 
       <Text style={[styles.comingSoon, { color: theme.primary }]}>Coming Soon</Text>
       <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
@@ -44,20 +51,13 @@ export default function PickScreen() {
           </View>
         </View>
       ))}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 20,
-    marginTop: 0,
-  },
-  title: { fontSize: 20, fontWeight: "700", fontFamily: "PlayfairDisplay_700Bold" },
+  container: { flex: 1 },
+  content: { paddingHorizontal: PAGE_HORIZONTAL_PADDING },
   comingSoon: { fontSize: 13, fontFamily: "Montserrat_600SemiBold", letterSpacing: 1, marginBottom: 6 },
   subtitle: { fontSize: 14, fontFamily: "Montserrat_400Regular", lineHeight: 20, marginBottom: 24 },
   featureCard: {

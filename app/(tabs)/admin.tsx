@@ -2,6 +2,9 @@ import { useEffect } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
+
+import { TabScreenHeader } from "@/components/layout/TabScreenHeader";
+import { PAGE_HORIZONTAL_PADDING, getTabContentBottomPadding, useOptionalBottomTabBarHeight } from "@/lib/layout";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useMembers, useToggleAdmin } from "@/hooks/use-members";
@@ -12,6 +15,7 @@ import type { Member } from "@/types/database";
 export default function AdminScreen() {
   const router = useRouter();
   const { member: currentMember } = useSupabase();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
 
   useEffect(() => {
     if (currentMember === null) return;
@@ -81,6 +85,7 @@ export default function AdminScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <TabScreenHeader title="Admin" />
       <View style={styles.metricsRow}>
         <View style={[styles.metricTile, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.metricValue, { color: theme.text }]}>{memberCount ?? "—"}</Text>
@@ -99,7 +104,7 @@ export default function AdminScreen() {
       <FlatList
         data={members}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: getTabContentBottomPadding(tabBarHeight, 0) }]}
         renderItem={({ item }) => (
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={styles.cardMain}>
@@ -132,12 +137,12 @@ export default function AdminScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  metricsRow: { flexDirection: "row", gap: 12, padding: 16, paddingBottom: 0 },
+  metricsRow: { flexDirection: "row", gap: 12, paddingHorizontal: PAGE_HORIZONTAL_PADDING, paddingBottom: 0 },
   metricTile: { flex: 1, borderWidth: 1, borderRadius: 14, padding: 12, alignItems: "center" },
   metricValue: { fontSize: 22, fontWeight: "700", fontFamily: "PlayfairDisplay_700Bold" },
   metricLabel: { fontSize: 12, marginTop: 2, fontFamily: "Montserrat_400Regular" },
-  title: { fontSize: 24, fontWeight: "700", padding: 16, fontFamily: "PlayfairDisplay_700Bold" },
-  list: { padding: 16, paddingTop: 0 },
+  title: { fontSize: 24, fontWeight: "700", padding: PAGE_HORIZONTAL_PADDING, fontFamily: "PlayfairDisplay_700Bold" },
+  list: { padding: PAGE_HORIZONTAL_PADDING, paddingTop: 0 },
   card: {
     borderWidth: 1,
     borderRadius: 14,

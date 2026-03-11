@@ -4,6 +4,8 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Image, A
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
+import { TabScreenHeader } from "@/components/layout/TabScreenHeader";
+import { PAGE_HORIZONTAL_PADDING, getTabContentBottomPadding, useOptionalBottomTabBarHeight } from "@/lib/layout";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
@@ -22,6 +24,7 @@ export default function EventsScreen() {
   const theme = useTheme();
   const { member } = useSupabase();
   const { hostCreditBalance, hasAdminBillingBypass, billingAccessLabel } = useBilling();
+  const tabBarHeight = useOptionalBottomTabBarHeight();
   const [activeTab, setActiveTab] = useState<EventsTab>("upcoming");
   const [search, setSearch] = useState("");
 
@@ -136,36 +139,40 @@ export default function EventsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={[styles.creditChip, { borderColor: theme.border, backgroundColor: theme.surface }]}
-          onPress={() =>
-            Alert.alert(
-              hasAdminBillingBypass ? "Admin override" : "Host credits",
-              hasAdminBillingBypass
-                ? "This admin account can host events without purchasing or consuming host credits."
-                : `You currently have ${hostCreditBalance} host credit${hostCreditBalance === 1 ? "" : "s"}. Buy more from your profile any time.`
-            )
-          }
-          hitSlop={8}
-        >
-          <Ionicons
-            name={hasAdminBillingBypass ? "shield-checkmark-outline" : "ticket-outline"}
-            size={16}
-            color={theme.primary}
-          />
-          <Text style={[styles.creditChipText, { color: theme.text }]}>
-            {hasAdminBillingBypass ? (billingAccessLabel ?? "Admin") : hostCreditBalance}
-          </Text>
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.text }]}>Events</Text>
-        <TouchableOpacity
-          style={[styles.createButton, { backgroundColor: theme.primary }]}
-          onPress={() => router.push("/event/create")}
-        >
-          <Text style={styles.createButtonText}>Host</Text>
-        </TouchableOpacity>
-      </View>
+      <TabScreenHeader
+        title="Events"
+        left={
+          <TouchableOpacity
+            style={[styles.creditChip, { borderColor: theme.border, backgroundColor: theme.surface }]}
+            onPress={() =>
+              Alert.alert(
+                hasAdminBillingBypass ? "Admin override" : "Host credits",
+                hasAdminBillingBypass
+                  ? "This admin account can host events without purchasing or consuming host credits."
+                  : `You currently have ${hostCreditBalance} host credit${hostCreditBalance === 1 ? "" : "s"}. Buy more from your profile any time.`
+              )
+            }
+            hitSlop={8}
+          >
+            <Ionicons
+              name={hasAdminBillingBypass ? "shield-checkmark-outline" : "ticket-outline"}
+              size={16}
+              color={theme.primary}
+            />
+            <Text style={[styles.creditChipText, { color: theme.text }]}>
+              {hasAdminBillingBypass ? (billingAccessLabel ?? "Admin") : hostCreditBalance}
+            </Text>
+          </TouchableOpacity>
+        }
+        right={
+          <TouchableOpacity
+            style={[styles.createButton, { backgroundColor: theme.primary }]}
+            onPress={() => router.push("/event/create")}
+          >
+            <Text style={styles.createButtonText}>Host</Text>
+          </TouchableOpacity>
+        }
+      />
 
       <View style={styles.tabRow}>
         {(["upcoming", "past", "my-events"] as const).map((tab) => (
@@ -211,7 +218,7 @@ export default function EventsScreen() {
           data={filteredEvents}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: getTabContentBottomPadding(tabBarHeight, 0) }]}
           ListHeaderComponent={
             activeTab === "upcoming" ? (
               <Text style={[styles.sectionHeader, { color: theme.text }]}>Recommended for you</Text>
@@ -225,14 +232,6 @@ export default function EventsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
   creditChip: {
     flexDirection: "row",
     alignItems: "center",
@@ -246,11 +245,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Montserrat_600SemiBold",
   },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    fontFamily: "PlayfairDisplay_700Bold",
-  },
   createButton: {
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -261,7 +255,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "Montserrat_600SemiBold",
   },
-  tabRow: { flexDirection: "row", marginHorizontal: 16, marginBottom: 12 },
+  tabRow: { flexDirection: "row", marginHorizontal: PAGE_HORIZONTAL_PADDING, marginBottom: 12 },
   tab: {
     flex: 1,
     alignItems: "center",
@@ -279,7 +273,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderRadius: 12,
-    marginHorizontal: 16,
+    marginHorizontal: PAGE_HORIZONTAL_PADDING,
     marginBottom: 16,
     paddingHorizontal: 12,
   },
@@ -296,7 +290,7 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_600SemiBold",
     marginBottom: 12,
   },
-  list: { padding: 16, paddingTop: 0, paddingBottom: 24 },
+  list: { padding: PAGE_HORIZONTAL_PADDING, paddingTop: 0 },
   card: {
     borderWidth: 1,
     borderRadius: 18,

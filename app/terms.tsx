@@ -1,4 +1,6 @@
+import { Stack } from "expo-router";
 import { ScrollView, Text, View, StyleSheet, Linking } from "react-native";
+import { PAGE_HORIZONTAL_PADDING, getScreenBottomPadding } from "@/lib/layout";
 import { useTheme } from "@/lib/theme";
 
 export default function TermsScreen() {
@@ -11,7 +13,12 @@ export default function TermsScreen() {
   );
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.background }]} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: theme.background }]}
+      contentContainerStyle={styles.content}
+      contentInsetAdjustmentBehavior="automatic"
+    >
+      <Stack.Screen options={{ title: "Terms of Service" }} />
       <Text style={[styles.h1, { color: theme.text }]}>Terms of Service</Text>
       <Text style={[styles.updated, { color: theme.textMuted }]}>Last updated: February 28, 2026</Text>
 
@@ -97,7 +104,7 @@ export default function TermsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 24, paddingBottom: 80 },
+  content: { padding: PAGE_HORIZONTAL_PADDING, paddingBottom: getScreenBottomPadding(0) },
   h1: { fontSize: 26, fontWeight: "700", fontFamily: "PlayfairDisplay_700Bold", marginBottom: 4 },
   updated: { fontSize: 13, fontFamily: "Montserrat_300Light", marginBottom: 28 },
   h2: { fontSize: 18, fontWeight: "600", fontFamily: "PlayfairDisplay_600SemiBold", marginTop: 24, marginBottom: 10 },

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { router, useLocalSearchParams } from "expo-router";
+import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StyleSheet, Text, View } from "react-native";
 
@@ -96,6 +96,7 @@ export default function EditEventScreen() {
   if (!id) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Stack.Screen options={{ title: "Edit Event" }} />
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading...</Text>
       </View>
     );
@@ -104,6 +105,7 @@ export default function EditEventScreen() {
   if (!sessionLoaded) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Stack.Screen options={{ title: "Edit Event" }} />
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading...</Text>
       </View>
     );
@@ -112,6 +114,7 @@ export default function EditEventScreen() {
   if (!session) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Stack.Screen options={{ title: "Edit Event" }} />
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>Sign in to edit this event.</Text>
       </View>
     );
@@ -120,6 +123,7 @@ export default function EditEventScreen() {
   if (isLoading || !data?.event) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Stack.Screen options={{ title: "Edit Event" }} />
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading...</Text>
       </View>
     );
@@ -128,6 +132,7 @@ export default function EditEventScreen() {
   if (data.event.created_by !== userId) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Stack.Screen options={{ title: "Edit Event" }} />
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>Redirecting...</Text>
       </View>
     );
@@ -136,22 +141,26 @@ export default function EditEventScreen() {
   const tastingModeLocked = data.winesCount > 0 || data.roundsCount > 0;
 
   return (
-    <EventForm
-      heading="Edit event"
-      submitLabel="Save changes"
-      isSubmitting={isSaving}
-      initialValues={{
-        title: data.event.title,
-        theme: data.event.theme,
-        description: data.event.description ?? "",
-        partifulUrl: data.event.partiful_url ?? "",
-        date: data.event.date,
-        tastingMode: data.event.tasting_mode,
-      }}
-      tastingModeLocked={tastingModeLocked}
-      tastingModeLockedReason="Tasting mode is locked once wines or rating rounds exist for the event."
-      onSubmit={save}
-    />
+    <>
+      <Stack.Screen options={{ title: "Edit Event" }} />
+      <EventForm
+        heading="Edit event"
+        showHeading={false}
+        submitLabel="Save changes"
+        isSubmitting={isSaving}
+        initialValues={{
+          title: data.event.title,
+          theme: data.event.theme,
+          description: data.event.description ?? "",
+          partifulUrl: data.event.partiful_url ?? "",
+          date: data.event.date,
+          tastingMode: data.event.tasting_mode,
+        }}
+        tastingModeLocked={tastingModeLocked}
+        tastingModeLockedReason="Tasting mode is locked once wines or rating rounds exist for the event."
+        onSubmit={save}
+      />
+    </>
   );
 }
 

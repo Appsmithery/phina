@@ -1,4 +1,6 @@
+import { Stack } from "expo-router";
 import { ScrollView, Text, View, StyleSheet, Linking } from "react-native";
+import { PAGE_HORIZONTAL_PADDING, getScreenBottomPadding } from "@/lib/layout";
 import { useTheme } from "@/lib/theme";
 
 export default function PrivacyScreen() {
@@ -14,7 +16,9 @@ export default function PrivacyScreen() {
     <ScrollView
       style={[styles.container, { backgroundColor: theme.background }]}
       contentContainerStyle={styles.content}
+      contentInsetAdjustmentBehavior="automatic"
     >
+      <Stack.Screen options={{ title: "Privacy Policy" }} />
       <Text style={[styles.h1, { color: theme.text }]}>Privacy Policy</Text>
       <Text style={[styles.updated, { color: theme.textMuted }]}>
         Last updated: March 10, 2026
@@ -171,7 +175,7 @@ export default function PrivacyScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 24, paddingBottom: 80 },
+  content: { padding: PAGE_HORIZONTAL_PADDING, paddingBottom: getScreenBottomPadding(0) },
   h1: {
     fontSize: 26,
     fontWeight: "700",
