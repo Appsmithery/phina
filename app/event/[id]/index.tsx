@@ -306,7 +306,7 @@ export default function EventDetailScreen() {
   const listHeader = (
     <>
       {event.event_image_url ? (
-        <View style={[styles.heroCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View style={[styles.heroCard, { backgroundColor: theme.surface }]}>
           <Image source={{ uri: event.event_image_url }} style={styles.heroImage} resizeMode="cover" />
         </View>
       ) : null}
@@ -607,7 +607,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16 },
   listContent: { paddingTop: 16, paddingBottom: getScreenBottomPadding(0) },
   heroCard: {
-    borderWidth: 1,
     borderRadius: 18,
     overflow: "hidden",
     marginBottom: 16,

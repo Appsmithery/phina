@@ -97,7 +97,7 @@ export default function EventsScreen() {
 
     return (
       <TouchableOpacity
-        style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
+        style={[styles.card, { backgroundColor: theme.surface }]}
         onPress={() => router.push(`/event/${item.id}`)}
         activeOpacity={0.85}
       >
@@ -292,7 +292,6 @@ const styles = StyleSheet.create({
   },
   list: { padding: PAGE_HORIZONTAL_PADDING, paddingTop: 0 },
   card: {
-    borderWidth: 1,
     borderRadius: 18,
     overflow: "hidden",
     marginBottom: 14,
