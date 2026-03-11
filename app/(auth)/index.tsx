@@ -290,7 +290,12 @@ export default function AuthScreen() {
               accessibilityRole="button"
               accessibilityLabel="Send magic link"
             >
-              <Text style={[styles.primaryButtonText, { color: "#FFFFFF" }]}>
+              <Text
+                style={[styles.primaryButtonText, { color: "#FFFFFF" }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+              >
                 Send magic link
               </Text>
             </TouchableOpacity>
@@ -312,7 +317,12 @@ export default function AuthScreen() {
               accessibilityRole="button"
               accessibilityLabel="Sign in with Google"
             >
-              <Text style={[styles.googleButtonText, { color: theme.text }]}>
+              <Text
+                style={[styles.googleButtonText, { color: theme.text }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+              >
                 {googleLoading ? "Signing in..." : "Sign in with Google"}
               </Text>
             </TouchableOpacity>
@@ -324,7 +334,12 @@ export default function AuthScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Sign in with Apple"
               >
-                <Text style={styles.appleButtonText}>
+                <Text
+                  style={styles.appleButtonText}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                >
                   {appleLoading ? "Signing in..." : "Sign in with Apple"}
                 </Text>
               </TouchableOpacity>
@@ -332,12 +347,12 @@ export default function AuthScreen() {
           </>
         )}
         {!magicLinkSentTo ? (
-          <View style={styles.nudgeRow}>
+          <View style={styles.nudgeBlock}>
             <Text
               style={[styles.nudgeHint, { color: theme.textMuted }]}
               accessibilityRole="text"
             >
-              Enter your email above to{" "}
+              Enter your email above to continue.
             </Text>
             <TouchableOpacity
               onPress={canSignIn && !loading ? handleSignIn : undefined}
@@ -354,16 +369,13 @@ export default function AuthScreen() {
                     opacity: canSignIn && !loading ? 1 : 0.6,
                   },
                 ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
               >
-                sign in with password
+                Sign in with password
               </Text>
             </TouchableOpacity>
-            <Text
-              style={[styles.nudgeHint, { color: theme.textMuted }]}
-              accessibilityRole="text"
-            >
-              .
-            </Text>
           </View>
         ) : null}
         {errorHint ? (
@@ -447,6 +459,8 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontFamily: "Montserrat_600SemiBold",
     fontSize: 16,
+    width: "100%",
+    textAlign: "center",
   },
   cooldownHint: {
     fontFamily: "Montserrat_400Regular",
@@ -454,10 +468,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 12,
   },
-  nudgeRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
+  nudgeBlock: {
     alignItems: "center",
     marginTop: 8,
     paddingHorizontal: 8,
@@ -466,11 +477,13 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_400Regular",
     fontSize: 12,
     textAlign: "center",
+    marginBottom: 4,
   },
   nudgeLink: {
     fontFamily: "Montserrat_600SemiBold",
     fontSize: 12,
     textDecorationLine: "underline",
+    textAlign: "center",
   },
   successHint: {
     fontFamily: "Montserrat_400Regular",
@@ -523,6 +536,8 @@ const styles = StyleSheet.create({
   googleButtonText: {
     fontFamily: "Montserrat_600SemiBold",
     fontSize: 16,
+    width: "100%",
+    textAlign: "center",
   },
   appleButton: {
     paddingVertical: 14,
@@ -536,5 +551,7 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_600SemiBold",
     fontSize: 16,
     color: "#FFFFFF",
+    width: "100%",
+    textAlign: "center",
   },
 });

@@ -4,6 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ProfileEmptyState } from "@/components/ProfileEmptyState";
 import { trackEvent } from "@/lib/observability";
 import { supabase } from "@/lib/supabase";
@@ -35,6 +36,7 @@ export default function ProfileScreen() {
   const { member, session, refreshMember } = useSupabase();
   const theme = useTheme();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
   const webFileInputRef = useRef<HTMLInputElement | null>(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
 
@@ -385,12 +387,12 @@ export default function ProfileScreen() {
           style={{ display: "none" }}
         />
       )}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push("/settings")} hitSlop={8}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity onPress={() => router.push("/settings")} hitSlop={12}>
           <Ionicons name="settings-outline" size={22} color={theme.text} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: theme.text }]}>Profile</Text>
-        <TouchableOpacity onPress={handleShare} hitSlop={8}>
+        <TouchableOpacity onPress={handleShare} hitSlop={12}>
           <Ionicons name="share-outline" size={22} color={theme.text} />
         </TouchableOpacity>
       </View>

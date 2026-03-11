@@ -7,32 +7,6 @@ export default function TabsLayout() {
   const { member } = useSupabase();
   const theme = useTheme();
   const showAdmin = member?.is_admin === true;
-  const visibleTabs = [
-    {
-      name: "index",
-      icon: "calendar-outline" as const,
-    },
-    {
-      name: "cellar",
-      icon: "wine-outline" as const,
-    },
-    {
-      name: "pick",
-      icon: "search-outline" as const,
-    },
-    ...(showAdmin
-      ? [
-          {
-            name: "admin",
-            icon: "lock-closed-outline" as const,
-          },
-        ]
-      : []),
-    {
-      name: "profile",
-      icon: "person-outline" as const,
-    },
-  ];
 
   return (
     <Tabs
@@ -49,16 +23,48 @@ export default function TabsLayout() {
         tabBarStyle: { backgroundColor: theme.surface, borderTopColor: theme.border },
       }}
     >
-      {visibleTabs.map((tab) => (
-        <Tabs.Screen
-          key={tab.name}
-          name={tab.name}
-          options={{
-            tabBarLabel: tab.name === "admin" ? "Admin" : undefined,
-            tabBarIcon: ({ color, size }) => <Ionicons name={tab.icon} size={size} color={color} />,
-          }}
-        />
-      ))}
+      <Tabs.Screen
+        name="index"
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="calendar-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="cellar"
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="wine-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="pick"
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="search-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="admin"
+        options={{
+          href: showAdmin ? "/(tabs)/admin" : null,
+          tabBarLabel: "Admin",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="lock-closed-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

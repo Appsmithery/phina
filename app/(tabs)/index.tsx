@@ -26,7 +26,8 @@ export default function EventsScreen() {
   const [search, setSearch] = useState("");
 
   const { data: events = [], isLoading } = useQuery({
-    queryKey: ["events"],
+    queryKey: ["events", member?.id],
+    enabled: !!member?.id,
     queryFn: async () => {
       const { data, error } = await supabase.from("events").select("*").order("date", { ascending: false });
       if (error) throw error;

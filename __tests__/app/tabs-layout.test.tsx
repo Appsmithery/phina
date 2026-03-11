@@ -10,7 +10,16 @@ jest.mock("expo-router", () => {
   const { Text } = require("react-native");
 
   const Tabs = ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children);
-  Tabs.Screen = ({ name }: { name: string }) => React.createElement(Text, null, name);
+  Tabs.Screen = ({
+    name,
+    options,
+  }: {
+    name: string;
+    options?: { href?: string | null };
+  }) => {
+    if (options?.href === null) return null;
+    return React.createElement(Text, null, name);
+  };
 
   return { Tabs };
 });
