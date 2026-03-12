@@ -20,11 +20,6 @@ if (Platform.OS !== "web") {
   ImagePicker = require("expo-image-picker") as typeof import("expo-image-picker");
 }
 
-const DONATION_LINKS: Record<number, string> = {
-  100: "https://buy.stripe.com/8x214p9RF4XRbCq2y64ZG00",
-  500: "https://buy.stripe.com/cNi5kFfbZ2PJ21Q3Ca4ZG01",
-  1000: "https://buy.stripe.com/aFaeVfbZNeyr21QdcK4ZG02",
-};
 const AVATARS_BUCKET = "avatars";
 
 const EXPERIENCE_LABELS: Record<string, string> = {
@@ -36,7 +31,7 @@ const EXPERIENCE_LABELS: Record<string, string> = {
 
 export default function ProfileScreen() {
   const params = useLocalSearchParams<{ billing?: string; kind?: string }>();
-  const { member, session, refreshMember } = useSupabase();
+  const { member, refreshMember } = useSupabase();
   const theme = useTheme();
   const queryClient = useQueryClient();
   const tabBarHeight = useOptionalBottomTabBarHeight();
@@ -198,15 +193,6 @@ export default function ProfileScreen() {
     } catch {
       // user cancelled
     }
-  };
-
-  const openDonation = async (amountCents: number) => {
-    const { Linking } = await import("react-native");
-    const base = DONATION_LINKS[amountCents];
-    const params: string[] = [];
-    if (session?.user?.email) params.push(`prefilled_email=${encodeURIComponent(session.user.email)}`);
-    if (member?.id) params.push(`client_reference_id=${encodeURIComponent(member.id)}`);
-    await Linking.openURL(params.length ? `${base}?${params.join("&")}` : base);
   };
 
   const refreshProfileData = useCallback(async () => {
@@ -486,11 +472,13 @@ export default function ProfileScreen() {
         {renderTopSection()}
 
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <View style={styles.donateHeader}>
-            <Ionicons name="heart-outline" size={20} color={theme.primary} />
-            <Text style={[styles.cardTitle, { color: theme.text }]}>Support Phina</Text>
+          <View style={styles.supportHeader}>
+            <Ionicons name="chatbubble-ellipses-outline" size={20} color={theme.primary} />
+            <Text style={[styles.cardTitle, { color: theme.text }]}>Feedback & support</Text>
           </View>
-          <Text style={[styles.donateDescription, { color: theme.textSecondary }]}>Help us keep the cellar growing.</Text>
+          <Text style={[styles.supportDescription, { color: theme.textSecondary }]}>
+            Tell us what is working, what feels confusing, or what you want next.
+          </Text>
           <TouchableOpacity
             style={[styles.feedbackAction, { borderColor: theme.border, backgroundColor: theme.background }]}
             onPress={() =>
@@ -504,19 +492,6 @@ export default function ProfileScreen() {
             <Text style={[styles.feedbackActionText, { color: theme.text }]}>Share feedback</Text>
             <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
           </TouchableOpacity>
-          {Platform.OS !== "ios" ? (
-            <View style={styles.donateButtons}>
-              {[100, 500, 1000].map((cents) => (
-                <TouchableOpacity
-                  key={cents}
-                  style={[styles.donateButton, { backgroundColor: theme.primary }]}
-                  onPress={() => openDonation(cents)}
-                >
-                  <Text style={styles.donateButtonText}>${cents / 100}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : null}
         </View>
       </ScrollView>
     </View>
@@ -598,8 +573,8 @@ const styles = StyleSheet.create({
   tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
   tagChip: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
   tagChipText: { fontSize: 12, fontFamily: "Montserrat_600SemiBold" },
-  donateHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
-  donateDescription: { fontSize: 13, fontFamily: "Montserrat_400Regular", marginBottom: 16, lineHeight: 20 },
+  supportHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
+  supportDescription: { fontSize: 13, fontFamily: "Montserrat_400Regular", marginBottom: 16, lineHeight: 20 },
   feedbackAction: {
     borderWidth: 1,
     borderRadius: 12,
@@ -607,10 +582,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginBottom: 16,
   },
   feedbackActionText: { flex: 1, fontSize: 15, fontFamily: "Montserrat_600SemiBold" },
-  donateButtons: { flexDirection: "row", gap: 12 },
-  donateButton: { flex: 1, borderRadius: 12, padding: 14, alignItems: "center" },
-  donateButtonText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold", fontSize: 16 },
 });
