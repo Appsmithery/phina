@@ -307,6 +307,7 @@ Deno.serve(async (req: Request) => {
       const messages = expoTokens.map((to) => ({
         to,
         sound: "default" as const,
+        interruptionLevel: "time-sensitive" as const,
         title: "Rate this wine",
         body: wineLabel,
         data: { url: path },

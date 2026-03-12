@@ -29,6 +29,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supportsTablet: false,
     bundleIdentifier: "co.appsmithery.phina",
     associatedDomains: ["applinks:phina.appsmithery.co"],
+    entitlements: {
+      "com.apple.developer.usernotifications.time-sensitive": true,
+    },
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
       NSCameraUsageDescription:
