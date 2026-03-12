@@ -25,7 +25,8 @@ function formatDisplayDate(dateString: string): string {
   });
 }
 
-const APP_BASE_URL = process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co";
+const APP_BASE_URL =
+  process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co";
 
 export default function CreateEventScreen() {
   const { session } = useSupabase();
@@ -48,46 +49,53 @@ export default function CreateEventScreen() {
 
   useEffect(() => {
     if (!session?.user?.id || billingLoading || effectiveHostingAccess) return;
-    trackEvent("host_credit_paywall_viewed", { platform: Platform.OS, source: "event_create" });
+    trackEvent("host_credit_paywall_viewed", {
+      platform: Platform.OS,
+      source: "event_create",
+    });
   }, [billingLoading, effectiveHostingAccess, session?.user?.id]);
 
   const showSharePrompt = (eventId: string, date: string) => {
     const joinUrl = `${APP_BASE_URL}/join/${eventId}`;
     const shareMessage = `I'm using Phina for our wine tasting on ${formatDisplayDate(date)}! Set up your account before the event so you're ready to rate: ${joinUrl}`;
 
-    showAlert("Share in Partiful", "Post this in your Partiful event so guests can set up before the tasting.", [
-      {
-        text: "Copy Message",
-        onPress: async () => {
-          let copied = false;
+    showAlert(
+      "Share event link",
+      "Post this in your event page or ticketing site so guests can set up before the tasting.",
+      [
+        {
+          text: "Copy Message",
+          onPress: async () => {
+            let copied = false;
 
-          try {
-            await Clipboard.setStringAsync(shareMessage);
-            copied = true;
-          } catch (error) {
-            if (typeof navigator !== "undefined" && navigator.clipboard) {
-              await navigator.clipboard.writeText(shareMessage);
+            try {
+              await Clipboard.setStringAsync(shareMessage);
               copied = true;
-            } else {
-              console.warn("[create-event] clipboard copy failed:", error);
+            } catch (error) {
+              if (typeof navigator !== "undefined" && navigator.clipboard) {
+                await navigator.clipboard.writeText(shareMessage);
+                copied = true;
+              } else {
+                console.warn("[create-event] clipboard copy failed:", error);
+              }
             }
-          }
 
-          showAlert(
-            copied ? "Copied" : "Copy failed",
-            copied
-              ? "Message copied to clipboard. Paste it into your Partiful event."
-              : "We could not copy the message automatically. You can still share your join link from the event page."
-          );
-          router.replace(`/event/${eventId}`);
+            showAlert(
+              copied ? "Copied" : "Copy failed",
+              copied
+                ? "Message copied to clipboard. Paste it into your event page or ticketing site."
+                : "We could not copy the message automatically. You can still share your join link from the event page.",
+            );
+            router.replace(`/event/${eventId}`);
+          },
         },
-      },
-      {
-        text: "Skip",
-        style: "cancel",
-        onPress: () => router.replace(`/event/${eventId}`),
-      },
-    ]);
+        {
+          text: "Skip",
+          style: "cancel",
+          onPress: () => router.replace(`/event/${eventId}`),
+        },
+      ],
+    );
   };
 
   const create = async (values: EventFormValues) => {
@@ -101,29 +109,41 @@ export default function CreateEventScreen() {
         p_date: values.date,
         p_tasting_mode: values.tastingMode,
         p_description: values.description,
-        p_partiful_url: values.partifulUrl,
+        p_web_link: values.webLink,
       });
 
       if (error) throw error;
       if (!data) throw new Error("Event was not created. Please try again.");
 
-      void generateEventImage(data, values.title, values.theme, values.description);
+      void generateEventImage(
+        data,
+        values.title,
+        values.theme,
+        values.description,
+      );
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["events"] }),
-        queryClient.invalidateQueries({ queryKey: ["profile", "event_members"] }),
-        queryClient.invalidateQueries({ queryKey: ["billing", session.user.id] }),
+        queryClient.invalidateQueries({
+          queryKey: ["profile", "event_members"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["billing", session.user.id],
+        }),
       ]);
       trackEvent("event_created", {
         event_id: data,
-        has_partiful_url: !!values.partifulUrl,
+        has_web_link: !!values.webLink,
         platform: Platform.OS,
         source: "event_create",
       });
 
       showSharePrompt(data, values.date);
     } catch (error) {
-      showAlert("Error", error instanceof Error ? error.message : "Could not create event");
+      showAlert(
+        "Error",
+        error instanceof Error ? error.message : "Could not create event",
+      );
     } finally {
       setIsCreating(false);
     }
@@ -134,16 +154,25 @@ export default function CreateEventScreen() {
       await purchaseHostCredit();
       showAlert("Host credits updated", "You can now create your next event.");
     } catch (error) {
-      showAlert("Purchase failed", error instanceof Error ? error.message : "Could not start checkout.");
+      showAlert(
+        "Purchase failed",
+        error instanceof Error ? error.message : "Could not start checkout.",
+      );
     }
   };
 
   const handleRestorePurchases = async () => {
     try {
       await restorePurchases();
-      showAlert("Purchases restored", "Your Apple purchases have been refreshed.");
+      showAlert(
+        "Purchases restored",
+        "Your Apple purchases have been refreshed.",
+      );
     } catch (error) {
-      showAlert("Restore failed", error instanceof Error ? error.message : "Could not restore purchases.");
+      showAlert(
+        "Restore failed",
+        error instanceof Error ? error.message : "Could not restore purchases.",
+      );
     }
   };
 
@@ -151,7 +180,9 @@ export default function CreateEventScreen() {
     return (
       <View style={[styles.emptyState, { backgroundColor: theme.background }]}>
         <Stack.Screen options={{ title: "Host an Event" }} />
-        <Text style={[styles.emptyTitle, { color: theme.text }]}>Host an event</Text>
+        <Text style={[styles.emptyTitle, { color: theme.text }]}>
+          Host an event
+        </Text>
         <Text style={[styles.emptyBody, { color: theme.textSecondary }]}>
           Sign in to create a paid hosted event.
         </Text>
@@ -163,7 +194,9 @@ export default function CreateEventScreen() {
     return (
       <View style={[styles.emptyState, { backgroundColor: theme.background }]}>
         <Stack.Screen options={{ title: "Host an Event" }} />
-        <Text style={[styles.emptyTitle, { color: theme.text }]}>Checking host credits...</Text>
+        <Text style={[styles.emptyTitle, { color: theme.text }]}>
+          Checking host credits...
+        </Text>
       </View>
     );
   }
@@ -176,11 +209,16 @@ export default function CreateEventScreen() {
         : "Your credit is consumed only when the event is successfully created.";
 
     return (
-      <View style={[styles.paywallScreen, { backgroundColor: theme.background }]}>
+      <View
+        style={[styles.paywallScreen, { backgroundColor: theme.background }]}
+      >
         <Stack.Screen options={{ title: "Host an Event" }} />
-        <Text style={[styles.paywallTitle, { color: theme.text }]}>Host your next tasting</Text>
+        <Text style={[styles.paywallTitle, { color: theme.text }]}>
+          Host your next tasting
+        </Text>
         <Text style={[styles.paywallBody, { color: theme.textSecondary }]}>
-          Hosting costs one $10 event credit. Event participation stays free for guests.
+          Hosting costs one $10 event credit. Event participation stays free for
+          guests.
         </Text>
         <BillingCard
           icon="ticket-outline"
@@ -200,10 +238,15 @@ export default function CreateEventScreen() {
           onPrimaryPress={() => {
             void handlePurchaseHostCredit();
           }}
-          primaryDisabled={isPurchasingHostCredit || (isNativeBilling && !nativePurchasesAvailable)}
+          primaryDisabled={
+            isPurchasingHostCredit ||
+            (isNativeBilling && !nativePurchasesAvailable)
+          }
           secondaryLabel={
             isNativeBilling && nativePurchasesAvailable
-              ? (isRestoringPurchases ? "Restoring..." : "Restore")
+              ? isRestoringPurchases
+                ? "Restoring..."
+                : "Restore"
               : undefined
           }
           onSecondaryPress={
@@ -213,7 +256,11 @@ export default function CreateEventScreen() {
                 }
               : undefined
           }
-          secondaryDisabled={isNativeBilling && nativePurchasesAvailable ? isRestoringPurchases : undefined}
+          secondaryDisabled={
+            isNativeBilling && nativePurchasesAvailable
+              ? isRestoringPurchases
+              : undefined
+          }
         />
       </View>
     );
@@ -222,11 +269,18 @@ export default function CreateEventScreen() {
   return (
     <View style={[styles.formScreen, { backgroundColor: theme.background }]}>
       <Stack.Screen options={{ title: "Host an Event" }} />
-      <View style={[styles.creditBanner, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <Text style={[styles.creditBannerTitle, { color: theme.text }]}>Ready to host</Text>
+      <View
+        style={[
+          styles.creditBanner,
+          { backgroundColor: theme.surface, borderColor: theme.border },
+        ]}
+      >
+        <Text style={[styles.creditBannerTitle, { color: theme.text }]}>
+          Ready to host
+        </Text>
         <Text style={[styles.creditBannerBody, { color: theme.textSecondary }]}>
           {hasAdminBillingBypass
-            ? billingAccessLabel ?? "Admin override"
+            ? (billingAccessLabel ?? "Admin override")
             : `${hostCreditBalance} host credit${hostCreditBalance === 1 ? "" : "s"} available`}
         </Text>
       </View>
@@ -238,7 +292,7 @@ export default function CreateEventScreen() {
           title: "",
           theme: "",
           description: "",
-          partifulUrl: "",
+          webLink: "",
           date: new Date().toISOString().slice(0, 10),
           tastingMode: "single_blind",
         }}

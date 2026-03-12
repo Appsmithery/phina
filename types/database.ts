@@ -1,4 +1,10 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
 
 export interface Database {
   public: {
@@ -43,7 +49,12 @@ export interface Database {
           birthday: string | null;
           city: string | null;
           state: string | null;
-          wine_experience: "beginner" | "intermediate" | "advanced" | "professional" | null;
+          wine_experience:
+            | "beginner"
+            | "intermediate"
+            | "advanced"
+            | "professional"
+            | null;
           profile_complete: boolean;
           push_token: string | null;
           phone: string | null;
@@ -62,7 +73,12 @@ export interface Database {
           birthday?: string | null;
           city?: string | null;
           state?: string | null;
-          wine_experience?: "beginner" | "intermediate" | "advanced" | "professional" | null;
+          wine_experience?:
+            | "beginner"
+            | "intermediate"
+            | "advanced"
+            | "professional"
+            | null;
           profile_complete?: boolean;
           push_token?: string | null;
           phone?: string | null;
@@ -81,7 +97,12 @@ export interface Database {
           birthday?: string | null;
           city?: string | null;
           state?: string | null;
-          wine_experience?: "beginner" | "intermediate" | "advanced" | "professional" | null;
+          wine_experience?:
+            | "beginner"
+            | "intermediate"
+            | "advanced"
+            | "professional"
+            | null;
           profile_complete?: boolean;
           push_token?: string | null;
           phone?: string | null;
@@ -100,7 +121,7 @@ export interface Database {
           tasting_mode: "single_blind" | "double_blind";
           created_by: string;
           created_at: string;
-          partiful_url: string | null;
+          web_link: string | null;
           description: string | null;
           event_image_url: string | null;
           event_image_status: "none" | "pending" | "generated" | "failed";
@@ -114,7 +135,7 @@ export interface Database {
           tasting_mode?: "single_blind" | "double_blind";
           created_by: string;
           created_at?: string;
-          partiful_url?: string | null;
+          web_link?: string | null;
           description?: string | null;
           event_image_url?: string | null;
           event_image_status?: "none" | "pending" | "generated" | "failed";
@@ -128,7 +149,7 @@ export interface Database {
           tasting_mode?: "single_blind" | "double_blind";
           created_by?: string;
           created_at?: string;
-          partiful_url?: string | null;
+          web_link?: string | null;
           description?: string | null;
           event_image_url?: string | null;
           event_image_status?: "none" | "pending" | "generated" | "failed";
@@ -188,7 +209,13 @@ export interface Database {
           drink_until: number | null;
           display_photo_url: string | null;
           image_confidence_score: number | null;
-          image_generation_status: "pending" | "generated" | "fallback_cleaned" | "fallback_raw" | "failed" | null;
+          image_generation_status:
+            | "pending"
+            | "generated"
+            | "fallback_cleaned"
+            | "fallback_raw"
+            | "failed"
+            | null;
           image_generation_metadata: Record<string, unknown> | null;
           created_at: string;
         };
@@ -226,7 +253,13 @@ export interface Database {
           drink_until?: number | null;
           display_photo_url?: string | null;
           image_confidence_score?: number | null;
-          image_generation_status?: "pending" | "generated" | "fallback_cleaned" | "fallback_raw" | "failed" | null;
+          image_generation_status?:
+            | "pending"
+            | "generated"
+            | "fallback_cleaned"
+            | "fallback_raw"
+            | "failed"
+            | null;
           image_generation_metadata?: Record<string, unknown> | null;
           created_at?: string;
         };
@@ -264,7 +297,13 @@ export interface Database {
           drink_until?: number | null;
           display_photo_url?: string | null;
           image_confidence_score?: number | null;
-          image_generation_status?: "pending" | "generated" | "fallback_cleaned" | "fallback_raw" | "failed" | null;
+          image_generation_status?:
+            | "pending"
+            | "generated"
+            | "fallback_cleaned"
+            | "fallback_raw"
+            | "failed"
+            | null;
           image_generation_metadata?: Record<string, unknown> | null;
           created_at?: string;
         };
@@ -305,7 +344,12 @@ export interface Database {
           id: string;
           member_id: string;
           delta: number;
-          source: "apple" | "stripe" | "admin" | "event_creation" | "adjustment";
+          source:
+            | "apple"
+            | "stripe"
+            | "admin"
+            | "event_creation"
+            | "adjustment";
           purchase_ref: string | null;
           event_id: string | null;
           metadata: Record<string, Json | undefined>;
@@ -315,7 +359,12 @@ export interface Database {
           id?: string;
           member_id: string;
           delta: number;
-          source: "apple" | "stripe" | "admin" | "event_creation" | "adjustment";
+          source:
+            | "apple"
+            | "stripe"
+            | "admin"
+            | "event_creation"
+            | "adjustment";
           purchase_ref?: string | null;
           event_id?: string | null;
           metadata?: Record<string, Json | undefined>;
@@ -325,7 +374,12 @@ export interface Database {
           id?: string;
           member_id?: string;
           delta?: number;
-          source?: "apple" | "stripe" | "admin" | "event_creation" | "adjustment";
+          source?:
+            | "apple"
+            | "stripe"
+            | "admin"
+            | "event_creation"
+            | "adjustment";
           purchase_ref?: string | null;
           event_id?: string | null;
           metadata?: Record<string, Json | undefined>;
@@ -408,7 +462,7 @@ export interface Database {
             isOneToOne: false;
             referencedRelation: "members";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       image_generation_errors: {
@@ -531,7 +585,13 @@ export interface Database {
           drink_until: number | null;
           display_photo_url: string | null;
           image_confidence_score: number | null;
-          image_generation_status: "pending" | "generated" | "fallback_cleaned" | "fallback_raw" | "failed" | null;
+          image_generation_status:
+            | "pending"
+            | "generated"
+            | "fallback_cleaned"
+            | "fallback_raw"
+            | "failed"
+            | null;
           image_generation_metadata: Record<string, unknown> | null;
           created_at: string;
           price_range: string | null;
@@ -548,7 +608,7 @@ export interface Database {
           p_date: string;
           p_tasting_mode?: string;
           p_description?: string | null;
-          p_partiful_url?: string | null;
+          p_web_link?: string | null;
         };
         Returns: string;
       };
@@ -563,14 +623,23 @@ export interface Database {
       };
       get_event_wine_ratings: {
         Args: { p_event_id: string };
-        Returns: { wine_id: string; thumbs_up: number; meh: number; thumbs_down: number }[];
+        Returns: {
+          wine_id: string;
+          thumbs_up: number;
+          meh: number;
+          thumbs_down: number;
+        }[];
       };
       get_event_wine_tag_summary: {
         Args: { p_event_id: string };
         Returns: { wine_id: string; tag: string; tag_count: number }[];
       };
       grant_host_credits: {
-        Args: { p_member_id: string; p_quantity: number; p_reason?: string | null };
+        Args: {
+          p_member_id: string;
+          p_quantity: number;
+          p_reason?: string | null;
+        };
         Returns: void;
       };
     };
@@ -579,14 +648,20 @@ export interface Database {
 }
 
 export type Member = Database["public"]["Tables"]["members"]["Row"];
-export type BillingCustomer = Database["public"]["Tables"]["billing_customers"]["Row"];
-export type MemberEntitlement = Database["public"]["Tables"]["member_entitlements"]["Row"];
-export type HostCreditLedgerEntry = Database["public"]["Tables"]["host_credit_ledger"]["Row"];
+export type BillingCustomer =
+  Database["public"]["Tables"]["billing_customers"]["Row"];
+export type MemberEntitlement =
+  Database["public"]["Tables"]["member_entitlements"]["Row"];
+export type HostCreditLedgerEntry =
+  Database["public"]["Tables"]["host_credit_ledger"]["Row"];
 export type Event = Database["public"]["Tables"]["events"]["Row"];
 export type EventMember = Database["public"]["Tables"]["event_members"]["Row"];
 export type Wine = Database["public"]["Tables"]["wines"]["Row"];
 export type Rating = Database["public"]["Tables"]["ratings"]["Row"];
-export type EventFavorite = Database["public"]["Tables"]["event_favorites"]["Row"];
+export type EventFavorite =
+  Database["public"]["Tables"]["event_favorites"]["Row"];
 export type RatingRound = Database["public"]["Tables"]["rating_rounds"]["Row"];
-export type WineRatingSummary = Database["public"]["Views"]["wine_rating_summary"]["Row"];
-export type WineWithPricePrivacy = Database["public"]["Views"]["wines_with_price_privacy"]["Row"];
+export type WineRatingSummary =
+  Database["public"]["Views"]["wine_rating_summary"]["Row"];
+export type WineWithPricePrivacy =
+  Database["public"]["Views"]["wines_with_price_privacy"]["Row"];

@@ -29,12 +29,21 @@ export default function EditEventScreen() {
   const { data, isLoading } = useQuery({
     queryKey: ["event-edit", id],
     queryFn: async () => {
-      const [{ data: event, error: eventError }, { count: winesCount, error: winesError }, { count: roundsCount, error: roundsError }] =
-        await Promise.all([
-          supabase.from("events").select("*").eq("id", id!).single(),
-          supabase.from("wines").select("*", { count: "exact", head: true }).eq("event_id", id!),
-          supabase.from("rating_rounds").select("*", { count: "exact", head: true }).eq("event_id", id!),
-        ]);
+      const [
+        { data: event, error: eventError },
+        { count: winesCount, error: winesError },
+        { count: roundsCount, error: roundsError },
+      ] = await Promise.all([
+        supabase.from("events").select("*").eq("id", id!).single(),
+        supabase
+          .from("wines")
+          .select("*", { count: "exact", head: true })
+          .eq("event_id", id!),
+        supabase
+          .from("rating_rounds")
+          .select("*", { count: "exact", head: true })
+          .eq("event_id", id!),
+      ]);
 
       if (eventError) throw eventError;
       if (winesError) throw winesError;
@@ -67,16 +76,29 @@ export default function EditEventScreen() {
 
     setIsSaving(true);
     try {
-      const updates: Partial<Pick<Event, "title" | "theme" | "description" | "partiful_url" | "date" | "tasting_mode">> = {
+      const updates: Partial<
+        Pick<
+          Event,
+          | "title"
+          | "theme"
+          | "description"
+          | "web_link"
+          | "date"
+          | "tasting_mode"
+        >
+      > = {
         title: values.title,
         theme: values.theme,
         description: values.description,
-        partiful_url: values.partifulUrl,
+        web_link: values.webLink,
         date: values.date,
         tasting_mode: values.tastingMode,
       };
 
-      const { error } = await supabase.from("events").update(updates).eq("id", id);
+      const { error } = await supabase
+        .from("events")
+        .update(updates)
+        .eq("id", id);
       if (error) throw error;
 
       await Promise.all([
@@ -87,7 +109,10 @@ export default function EditEventScreen() {
 
       router.replace(`/event/${id}`);
     } catch (error) {
-      showAlert("Error", error instanceof Error ? error.message : "Could not update event");
+      showAlert(
+        "Error",
+        error instanceof Error ? error.message : "Could not update event",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -97,7 +122,9 @@ export default function EditEventScreen() {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <Stack.Screen options={{ title: "Edit Event" }} />
-        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading...</Text>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>
+          Loading...
+        </Text>
       </View>
     );
   }
@@ -106,7 +133,9 @@ export default function EditEventScreen() {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <Stack.Screen options={{ title: "Edit Event" }} />
-        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading...</Text>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>
+          Loading...
+        </Text>
       </View>
     );
   }
@@ -115,7 +144,9 @@ export default function EditEventScreen() {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <Stack.Screen options={{ title: "Edit Event" }} />
-        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Sign in to edit this event.</Text>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>
+          Sign in to edit this event.
+        </Text>
       </View>
     );
   }
@@ -124,7 +155,9 @@ export default function EditEventScreen() {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <Stack.Screen options={{ title: "Edit Event" }} />
-        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading...</Text>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>
+          Loading...
+        </Text>
       </View>
     );
   }
@@ -133,7 +166,9 @@ export default function EditEventScreen() {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <Stack.Screen options={{ title: "Edit Event" }} />
-        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Redirecting...</Text>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>
+          Redirecting...
+        </Text>
       </View>
     );
   }
@@ -152,7 +187,7 @@ export default function EditEventScreen() {
           title: data.event.title,
           theme: data.event.theme,
           description: data.event.description ?? "",
-          partifulUrl: data.event.partiful_url ?? "",
+          webLink: data.event.web_link ?? "",
           date: data.event.date,
           tastingMode: data.event.tasting_mode,
         }}
@@ -166,5 +201,9 @@ export default function EditEventScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  placeholder: { padding: 24, textAlign: "center", fontFamily: "Montserrat_400Regular" },
+  placeholder: {
+    padding: 24,
+    textAlign: "center",
+    fontFamily: "Montserrat_400Regular",
+  },
 });
