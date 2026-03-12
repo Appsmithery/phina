@@ -485,13 +485,26 @@ export default function ProfileScreen() {
 
         {renderTopSection()}
 
-        {Platform.OS !== "ios" && (
-          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <View style={styles.donateHeader}>
-              <Ionicons name="heart-outline" size={20} color={theme.primary} />
-              <Text style={[styles.cardTitle, { color: theme.text }]}>Support Phina</Text>
-            </View>
-            <Text style={[styles.donateDescription, { color: theme.textSecondary }]}>Help us keep the cellar growing.</Text>
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={styles.donateHeader}>
+            <Ionicons name="heart-outline" size={20} color={theme.primary} />
+            <Text style={[styles.cardTitle, { color: theme.text }]}>Support Phina</Text>
+          </View>
+          <Text style={[styles.donateDescription, { color: theme.textSecondary }]}>Help us keep the cellar growing.</Text>
+          <TouchableOpacity
+            style={[styles.feedbackAction, { borderColor: theme.border, backgroundColor: theme.background }]}
+            onPress={() =>
+              router.push({
+                pathname: "/feedback",
+                params: { source: "profile", screen: "/(tabs)/profile" },
+              })
+            }
+          >
+            <Ionicons name="chatbubble-ellipses-outline" size={18} color={theme.primary} />
+            <Text style={[styles.feedbackActionText, { color: theme.text }]}>Share feedback</Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+          </TouchableOpacity>
+          {Platform.OS !== "ios" ? (
             <View style={styles.donateButtons}>
               {[100, 500, 1000].map((cents) => (
                 <TouchableOpacity
@@ -503,8 +516,8 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-          </View>
-        )}
+          ) : null}
+        </View>
       </ScrollView>
     </View>
   );
@@ -587,6 +600,16 @@ const styles = StyleSheet.create({
   tagChipText: { fontSize: 12, fontFamily: "Montserrat_600SemiBold" },
   donateHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
   donateDescription: { fontSize: 13, fontFamily: "Montserrat_400Regular", marginBottom: 16, lineHeight: 20 },
+  feedbackAction: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 16,
+  },
+  feedbackActionText: { flex: 1, fontSize: 15, fontFamily: "Montserrat_600SemiBold" },
   donateButtons: { flexDirection: "row", gap: 12 },
   donateButton: { flex: 1, borderRadius: 12, padding: 14, alignItems: "center" },
   donateButtonText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold", fontSize: 16 },

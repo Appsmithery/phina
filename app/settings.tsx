@@ -450,6 +450,26 @@ export default function SettingsScreen() {
           )}
         </View>
 
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.cardTitle, { color: theme.text }]}>Support</Text>
+          <Text style={[styles.supportBody, { color: theme.textSecondary }]}>
+            Send structured feedback without leaving the app. Email remains available if you prefer it.
+          </Text>
+          <TouchableOpacity
+            style={[styles.supportAction, { borderColor: theme.border, backgroundColor: theme.background }]}
+            onPress={() =>
+              router.push({
+                pathname: "/feedback",
+                params: { source: "settings", screen: "/settings" },
+              })
+            }
+          >
+            <Ionicons name="chatbubble-ellipses-outline" size={18} color={theme.primary} />
+            <Text style={[styles.supportActionText, { color: theme.text }]}>Send feedback</Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity style={[styles.signOut, { borderColor: theme.border }]} onPress={signOut}>
           <Text style={[styles.signOutText, { color: theme.textSecondary }]}>Sign out</Text>
         </TouchableOpacity>
@@ -497,4 +517,14 @@ const styles = StyleSheet.create({
   profilePillRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
   profilePill: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
   profilePillText: { fontSize: 13, fontFamily: "Montserrat_600SemiBold" },
+  supportBody: { fontSize: 14, lineHeight: 21, fontFamily: "Montserrat_400Regular", marginTop: 8, marginBottom: 14 },
+  supportAction: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  supportActionText: { flex: 1, fontSize: 15, fontFamily: "Montserrat_600SemiBold" },
 });

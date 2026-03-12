@@ -540,6 +540,68 @@ export interface Database {
         };
         Relationships: [];
       };
+      user_feedback: {
+        Row: {
+          id: string;
+          member_id: string;
+          category:
+            | "bug"
+            | "feature_request"
+            | "confusing"
+            | "general_feedback"
+            | "praise";
+          message: string;
+          sentiment: "negative" | "neutral" | "positive" | null;
+          source: string;
+          screen: string;
+          context_json: Json | null;
+          wants_follow_up: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          member_id: string;
+          category:
+            | "bug"
+            | "feature_request"
+            | "confusing"
+            | "general_feedback"
+            | "praise";
+          message: string;
+          sentiment?: "negative" | "neutral" | "positive" | null;
+          source: string;
+          screen: string;
+          context_json?: Json | null;
+          wants_follow_up?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          member_id?: string;
+          category?:
+            | "bug"
+            | "feature_request"
+            | "confusing"
+            | "general_feedback"
+            | "praise";
+          message?: string;
+          sentiment?: "negative" | "neutral" | "positive" | null;
+          source?: string;
+          screen?: string;
+          context_json?: Json | null;
+          wants_follow_up?: boolean;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_feedback_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "members";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       wine_rating_summary: {
@@ -661,6 +723,7 @@ export type Rating = Database["public"]["Tables"]["ratings"]["Row"];
 export type EventFavorite =
   Database["public"]["Tables"]["event_favorites"]["Row"];
 export type RatingRound = Database["public"]["Tables"]["rating_rounds"]["Row"];
+export type UserFeedback = Database["public"]["Tables"]["user_feedback"]["Row"];
 export type WineRatingSummary =
   Database["public"]["Views"]["wine_rating_summary"]["Row"];
 export type WineWithPricePrivacy =
