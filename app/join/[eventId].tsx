@@ -1,6 +1,6 @@
 import { useLocalSearchParams, router } from "expo-router";
 import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, ActivityIndicator, Platform } from "react-native";
 import { useSupabase } from "@/lib/supabase-context";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
@@ -36,7 +36,7 @@ export default function JoinEventScreen() {
         queryClient.invalidateQueries({ queryKey: ["event", eventId] });
         queryClient.invalidateQueries({ queryKey: ["profile", "event_members"] });
         setDone(true);
-        trackEvent("event_joined", { event_id: eventId });
+        trackEvent("event_joined", { event_id: eventId, platform: Platform.OS, source: "join_link" });
         router.replace(`/event/${eventId}`);
       } catch (e: unknown) {
         showAlert("Error", e instanceof Error ? e.message : "Could not join event. Please try again.");

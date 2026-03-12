@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput } from "react-native";
+import { useState, useEffect, useRef } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Platform } from "react-native";
 import { Stack, useLocalSearchParams, router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -106,6 +106,7 @@ export default function RateWineScreen() {
   const [selectedTags, setSelectedTags] = useState<RatingTag[]>([]);
   const [note, setNote] = useState("");
   const queryClient = useQueryClient();
+  const trackedRatingFlowRef = useRef<string | null>(null);
 
   const userId = session?.user?.id ?? member?.id;
   const isAuthenticated = sessionLoaded && !!session;
@@ -194,6 +195,21 @@ export default function RateWineScreen() {
   });
 
   useEffect(() => {
+    if (!eventId || !wineId || !isAuthenticated) return;
+
+    const flowKey = `${eventId}:${wineId}`;
+    if (trackedRatingFlowRef.current === flowKey) return;
+    trackedRatingFlowRef.current = flowKey;
+
+    trackEvent("rating_flow_started", {
+      platform: Platform.OS,
+      event_id: eventId,
+      wine_id: wineId,
+      source: "rating_screen",
+    });
+  }, [eventId, isAuthenticated, wineId]);
+
+  useEffect(() => {
     if (existingRating) {
       if (existingRating.value != null) setVote(existingRating.value as Vote);
       if (existingRating.body) setBody(existingRating.body as BodyOption);
@@ -268,7 +284,13 @@ export default function RateWineScreen() {
       queryClient.invalidateQueries({ queryKey: ["ratingRound", eventId, wineId] });
       queryClient.invalidateQueries({ queryKey: ["rating", wineId, userId] });
       queryClient.invalidateQueries({ queryKey: ["profile", "ratings"] });
-      trackEvent("wine_rated", { event_id: eventId, wine_id: wineId, value: vote });
+      trackEvent("wine_rated", {
+        event_id: eventId,
+        wine_id: wineId,
+        value: vote,
+        platform: Platform.OS,
+        source: "rating_screen",
+      });
       showAlert("Vote recorded!", "Thanks for rating.", [{ text: "OK", onPress: () => router.back() }]);
     } catch (e: unknown) {
       const message =

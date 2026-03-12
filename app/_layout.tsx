@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Platform, Linking, TouchableOpacity } from "react-native";
-import { Stack, router } from "expo-router";
-import { initObservability, captureError, Sentry } from "@/lib/observability";
+import { Stack, router, useGlobalSearchParams, usePathname } from "expo-router";
+import { PostHogProvider } from "posthog-react-native";
+import { initObservability, captureError, getPostHogClient, isPostHogDebugEnabled, Sentry, trackScreen } from "@/lib/observability";
 import * as SplashScreen from "expo-splash-screen";
 import * as Notifications from "expo-notifications";
 import { useFonts } from "expo-font";
@@ -78,8 +79,53 @@ const errorStyles = StyleSheet.create({
   errorId: { marginTop: 12, fontSize: 11, color: "#aaa" },
 });
 
+function normalizeScreenPath(pathname: string, params: Record<string, string | string[] | undefined>) {
+  const valuesToKeys = new Map<string, string>();
+
+  Object.entries(params).forEach(([key, rawValue]) => {
+    const values = Array.isArray(rawValue) ? rawValue : [rawValue];
+    values.forEach((value) => {
+      if (typeof value === "string" && value.length > 0 && !valuesToKeys.has(value)) {
+        valuesToKeys.set(value, key);
+      }
+    });
+  });
+
+  const normalizedSegments = pathname
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => {
+      const key = valuesToKeys.get(segment);
+      return key ? `[${key}]` : segment;
+    });
+
+  return normalizedSegments.length > 0 ? `/${normalizedSegments.join("/")}` : "/";
+}
+
+function useRouteScreenTracking() {
+  const pathname = usePathname();
+  const params = useGlobalSearchParams();
+  const [lastTrackedScreen, setLastTrackedScreen] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pathname) return;
+
+    const normalizedPath = normalizeScreenPath(pathname, params);
+    if (lastTrackedScreen === normalizedPath) return;
+
+    setLastTrackedScreen(normalizedPath);
+    trackScreen(normalizedPath === "/" ? "index" : normalizedPath.slice(1), {
+      platform: Platform.OS,
+      route: normalizedPath,
+      source: "expo_router",
+    });
+  }, [lastTrackedScreen, params, pathname]);
+}
+
 function RootLayout() {
-  return (
+  const posthogClient = getPostHogClient();
+
+  const content = (
     <QueryClientProvider client={queryClient}>
       <ErrorBoundary>
         <SupabaseProvider>
@@ -87,6 +133,20 @@ function RootLayout() {
         </SupabaseProvider>
       </ErrorBoundary>
     </QueryClientProvider>
+  );
+
+  if (!posthogClient) {
+    return content;
+  }
+
+  return (
+    <PostHogProvider
+      client={posthogClient}
+      autocapture={{ captureScreens: false, captureTouches: true }}
+      debug={isPostHogDebugEnabled()}
+    >
+      {content}
+    </PostHogProvider>
   );
 }
 
@@ -101,6 +161,8 @@ function SupabaseLayout() {
     Montserrat_400Regular,
     Montserrat_600SemiBold,
   });
+
+  useRouteScreenTracking();
 
   // Deep link: when user taps a push notification, open the URL in data.url (e.g. /event/:id/rate/:wineId)
   useEffect(() => {

@@ -58,6 +58,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
     posthogKey: process.env.EXPO_PUBLIC_POSTHOG_KEY,
     posthogHost: process.env.EXPO_PUBLIC_POSTHOG_HOST,
+    posthogDebug: process.env.EXPO_PUBLIC_POSTHOG_DEBUG === "true",
     eas: {
       projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID ?? "c778f4f2-6c6b-4e80-a6df-f86be328a7c8",
     },

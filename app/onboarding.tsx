@@ -19,6 +19,7 @@ import { US_STATES, getStateLabel } from "@/lib/us-states";
 import { stripPhone, isValidPhone } from "@/lib/validation";
 import { BirthdayPickerField } from "@/components/BirthdayPickerField";
 import { formatBirthdayForStorage, getAge } from "@/lib/birthday";
+import { trackEvent } from "@/lib/observability";
 
 const EXPERIENCE_LEVELS = ["beginner", "intermediate", "advanced", "professional"] as const;
 
@@ -92,6 +93,14 @@ export default function OnboardingScreen() {
       if (error) throw error;
 
       await refreshMember();
+      trackEvent("onboarding_completed", {
+        platform: Platform.OS,
+        has_phone: phoneDigits.length > 0,
+        has_city: city.trim().length > 0,
+        has_state: stateCode != null,
+        wine_experience_set: wineExperience != null,
+        source: "onboarding",
+      });
 
       // Check for pending event join
       const pendingId = await getPendingJoinEventId();

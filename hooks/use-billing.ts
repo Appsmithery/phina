@@ -17,6 +17,17 @@ import {
 import { trackEvent } from "@/lib/observability";
 import { useSupabase } from "@/lib/supabase-context";
 
+function getBillingSource() {
+  return Platform.OS === "ios" ? "native_ios" : "stripe";
+}
+
+function getBillingErrorCode(error: unknown) {
+  if (error && typeof error === "object" && "code" in error) {
+    return String((error as { code: unknown }).code);
+  }
+  return error instanceof Error ? error.name : "unknown_error";
+}
+
 export function useBilling() {
   const { member, session } = useSupabase();
   const queryClient = useQueryClient();
@@ -42,7 +53,7 @@ export function useBilling() {
     mutationFn: async () => {
       if (!member?.id) throw new Error("Sign in to subscribe.");
 
-      trackEvent("premium_purchase_started", { platform: Platform.OS });
+      trackEvent("premium_purchase_started", { platform: Platform.OS, source: getBillingSource() });
       await purchasePremium(member.id, session?.user?.email ?? member.email ?? null);
 
       if (Platform.OS === "ios") {
@@ -53,7 +64,17 @@ export function useBilling() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["billing", member?.id] });
-      trackEvent("premium_purchase_completed", { platform: Platform.OS });
+      if (Platform.OS === "ios") {
+        trackEvent("premium_purchase_completed", { platform: Platform.OS, source: getBillingSource(), success: true });
+      }
+    },
+    onError: (error) => {
+      trackEvent("premium_purchase_failed", {
+        platform: Platform.OS,
+        source: getBillingSource(),
+        success: false,
+        error_code: getBillingErrorCode(error),
+      });
     },
   });
 
@@ -62,7 +83,7 @@ export function useBilling() {
       if (!member?.id) throw new Error("Sign in to buy host credits.");
 
       const startingBalance = billingQuery.data?.host_credit_balance ?? 0;
-      trackEvent("host_credit_purchase_started", { platform: Platform.OS });
+      trackEvent("host_credit_purchase_started", { platform: Platform.OS, source: getBillingSource() });
       await purchaseHostCredit(member.id, session?.user?.email ?? member.email ?? null);
 
       if (Platform.OS === "ios") {
@@ -73,7 +94,17 @@ export function useBilling() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["billing", member?.id] });
-      trackEvent("host_credit_purchase_completed", { platform: Platform.OS });
+      if (Platform.OS === "ios") {
+        trackEvent("host_credit_purchase_completed", { platform: Platform.OS, source: getBillingSource(), success: true });
+      }
+    },
+    onError: (error) => {
+      trackEvent("host_credit_purchase_failed", {
+        platform: Platform.OS,
+        source: getBillingSource(),
+        success: false,
+        error_code: getBillingErrorCode(error),
+      });
     },
   });
 
@@ -81,12 +112,21 @@ export function useBilling() {
     mutationFn: async () => {
       if (!member?.id) throw new Error("Sign in to restore purchases.");
 
+      trackEvent("billing_restore_started", { platform: Platform.OS, source: "native_ios" });
       await restoreNativePurchases(member.id, session?.user?.email ?? member.email ?? null);
       return pollBillingStatus((status) => status.host_credit_balance >= 0, 8, 1000);
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["billing", member?.id] });
-      trackEvent("billing_restore_completed", { platform: Platform.OS });
+      trackEvent("billing_restore_completed", { platform: Platform.OS, source: "native_ios", success: true });
+    },
+    onError: (error) => {
+      trackEvent("billing_restore_failed", {
+        platform: Platform.OS,
+        source: "native_ios",
+        success: false,
+        error_code: getBillingErrorCode(error),
+      });
     },
   });
 

@@ -89,6 +89,7 @@ type ExtractionResult = {
 };
 
 type ScanMode = "prefill" | "apply_existing_wine";
+type ScanSource = "camera" | "file_upload";
 
 type NormalizedExtraction = {
   producer: string | null;
@@ -182,9 +183,9 @@ export default function SharedScanLabelScreen() {
   const wineId = typeof params.wineId === "string" ? params.wineId : undefined;
 
   const handleExtractedLabel = useCallback(
-    async (imagePayload: string) => {
+    async (imagePayload: string, source: ScanSource) => {
       const extracted = await extractLabel(imagePayload);
-      trackEvent("label_scanned", { platform: Platform.OS, scan_mode: scanMode });
+      trackEvent("label_scanned", { platform: Platform.OS, scan_mode: scanMode, source, success: true });
 
       if (scanMode === "prefill") {
         setLastLabelExtraction(extracted);
@@ -268,6 +269,7 @@ export default function SharedScanLabelScreen() {
         loadingText={loadingText}
         setLoadingText={setLoadingText}
         onExtractLabel={handleExtractedLabel}
+        scanMode={scanMode}
       />
     );
   }
@@ -282,6 +284,7 @@ export default function SharedScanLabelScreen() {
       loadingText={loadingText}
       setLoadingText={setLoadingText}
       onExtractLabel={handleExtractedLabel}
+      scanMode={scanMode}
     />
   );
 }
@@ -293,13 +296,15 @@ function WebScanLabel({
   loadingText,
   setLoadingText,
   onExtractLabel,
+  scanMode,
 }: {
   theme: ReturnType<typeof useTheme>;
   extracting: boolean;
   setExtracting: (v: boolean) => void;
   loadingText: string;
   setLoadingText: (v: string) => void;
-  onExtractLabel: (imagePayload: string) => Promise<void>;
+  onExtractLabel: (imagePayload: string, source: ScanSource) => Promise<void>;
+  scanMode: ScanMode;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -311,10 +316,15 @@ function WebScanLabel({
       setLoadingText("Analyzing label...");
       try {
         const dataUrl = await fileToBase64(file);
-        await onExtractLabel(dataUrl);
+        await onExtractLabel(dataUrl, "file_upload");
       } catch (err) {
         captureError(err);
-        trackEvent("label_scan_error");
+        trackEvent("label_scan_error", {
+          platform: Platform.OS,
+          scan_mode: scanMode,
+          source: "file_upload",
+          success: false,
+        });
         const message = err instanceof Error ? err.message : "Label extraction failed.";
         showAlert("Error", message);
       } finally {
@@ -322,7 +332,7 @@ function WebScanLabel({
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
     },
-    [onExtractLabel, setExtracting, setLoadingText]
+    [onExtractLabel, scanMode, setExtracting, setLoadingText]
   );
 
   if (extracting) {
@@ -371,6 +381,7 @@ function NativeScanLabel({
   loadingText,
   setLoadingText,
   onExtractLabel,
+  scanMode,
 }: {
   theme: ReturnType<typeof useTheme>;
   extracting: boolean;
@@ -379,7 +390,8 @@ function NativeScanLabel({
   setPhotoCaptured: (v: boolean) => void;
   loadingText: string;
   setLoadingText: (v: string) => void;
-  onExtractLabel: (imagePayload: string) => Promise<void>;
+  onExtractLabel: (imagePayload: string, source: ScanSource) => Promise<void>;
+  scanMode: ScanMode;
 }) {
   const [permission, requestPermission] = useCameraPermissions!();
   const [cameraReady, setCameraReady] = useState(false);
@@ -412,10 +424,15 @@ function NativeScanLabel({
       setPhotoCaptured(true);
 
       const imagePayload = `data:image/jpeg;base64,${photo.base64}`;
-      await onExtractLabel(imagePayload);
+      await onExtractLabel(imagePayload, "camera");
     } catch (e) {
       captureError(e);
-      trackEvent("label_scan_error");
+      trackEvent("label_scan_error", {
+        platform: Platform.OS,
+        scan_mode: scanMode,
+        source: "camera",
+        success: false,
+      });
       const message = e instanceof Error ? e.message : "Label extraction failed.";
       setPhotoCaptured(false);
       showAlert("Error", message);

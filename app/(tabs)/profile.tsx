@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform, Share, Image } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -35,12 +35,16 @@ const EXPERIENCE_LABELS: Record<string, string> = {
 };
 
 export default function ProfileScreen() {
+  const params = (typeof useLocalSearchParams === "function"
+    ? useLocalSearchParams<{ billing?: string; kind?: string }>()
+    : {}) as { billing?: string; kind?: string };
   const { member, session, refreshMember } = useSupabase();
   const theme = useTheme();
   const queryClient = useQueryClient();
   const tabBarHeight = useOptionalBottomTabBarHeight();
   const webFileInputRef = useRef<HTMLInputElement | null>(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const handledBillingOutcomeRef = useRef<string | null>(null);
 
   const { data: ownRatings = [], isLoading: ownRatingsLoading } = useQuery({
     queryKey: ["profile", "ratings", member?.id],
@@ -87,6 +91,38 @@ export default function ProfileScreen() {
   useFocusEffect(useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["profile"] });
   }, [queryClient]));
+
+  useEffect(() => {
+    const billingState = typeof params.billing === "string" ? params.billing : null;
+    const billingKind = params.kind === "premium" || params.kind === "host_credit" ? params.kind : null;
+    if (!billingState || !billingKind) return;
+
+    const outcomeKey = `${billingKind}:${billingState}`;
+    if (handledBillingOutcomeRef.current === outcomeKey) return;
+    handledBillingOutcomeRef.current = outcomeKey;
+
+    void queryClient.invalidateQueries({ queryKey: ["billing", member?.id] });
+
+    if (billingState === "success") {
+      trackEvent(
+        billingKind === "premium" ? "premium_purchase_completed" : "host_credit_purchase_completed",
+        { platform: Platform.OS, source: "stripe", success: true }
+      );
+      showAlert(
+        billingKind === "premium" ? "Membership updated" : "Host credits updated",
+        billingKind === "premium"
+          ? "Your premium cellar access is now active."
+          : "Your host credit balance has been refreshed."
+      );
+    } else if (billingState === "cancel") {
+      trackEvent(
+        billingKind === "premium" ? "premium_purchase_cancelled" : "host_credit_purchase_cancelled",
+        { platform: Platform.OS, source: "stripe", success: false }
+      );
+    }
+
+    router.replace("/(tabs)/profile");
+  }, [member?.id, params.billing, params.kind, queryClient]);
 
   const stats = useMemo(() => {
     const weights: Record<number, number> = { 1: 3, 0: 1, [-1]: 0 };
@@ -136,11 +172,11 @@ export default function ProfileScreen() {
   const shouldShowProfileEmptyState = member?.id != null && !isTopSectionLoading && stats.totalRatings === 0;
 
   useEffect(() => {
-    if (shouldShowProfileEmptyState) trackEvent("profile_empty_state_viewed");
+    if (shouldShowProfileEmptyState) trackEvent("profile_empty_state_viewed", { platform: Platform.OS, source: "profile_tab" });
   }, [shouldShowProfileEmptyState]);
 
   const handleProfileEmptyStatePress = () => {
-    trackEvent("profile_empty_state_cta_tapped");
+    trackEvent("profile_empty_state_cta_tapped", { platform: Platform.OS, source: "profile_tab" });
     router.push("/(tabs)");
   };
 

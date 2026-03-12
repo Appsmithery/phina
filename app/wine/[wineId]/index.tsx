@@ -1,12 +1,14 @@
 import { Stack, useLocalSearchParams, router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from "react-native";
+import { useEffect, useRef } from "react";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { WineHeroImage } from "@/components/WineHeroImage";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
+import { trackEvent } from "@/lib/observability";
 import type { WineWithPricePrivacy } from "@/types/database";
 import type { Rating } from "@/types/database";
 
@@ -17,6 +19,7 @@ export default function PersonalWineDetailScreen() {
   const theme = useTheme();
   const { session, member } = useSupabase();
   const userId = session?.user?.id ?? member?.id;
+  const viewedWineIdRef = useRef<string | null>(null);
 
   const { data: wine, isLoading } = useQuery({
     queryKey: ["wine", wineId],
@@ -49,6 +52,17 @@ export default function PersonalWineDetailScreen() {
 
   const queryClient = useQueryClient();
   const isOwner = wine && member?.id === wine.brought_by;
+
+  useEffect(() => {
+    if (!wine?.id || viewedWineIdRef.current === wine.id) return;
+    viewedWineIdRef.current = wine.id;
+    trackEvent("wine_detail_viewed", {
+      platform: Platform.OS,
+      wine_id: wine.id,
+      event_id: wine.event_id ?? null,
+      source: wine.event_id ? "event_wine_detail" : "cellar_wine_detail",
+    });
+  }, [wine?.event_id, wine?.id]);
 
   const handleBackPress = () => {
     if (router.canGoBack()) {

@@ -78,7 +78,7 @@ export default function SignInScreen() {
         }
         // Update context; the useEffect will handle navigation when session state changes
         setSessionFromAuth(data.session);
-        trackEvent("user_signed_in", { method: "password" });
+        trackEvent("user_signed_in", { method: "password", platform: Platform.OS, source: "sign_in_screen" });
       }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
@@ -135,7 +135,7 @@ export default function SignInScreen() {
       if (session) {
         // Update context; the useEffect will handle navigation when session state changes
         setSessionFromAuth(session);
-        trackEvent("user_signed_in", { method: "google" });
+        trackEvent("user_signed_in", { method: "google", platform: Platform.OS, source: "sign_in_screen" });
       } else {
         setErrorHint("Google sign-in was cancelled or failed");
       }

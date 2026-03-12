@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
-import { AppState, type AppStateStatus } from "react-native";
+import { AppState, Platform, type AppStateStatus } from "react-native";
 import { Session, User } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "./supabase";
@@ -70,7 +70,7 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
       const { data: created } = await supabase.from("members").select("*").eq("id", user.id).single();
       setMember(created ?? null);
       identifyUser(user.id);
-      trackEvent("user_signed_up");
+      trackEvent("user_signed_up", { platform: Platform.OS, source: "member_bootstrap" });
       configureRevenueCatForMember(user.id, user.email).catch(() => {});
       registerPushTokenIfNeeded(user.id).catch(() => {});
     } else {

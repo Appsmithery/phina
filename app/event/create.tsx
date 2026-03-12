@@ -1,7 +1,7 @@
 import * as Clipboard from "expo-clipboard";
 import { Stack, router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 
 import { BillingCard } from "@/components/BillingCard";
@@ -44,6 +44,11 @@ export default function CreateEventScreen() {
     purchaseHostCredit,
     restorePurchases,
   } = useBilling();
+
+  useEffect(() => {
+    if (!session?.user?.id || billingLoading || effectiveHostingAccess) return;
+    trackEvent("host_credit_paywall_viewed", { platform: Platform.OS, source: "event_create" });
+  }, [billingLoading, effectiveHostingAccess, session?.user?.id]);
 
   const showSharePrompt = (eventId: string, date: string) => {
     const joinUrl = `${APP_BASE_URL}/join/${eventId}`;
@@ -108,7 +113,12 @@ export default function CreateEventScreen() {
         queryClient.invalidateQueries({ queryKey: ["profile", "event_members"] }),
         queryClient.invalidateQueries({ queryKey: ["billing", session.user.id] }),
       ]);
-      trackEvent("event_created", { event_id: data, has_partiful_url: !!values.partifulUrl });
+      trackEvent("event_created", {
+        event_id: data,
+        has_partiful_url: !!values.partifulUrl,
+        platform: Platform.OS,
+        source: "event_create",
+      });
 
       showSharePrompt(data, values.date);
     } catch (error) {

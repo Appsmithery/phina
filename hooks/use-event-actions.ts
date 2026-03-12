@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Platform } from "react-native";
 import { supabase } from "@/lib/supabase";
 import { showAlert } from "@/lib/alert";
 import { trackEvent } from "@/lib/observability";
@@ -76,7 +77,7 @@ export function useEndEvent(eventId: string) {
       if (error) throw error;
     },
     onSuccess: () => {
-      trackEvent("event_ended", { event_id: eventId });
+      trackEvent("event_ended", { event_id: eventId, platform: Platform.OS, source: "host_controls" });
       qc.invalidateQueries({ queryKey: ["event", eventId] });
       qc.invalidateQueries({ queryKey: ["events"] });
     },

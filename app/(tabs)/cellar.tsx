@@ -44,8 +44,15 @@ export default function CellarScreen() {
 
   const memberId = member?.id;
   useEffect(() => {
-    if (memberId) trackEvent("cellar_opened");
+    if (memberId) {
+      trackEvent("cellar_opened", { platform: Platform.OS, source: "cellar_tab" });
+    }
   }, [memberId]);
+
+  useEffect(() => {
+    if (!memberId || billingLoading || effectivePremiumActive) return;
+    trackEvent("premium_paywall_viewed", { platform: Platform.OS, source: "cellar_tab" });
+  }, [billingLoading, effectivePremiumActive, memberId]);
 
   const {
     data: wines = [],

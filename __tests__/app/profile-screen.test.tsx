@@ -193,7 +193,10 @@ describe("ProfileScreen", () => {
     render(<ProfileScreen />);
     expect(screen.getByText("Your taste profile starts here.")).toBeTruthy();
     expect(screen.queryByText("Your Taste Graph")).toBeNull();
-    expect(mockTrackEvent).toHaveBeenCalledWith("profile_empty_state_viewed");
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      "profile_empty_state_viewed",
+      expect.objectContaining({ platform: "ios", source: "profile_tab" })
+    );
     expect(screen.getByLabelText("Edit photo")).toBeTruthy();
     expect(screen.queryByText("Remove photo")).toBeNull();
     expect(screen.getByTestId("profile-avatar-fallback")).toBeTruthy();
@@ -202,7 +205,10 @@ describe("ProfileScreen", () => {
   it("navigates and tracks when the empty-state CTA is tapped", () => {
     render(<ProfileScreen />);
     fireEvent.press(screen.getByText("Browse Events"));
-    expect(mockTrackEvent).toHaveBeenCalledWith("profile_empty_state_cta_tapped");
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      "profile_empty_state_cta_tapped",
+      expect.objectContaining({ platform: "ios", source: "profile_tab" })
+    );
     expect(mockPush).toHaveBeenCalledWith("/(tabs)");
   });
 

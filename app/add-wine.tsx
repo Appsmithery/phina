@@ -1,4 +1,5 @@
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from "react-native";
+import { useEffect } from "react";
 import { Stack, router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -28,9 +29,14 @@ export default function AddWineScreen() {
     restorePurchases,
   } = useBilling();
 
+  useEffect(() => {
+    if (!member?.id || billingLoading || effectivePremiumActive) return;
+    trackEvent("premium_paywall_viewed", { platform: Platform.OS, source: "add_wine" });
+  }, [billingLoading, effectivePremiumActive, member?.id]);
+
   const onSuccess = async () => {
     await queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", member?.id] });
-    trackEvent("wine_added_to_cellar");
+    trackEvent("wine_added_to_cellar", { platform: Platform.OS, source: "add_wine_form" });
     router.navigate("/(tabs)/cellar");
   };
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Share, Platform, Linking } from "react-native";
@@ -14,6 +14,7 @@ import { getScreenBottomPadding } from "@/lib/layout";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
+import { trackEvent } from "@/lib/observability";
 import type { Event, RatingRound, WineWithPricePrivacy } from "@/types/database";
 
 export default function EventDetailScreen() {
@@ -23,6 +24,7 @@ export default function EventDetailScreen() {
   const queryClient = useQueryClient();
 
   const isAuthenticated = sessionLoaded && !!session;
+  const viewedEventIdRef = useRef<string | null>(null);
 
   const { data: event, isLoading } = useQuery({
     queryKey: ["event", id],
@@ -96,6 +98,18 @@ export default function EventDetailScreen() {
     },
     enabled: !!id && isAuthenticated,
   });
+
+  useEffect(() => {
+    if (!event?.id || !isAuthenticated || viewedEventIdRef.current === event.id) return;
+    viewedEventIdRef.current = event.id;
+    trackEvent("event_detail_viewed", {
+      platform: Platform.OS,
+      event_id: event.id,
+      status: event.status,
+      tasting_mode: event.tasting_mode ?? null,
+      source: "event_detail",
+    });
+  }, [event?.id, event?.status, event?.tasting_mode, isAuthenticated]);
 
   useEffect(() => {
     if (!id || !isAuthenticated) return;
