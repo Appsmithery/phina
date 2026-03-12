@@ -10,6 +10,7 @@ let posthog: PostHog | null = null;
 let posthogDebugEnabled = false;
 let observabilityInitialized = false;
 let missingPostHogConfigLogged = false;
+let posthogCaptureInDev = false;
 
 function getExtra() {
   return Constants.expoConfig?.extra ?? {};
@@ -39,6 +40,8 @@ export function initObservability() {
   const posthogKey: string | undefined = extra.posthogKey;
   const posthogHost: string | undefined = extra.posthogHost;
   posthogDebugEnabled = extra.posthogDebug === true || extra.posthogDebug === "true";
+  posthogCaptureInDev = extra.posthogCaptureInDev === true || extra.posthogCaptureInDev === "true";
+  const posthogDisabled = __DEV__ && !posthogCaptureInDev;
 
   if (sentryDsn) {
     Sentry.init({
@@ -51,7 +54,7 @@ export function initObservability() {
   if (posthogKey) {
     posthog = new PostHog(posthogKey, {
       host: posthogHost ?? DEFAULT_POSTHOG_HOST,
-      disabled: __DEV__,
+      disabled: posthogDisabled,
       captureAppLifecycleEvents: true,
     });
   } else if (!__DEV__) {
@@ -60,6 +63,10 @@ export function initObservability() {
 
   if (!posthogHost && !__DEV__) {
     console.warn(`[observability] EXPO_PUBLIC_POSTHOG_HOST missing. Falling back to ${DEFAULT_POSTHOG_HOST}.`);
+  }
+
+  if (__DEV__ && !posthogCaptureInDev) {
+    console.info("[observability] PostHog is disabled in development. Set EXPO_PUBLIC_POSTHOG_CAPTURE_IN_DEV=true to test analytics locally.");
   }
 }
 
@@ -105,6 +112,10 @@ export function getPostHogClient() {
 
 export function isPostHogDebugEnabled() {
   return posthogDebugEnabled;
+}
+
+export function isPostHogCapturingInDev() {
+  return posthogCaptureInDev;
 }
 
 export function isFeatureEnabled(key: string) {
