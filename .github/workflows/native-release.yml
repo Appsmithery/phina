@@ -1,0 +1,111 @@
+name: Native Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: "Git ref to release"
+        required: true
+        default: "main"
+      platform:
+        description: "Platform to build"
+        required: true
+        type: choice
+        options:
+          - all
+          - ios
+          - android
+      action:
+        description: "Build only or build and submit"
+        required: true
+        type: choice
+        options:
+          - build
+          - build_and_submit
+
+concurrency:
+  group: native-release-${{ inputs.git_ref }}-${{ inputs.platform }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.git_ref }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          expo-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Check release secrets
+        run: |
+          [[ -n "${{ secrets.EXPO_TOKEN }}" ]] || { echo "::error::EXPO_TOKEN missing"; exit 1; }
+          if [[ "${{ inputs.action }}" == "build_and_submit" && ("${{ inputs.platform }}" == "android" || "${{ inputs.platform }}" == "all") ]]; then
+            [[ -n "${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}" ]] || { echo "::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON missing"; exit 1; }
+          fi
+          if [[ "${{ inputs.action }}" == "build_and_submit" && ("${{ inputs.platform }}" == "ios" || "${{ inputs.platform }}" == "all") ]]; then
+            [[ -n "${{ secrets.EXPO_ASC_API_KEY_BASE64 }}" ]] || { echo "::error::EXPO_ASC_API_KEY_BASE64 missing"; exit 1; }
+            [[ -n "${{ secrets.EXPO_ASC_KEY_ID }}" ]] || { echo "::error::EXPO_ASC_KEY_ID missing"; exit 1; }
+            [[ -n "${{ secrets.EXPO_ASC_ISSUER_ID }}" ]] || { echo "::error::EXPO_ASC_ISSUER_ID missing"; exit 1; }
+          fi
+
+      - name: Write Android submit credentials
+        if: inputs.action == 'build_and_submit' && (inputs.platform == 'android' || inputs.platform == 'all')
+        run: printf '%s' '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' > google-play-service-account.json
+
+      - name: Write iOS submit credentials
+        if: inputs.action == 'build_and_submit' && (inputs.platform == 'ios' || inputs.platform == 'all')
+        run: |
+          mkdir -p .secrets
+          printf '%s' '${{ secrets.EXPO_ASC_API_KEY_BASE64 }}' | base64 --decode > .secrets/asc-api-key.p8
+          echo "EXPO_ASC_API_KEY_PATH=$PWD/.secrets/asc-api-key.p8" >> "$GITHUB_ENV"
+          echo "EXPO_ASC_KEY_ID=${{ secrets.EXPO_ASC_KEY_ID }}" >> "$GITHUB_ENV"
+          echo "EXPO_ASC_ISSUER_ID=${{ secrets.EXPO_ASC_ISSUER_ID }}" >> "$GITHUB_ENV"
+
+      - name: Run production release
+        run: |
+          set -euo pipefail
+          platforms=()
+          case "${{ inputs.platform }}" in
+            all) platforms=(ios android) ;;
+            ios) platforms=(ios) ;;
+            android) platforms=(android) ;;
+            *) echo "::error::Unsupported platform"; exit 1 ;;
+          esac
+
+          for platform in "${platforms[@]}"; do
+            echo "Starting production build for $platform"
+            if [[ "${{ inputs.action }}" == "build_and_submit" ]]; then
+              npx eas-cli build --platform "$platform" --profile production --non-interactive --auto-submit
+            else
+              npx eas-cli build --platform "$platform" --profile production --non-interactive
+            fi
+          done
+
+      - name: Summarize release
+        run: |
+          {
+            echo "## Native release"
+            echo ""
+            echo "- Ref: ${{ inputs.git_ref }}"
+            echo "- Platform: ${{ inputs.platform }}"
+            echo "- Action: ${{ inputs.action }}"
+            echo "- Profile: production"
+          } >> "$GITHUB_STEP_SUMMARY"

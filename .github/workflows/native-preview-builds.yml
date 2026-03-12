@@ -1,0 +1,70 @@
+name: Native Preview Builds
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "supabase/**"
+      - "public/**"
+      - ".github/workflows/**"
+      - "scripts/deploy-do.sh"
+  workflow_dispatch:
+
+concurrency:
+  group: native-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ios, android]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          expo-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Check EAS token
+        run: |
+          [[ -n "${{ secrets.EXPO_TOKEN }}" ]] || { echo "::error::EXPO_TOKEN missing"; exit 1; }
+          npx eas-cli whoami
+
+      - name: Start ${{ matrix.platform }} preview build
+        run: npx eas-cli build --platform ${{ matrix.platform }} --profile preview --non-interactive --no-wait --json > build.json
+
+      - name: Capture build metadata
+        id: metadata
+        run: |
+          node -e "const fs=require('fs');const raw=fs.readFileSync('build.json','utf8').trim();const data=JSON.parse(raw);const build=Array.isArray(data)?data[0]:(data.builds?.[0]??data);const id=build?.id??'';const url=build?.artifacts?.buildUrl??(id?`https://expo.dev/accounts/appsmithery/projects/phina/builds/${id}`:'');fs.appendFileSync(process.env.GITHUB_OUTPUT,`build_id=${id}\nbuild_url=${url}\n`);"
+
+      - name: Summarize preview build
+        run: |
+          {
+            echo "## ${{ matrix.platform }} preview build"
+            echo ""
+            echo "- Platform: ${{ matrix.platform }}"
+            echo "- Profile: preview"
+            echo "- Build ID: ${{ steps.metadata.outputs.build_id }}"
+            echo "- Build URL: ${{ steps.metadata.outputs.build_url }}"
+          } >> "$GITHUB_STEP_SUMMARY"

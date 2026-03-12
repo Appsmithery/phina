@@ -5,6 +5,7 @@ import * as Haptics from "expo-haptics";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Slider from "@react-native-community/slider";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { WineHeroImage } from "@/components/WineHeroImage";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
@@ -144,6 +145,7 @@ export default function RateWineScreen() {
   const isHost = event?.created_by === member?.id;
   const isDoubleBlind = event?.tasting_mode === "double_blind" && event?.status === "active";
   const hideDetails = isDoubleBlind && !isHost;
+  const showBottleImage = !!wine && (!isDoubleBlind || isHost);
   const wineIndex = eventWines.findIndex((w) => w.id === wineId);
   const blindLabel = wineIndex >= 0 ? `Wine #${wineIndex + 1}` : "Wine";
 
@@ -336,6 +338,18 @@ export default function RateWineScreen() {
       <Stack.Screen options={{ title: "Rate Wine" }} />
       {/* Wine header */}
       <View style={styles.wineHeader}>
+        {showBottleImage ? (
+          <WineHeroImage
+            displayPhotoUrl={wine.display_photo_url}
+            labelPhotoUrl={wine.label_photo_url}
+            imageGenerationStatus={wine.image_generation_status}
+            backgroundColor={theme.surface}
+            borderColor={theme.border}
+            accentColor={theme.primary}
+            textColor={theme.text}
+            textSecondaryColor={theme.textSecondary}
+          />
+        ) : null}
         <Text style={[styles.wineName, { color: theme.text }]}>
           {hideDetails ? blindLabel : (wine.producer ?? "Unknown")}
         </Text>

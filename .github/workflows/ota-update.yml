@@ -1,0 +1,69 @@
+name: OTA Update
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: "Git ref to publish"
+        required: true
+        default: "main"
+      channel:
+        description: "Update channel"
+        required: true
+        type: choice
+        options:
+          - preview
+          - production
+      message:
+        description: "Update message"
+        required: true
+        default: "Manual OTA update"
+
+concurrency:
+  group: ota-update-${{ inputs.channel }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.git_ref }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          expo-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Check EAS token
+        run: |
+          [[ -n "${{ secrets.EXPO_TOKEN }}" ]] || { echo "::error::EXPO_TOKEN missing"; exit 1; }
+          npx eas-cli whoami
+
+      - name: Publish OTA update
+        run: npx eas-cli update --channel ${{ inputs.channel }} --message "${{ inputs.message }}" --platform all --non-interactive
+
+      - name: Summarize OTA update
+        run: |
+          {
+            echo "## OTA update"
+            echo ""
+            echo "- Ref: ${{ inputs.git_ref }}"
+            echo "- Channel: ${{ inputs.channel }}"
+            echo "- Message: ${{ inputs.message }}"
+          } >> "$GITHUB_STEP_SUMMARY"
