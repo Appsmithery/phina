@@ -35,9 +35,7 @@ const EXPERIENCE_LABELS: Record<string, string> = {
 };
 
 export default function ProfileScreen() {
-  const params = (typeof useLocalSearchParams === "function"
-    ? useLocalSearchParams<{ billing?: string; kind?: string }>()
-    : {}) as { billing?: string; kind?: string };
+  const params = useLocalSearchParams<{ billing?: string; kind?: string }>();
   const { member, session, refreshMember } = useSupabase();
   const theme = useTheme();
   const queryClient = useQueryClient();
