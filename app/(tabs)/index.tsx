@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Image, Alert } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Alert } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
+import { EventHeroImage } from "@/components/EventHeroImage";
 import { TabScreenHeader } from "@/components/layout/TabScreenHeader";
 import { PAGE_HORIZONTAL_PADDING, getTabContentBottomPadding, useOptionalBottomTabBarHeight } from "@/lib/layout";
 import { supabase } from "@/lib/supabase";
@@ -101,15 +102,11 @@ export default function EventsScreen() {
         onPress={() => router.push(`/event/${item.id}`)}
         activeOpacity={0.85}
       >
-        <View style={[styles.heroShell, { backgroundColor: `${theme.primary}12` }]}>
-          {item.event_image_url ? (
-            <Image
-              source={{ uri: item.event_image_url }}
-              style={[styles.heroImage, { backgroundColor: theme.surface }]}
-              resizeMode="cover"
-            />
-          ) : null}
-
+        <EventHeroImage
+          uri={item.event_image_url}
+          backgroundColor={`${theme.primary}12`}
+          style={styles.heroShell}
+        >
           <View style={styles.heroOverlay} pointerEvents="none">
             <View style={[styles.dateBadge, { backgroundColor: theme.primary }]}>
               <Text style={styles.dateBadgeDay}>{dayNum}</Text>
@@ -131,7 +128,7 @@ export default function EventsScreen() {
           <View style={styles.titleWrap} pointerEvents="none">
             <Text style={styles.cardTitle}>{item.title}</Text>
           </View>
-        </View>
+        </EventHeroImage>
 
         <View style={styles.cardBody}>
           <Text style={[styles.cardTheme, { color: theme.text }]}>{item.theme}</Text>
@@ -304,14 +301,6 @@ const styles = StyleSheet.create({
     position: "relative",
     minHeight: 208,
     justifyContent: "space-between",
-    overflow: "hidden",
-  },
-  heroImage: {
-    ...StyleSheet.absoluteFillObject,
-    width: "100%",
-    height: "100%",
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
   },
   heroOverlay: {
     flexDirection: "row",

@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Image, Alert, Platform } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Alert, Platform } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import { BillingCard } from "@/components/BillingCard";
+import { WineThumbnailImage } from "@/components/WineThumbnailImage";
 import { TabScreenHeader } from "@/components/layout/TabScreenHeader";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
@@ -345,17 +346,11 @@ export default function CellarScreen() {
                 onPress={() => router.push(destination)}
               >
                 <View style={styles.cardRow}>
-                  <View style={[styles.thumbnail, { backgroundColor: theme.border }]}>
-                    {photoUrl ? (
-                      <Image
-                        source={{ uri: photoUrl }}
-                        style={styles.thumbnailImage}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <Ionicons name="wine-outline" size={20} color={theme.textMuted} />
-                    )}
-                  </View>
+                  <WineThumbnailImage
+                    uri={photoUrl}
+                    backgroundColor={theme.border}
+                    iconColor={theme.textMuted}
+                  />
                   <View style={styles.cardContent}>
                     {item.region ? (
                       <Text style={[styles.cardRegion, { color: theme.primary }]}>
@@ -452,16 +447,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   cardRow: { flexDirection: "row", gap: 12 },
-  thumbnail: {
-    width: 64,
-    height: 80,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    overflow: "hidden",
-    flexShrink: 0,
-  },
-  thumbnailImage: { width: "100%", height: "100%" },
   cardContent: { flex: 1 },
   cardRegion: { fontSize: 11, fontFamily: "Montserrat_600SemiBold", letterSpacing: 0.5, marginBottom: 2 },
   cardTitle: { fontSize: 16, fontWeight: "600", marginBottom: 2, fontFamily: "PlayfairDisplay_600SemiBold" },

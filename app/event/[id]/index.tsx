@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Share, Platform, Image, Linking } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Share, Platform, Linking } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import QRCode from "react-native-qrcode-svg";
+import { EventHeroImage } from "@/components/EventHeroImage";
+import { WineThumbnailImage } from "@/components/WineThumbnailImage";
 import { showAlert } from "@/lib/alert";
 import { generateEventImage } from "@/lib/event-image-generation";
 import { useEndEvent, useEndRatingRound, useStartRatingRound } from "@/hooks/use-event-actions";
@@ -283,13 +285,11 @@ export default function EventDetailScreen() {
   const listHeader = (
     <>
       {event.event_image_url ? (
-        <View style={[styles.heroCard, { backgroundColor: theme.surface }]}>
-          <Image
-            source={{ uri: event.event_image_url }}
-            style={[styles.heroImage, { backgroundColor: theme.surface }]}
-            resizeMode="cover"
-          />
-        </View>
+        <EventHeroImage
+          uri={event.event_image_url}
+          backgroundColor={theme.surface}
+          style={styles.heroCard}
+        />
       ) : null}
 
       <Text style={[styles.title, { color: theme.text }]}>{event.title}</Text>
@@ -502,13 +502,12 @@ export default function EventDetailScreen() {
             <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               <TouchableOpacity onPress={() => router.push(`/event/${id}/wine/${item.id}`)}>
                 <View style={styles.cardRow}>
-                  <View style={[styles.thumbnail, { backgroundColor: theme.border }]}>
-                    {photoUrl ? (
-                      <Image source={{ uri: photoUrl }} style={styles.thumbnailImage} resizeMode="cover" />
-                    ) : (
-                      <Ionicons name={hideWineDetails ? "eye-off-outline" : "wine-outline"} size={20} color={theme.textMuted} />
-                    )}
-                  </View>
+                  <WineThumbnailImage
+                    uri={photoUrl}
+                    backgroundColor={theme.border}
+                    iconColor={theme.textMuted}
+                    fallbackIconName={hideWineDetails ? "eye-off-outline" : "wine-outline"}
+                  />
                   <View style={styles.cardContent}>
                     <View style={styles.wineNameRow}>
                       <Text style={[styles.wineName, { color: theme.text }]} numberOfLines={2}>
@@ -578,14 +577,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16 },
   listContent: { paddingTop: 16, paddingBottom: getScreenBottomPadding(0) },
   heroCard: {
-    borderRadius: 18,
-    overflow: "hidden",
     marginBottom: 16,
-  },
-  heroImage: {
-    width: "100%",
     aspectRatio: 4 / 3,
-    borderRadius: 18,
   },
   title: { fontSize: 28, fontWeight: "700", marginBottom: 8, fontFamily: "PlayfairDisplay_700Bold" },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" },
@@ -622,16 +615,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   cardRow: { flexDirection: "row", gap: 12 },
-  thumbnail: {
-    width: 64,
-    height: 80,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    overflow: "hidden",
-    flexShrink: 0,
-  },
-  thumbnailImage: { width: "100%", height: "100%" },
   cardContent: { flex: 1 },
   wineNameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   wineName: { fontSize: 16, fontWeight: "600", flex: 1, fontFamily: "Montserrat_600SemiBold" },
