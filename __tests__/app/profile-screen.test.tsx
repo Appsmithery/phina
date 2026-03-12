@@ -66,6 +66,7 @@ jest.mock("expo-router", () => ({
     replace: (...args: unknown[]) => mockReplace(...args),
   },
   useFocusEffect: (callback: () => void) => callback(),
+  useLocalSearchParams: () => ({}),
 }));
 
 jest.mock("@/lib/theme", () => ({
