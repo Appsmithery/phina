@@ -493,6 +493,18 @@ export default function EventDetailScreen() {
         </View>
       ) : null}
 
+      <TouchableOpacity
+        style={[
+          styles.primaryActionRow,
+          { backgroundColor: theme.primary, borderColor: theme.primary },
+        ]}
+        onPress={() => router.push(`/event/${id}/add-wine`)}
+      >
+        <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
+        <Text style={styles.primaryActionLabel}>Add wine</Text>
+        <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
+      </TouchableOpacity>
+
       {isHost ? (
         <>
           <TouchableOpacity
@@ -666,27 +678,6 @@ export default function EventDetailScreen() {
           ) : null}
         </View>
       ) : null}
-
-      <TouchableOpacity
-        style={[
-          styles.actionRow,
-          {
-            backgroundColor: `${theme.primary}15`,
-            borderColor: `${theme.primary}40`,
-          },
-        ]}
-        onPress={() => router.push(`/event/${id}/add-wine`)}
-      >
-        <Ionicons name="add-circle-outline" size={20} color={theme.primary} />
-        <Text style={[styles.actionLabel, { color: theme.primary }]}>
-          Add wine
-        </Text>
-        <Ionicons
-          name="chevron-forward"
-          size={18}
-          color={`${theme.primary}80`}
-        />
-      </TouchableOpacity>
 
       <Text style={[styles.sectionTitle, { color: theme.text }]}>Wines</Text>
       {wines.length === 0 ? (
@@ -935,6 +926,21 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   actionLabel: { flex: 1, fontFamily: "Montserrat_600SemiBold", fontSize: 15 },
+  primaryActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+  },
+  primaryActionLabel: {
+    flex: 1,
+    color: "#FFFFFF",
+    fontFamily: "Montserrat_600SemiBold",
+    fontSize: 15,
+  },
   primaryButton: {
     borderRadius: 14,
     padding: 16,

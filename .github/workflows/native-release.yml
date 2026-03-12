@@ -93,9 +93,9 @@ jobs:
           for platform in "${platforms[@]}"; do
             echo "Starting production build for $platform"
             if [[ "${{ inputs.action }}" == "build_and_submit" ]]; then
-              npx eas-cli build --platform "$platform" --profile production --non-interactive --auto-submit
+              eas build --platform "$platform" --profile production --non-interactive --auto-submit
             else
-              npx eas-cli build --platform "$platform" --profile production --non-interactive
+              eas build --platform "$platform" --profile production --non-interactive
             fi
           done
 
