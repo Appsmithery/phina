@@ -9,6 +9,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildPushHTTPRequest } from "npm:@pushforge/builder@2";
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
+const SUPABASE_URL = mustGetEnv("SUPABASE_URL");
+const SUPABASE_ANON_KEY = mustGetEnv("SUPABASE_ANON_KEY");
+const SUPABASE_SERVICE_ROLE_KEY = mustGetEnv("SUPABASE_SERVICE_ROLE_KEY");
 
 interface ReqBody {
   event_id?: string;
@@ -30,6 +33,41 @@ interface MemberRow {
   push_token: string | null;
 }
 
+interface EventRow {
+  id: string;
+  created_by: string;
+}
+
+interface CallerMemberRow {
+  id: string;
+  is_admin: boolean | null;
+}
+
+interface WineRow {
+  id: string;
+  event_id: string;
+  producer: string | null;
+  varietal: string | null;
+  vintage: number | null;
+}
+
+interface PushSendResult {
+  sent: number;
+  expo_recipients: number;
+  web_recipients: number;
+  expo_sent: number;
+  web_sent: number;
+  skipped_reason: string | null;
+}
+
+function mustGetEnv(name: string): string {
+  const value = Deno.env.get(name);
+  if (!value) {
+    throw new Error(`${name} is not configured`);
+  }
+  return value;
+}
+
 function corsHeaders(): Record<string, string> {
   const origin = Deno.env.get("APP_URL") || "https://phina.appsmithery.co";
   return {
@@ -44,6 +82,10 @@ function jsonResponse(body: unknown, status = 200): Response {
     status,
     headers: { "Content-Type": "application/json", ...corsHeaders() },
   });
+}
+
+function errorResponse(error: string, errorCode: string, status: number, extra: Record<string, unknown> = {}): Response {
+  return jsonResponse({ error, error_code: errorCode, ...extra }, status);
 }
 
 function isWebPushSubscription(token: string): WebPushSubscription | null {
@@ -72,16 +114,21 @@ Deno.serve(async (req: Request) => {
   }
 
   const authHeader = req.headers.get("Authorization");
-  if (!authHeader) {
-    return jsonResponse({ error: "Missing Authorization header" }, 401);
+  if (!authHeader?.startsWith("Bearer ")) {
+    return errorResponse("Missing or invalid Authorization header", "unauthorized", 401);
   }
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SupabaseClient from npm: is typed in Deno at runtime
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  const authedSupabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
   }) as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SupabaseClient from npm: is typed in Deno at runtime
+  const adminSupabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) as any;
+
+  const { data: userData, error: userError } = await authedSupabase.auth.getUser();
+  if (userError || !userData.user) {
+    return errorResponse("Unauthorized", "unauthorized", 401);
+  }
 
   let body: ReqBody;
   try {
@@ -93,24 +140,63 @@ Deno.serve(async (req: Request) => {
   const eventId = body.event_id;
   const wineId = body.wine_id;
   if (!eventId || !wineId) {
-    return jsonResponse({ error: "Provide event_id and wine_id" }, 400);
+    return errorResponse("Provide event_id and wine_id", "invalid_request", 400);
   }
 
   try {
-    const { data: wine, error: wineError } = await supabase
-      .from("wines")
-      .select("producer, varietal, vintage")
-      .eq("id", wineId)
-      .single();
+    const { data: event, error: eventError } = await adminSupabase
+      .from("events")
+      .select("id, created_by")
+      .eq("id", eventId)
+      .maybeSingle();
 
-    if (wineError || !wine) {
-      return jsonResponse({ error: "Wine not found" }, 404);
+    if (eventError) {
+      console.error("events query error", eventError);
+      return errorResponse("Failed to load event", "internal_error", 500);
     }
 
-    const wineLabel = [wine.producer, wine.varietal, wine.vintage].filter(Boolean).join(" ") || "This wine";
+    if (!event) {
+      return errorResponse("Event not found", "event_not_found", 404);
+    }
+
+    const isHost = (event as EventRow).created_by === userData.user.id;
+    let isAdmin = false;
+
+    if (!isHost) {
+      const { data: callerMember, error: callerMemberError } = await adminSupabase
+        .from("members")
+        .select("id, is_admin")
+        .eq("id", userData.user.id)
+        .maybeSingle();
+
+      if (callerMemberError) {
+        console.error("caller member query error", callerMemberError);
+        return errorResponse("Failed to authorize caller", "internal_error", 500);
+      }
+
+      isAdmin = (callerMember as CallerMemberRow | null)?.is_admin === true;
+    }
+
+    if (!isHost && !isAdmin) {
+      return errorResponse("Forbidden", "forbidden", 403);
+    }
+
+    const { data: wine, error: wineError } = await adminSupabase
+      .from("wines")
+      .select("id, event_id, producer, varietal, vintage")
+      .eq("id", wineId)
+      .eq("event_id", eventId)
+      .maybeSingle();
+
+    if (wineError || !wine) {
+      return errorResponse("Wine not found", "wine_not_found", 404);
+    }
+
+    const typedWine = wine as WineRow;
+    const wineLabel = [typedWine.producer, typedWine.varietal, typedWine.vintage].filter(Boolean).join(" ") || "This wine";
     const path = `/event/${eventId}/rate/${wineId}`;
 
-    const { data: eventMembers, error: emError } = await supabase
+    const { data: eventMembers, error: emError } = await adminSupabase
       .from("event_members")
       .select("member_id")
       .eq("event_id", eventId)
@@ -118,15 +204,22 @@ Deno.serve(async (req: Request) => {
 
     if (emError) {
       console.error("event_members query error", emError);
-      return jsonResponse({ error: "Failed to load event members" }, 500);
+      return errorResponse("Failed to load event members", "internal_error", 500);
     }
 
     const memberIds = (eventMembers ?? []).map((r: EventMemberRow) => r.member_id);
     if (memberIds.length === 0) {
-      return jsonResponse({ sent: 0, message: "No checked-in members" });
+      return jsonResponse({
+        sent: 0,
+        expo_recipients: 0,
+        web_recipients: 0,
+        expo_sent: 0,
+        web_sent: 0,
+        skipped_reason: "no_checked_in_members",
+      } satisfies PushSendResult);
     }
 
-    const { data: members, error: membersError } = await supabase
+    const { data: members, error: membersError } = await adminSupabase
       .from("members")
       .select("id, push_token")
       .in("id", memberIds)
@@ -134,7 +227,7 @@ Deno.serve(async (req: Request) => {
 
     if (membersError) {
       console.error("members query error", membersError);
-      return jsonResponse({ error: "Failed to load members" }, 500);
+      return errorResponse("Failed to load members", "internal_error", 500);
     }
 
     const tokens = (members ?? []).map((m: MemberRow) => m.push_token).filter((t: string | null): t is string => typeof t === "string" && t.length > 0);
@@ -146,7 +239,21 @@ Deno.serve(async (req: Request) => {
       else if (isExpoToken(t)) expoTokens.push(t);
     }
 
-    let sent = 0;
+    const result: PushSendResult = {
+      sent: 0,
+      expo_recipients: expoTokens.length,
+      web_recipients: webPushSubs.length,
+      expo_sent: 0,
+      web_sent: 0,
+      skipped_reason: null,
+    };
+
+    if (result.expo_recipients === 0 && result.web_recipients === 0) {
+      result.skipped_reason = "no_push_tokens";
+      return jsonResponse(result);
+    }
+
+    let providerFailures = 0;
 
     // Web Push (VAPID)
     const vapidPrivateKeyJson = Deno.env.get("VAPID_PRIVATE_KEY");
@@ -178,13 +285,21 @@ Deno.serve(async (req: Request) => {
               },
             });
             const res = await fetch(endpoint, { method: "POST", headers, body: pushBody });
-            if (res.status === 201 || res.status === 200) sent++;
-            else console.warn("Web Push failed", res.status, await res.text());
+            if (res.status === 201 || res.status === 200) {
+              result.web_sent += 1;
+            } else {
+              providerFailures += 1;
+              console.warn("Web Push failed", res.status, await res.text());
+            }
           } catch (e) {
+            providerFailures += 1;
             console.warn("Web Push error for subscription", e);
           }
         }
       }
+    } else if (webPushSubs.length > 0) {
+      providerFailures += webPushSubs.length;
+      console.error("VAPID_PRIVATE_KEY is not configured; cannot send Web Push notifications.");
     }
 
     // Expo Push
@@ -201,16 +316,24 @@ Deno.serve(async (req: Request) => {
         headers: { "Accept": "application/json", "Content-Type": "application/json" },
         body: JSON.stringify(messages),
       });
-      if (pushRes.ok) sent += messages.length;
-      else {
+      if (pushRes.ok) {
+        result.expo_sent += messages.length;
+      } else {
+        providerFailures += messages.length;
         const errText = await pushRes.text();
         console.error("Expo push error", pushRes.status, errText);
       }
     }
 
-    return jsonResponse({ sent });
+    result.sent = result.expo_sent + result.web_sent;
+
+    if (result.sent === 0 && providerFailures > 0) {
+      return errorResponse("Push provider error", "push_provider_error", 500, result);
+    }
+
+    return jsonResponse(result);
   } catch (e) {
     console.error("send-rating-round-push error", e);
-    return jsonResponse({ error: e instanceof Error ? e.message : "Internal error" }, 500);
+    return errorResponse(e instanceof Error ? e.message : "Internal error", "internal_error", 500);
   }
 });

@@ -7,6 +7,7 @@ import { Platform, StyleSheet, Text, View } from "react-native";
 import { BillingCard } from "@/components/BillingCard";
 import { EventForm, type EventFormValues } from "@/components/EventForm";
 import { showAlert } from "@/lib/alert";
+import { isNativePurchasesPlatform } from "@/lib/billing-config";
 import { generateEventImage } from "@/lib/event-image-generation";
 import { useBilling } from "@/hooks/use-billing";
 import { PAGE_HORIZONTAL_PADDING } from "@/lib/layout";
@@ -168,8 +169,9 @@ export default function CreateEventScreen() {
   }
 
   if (!effectiveHostingAccess) {
+    const isNativeBilling = isNativePurchasesPlatform(Platform.OS);
     const hostCreditDetail =
-      unsupportedReason && Platform.OS === "ios" && !nativePurchasesAvailable
+      unsupportedReason && isNativeBilling && !nativePurchasesAvailable
         ? `Your credit is consumed only when the event is successfully created. ${unsupportedReason}`
         : "Your credit is consumed only when the event is successfully created.";
 
@@ -187,31 +189,31 @@ export default function CreateEventScreen() {
           badge="0 credits available"
           detail={hostCreditDetail}
           primaryLabel={
-            Platform.OS === "ios" && !nativePurchasesAvailable
-              ? "Use iOS Dev Build"
+            isNativeBilling && !nativePurchasesAvailable
+              ? "Use Native Build"
               : isPurchasingHostCredit
-                ? "Opening checkout..."
-                : Platform.OS === "ios"
+                ? "Opening purchase flow..."
+                : isNativeBilling
                   ? "Buy for $10"
                   : "Checkout with Stripe"
           }
           onPrimaryPress={() => {
             void handlePurchaseHostCredit();
           }}
-          primaryDisabled={isPurchasingHostCredit || (Platform.OS === "ios" && !nativePurchasesAvailable)}
+          primaryDisabled={isPurchasingHostCredit || (isNativeBilling && !nativePurchasesAvailable)}
           secondaryLabel={
-            Platform.OS === "ios" && nativePurchasesAvailable
+            isNativeBilling && nativePurchasesAvailable
               ? (isRestoringPurchases ? "Restoring..." : "Restore")
               : undefined
           }
           onSecondaryPress={
-            Platform.OS === "ios" && nativePurchasesAvailable
+            isNativeBilling && nativePurchasesAvailable
               ? () => {
                   void handleRestorePurchases();
                 }
               : undefined
           }
-          secondaryDisabled={Platform.OS === "ios" && nativePurchasesAvailable ? isRestoringPurchases : undefined}
+          secondaryDisabled={isNativeBilling && nativePurchasesAvailable ? isRestoringPurchases : undefined}
         />
       </View>
     );

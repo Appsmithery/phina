@@ -6,13 +6,25 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_POSTHOG_DEBUG": "true",
+        "EXPO_PUBLIC_POSTHOG_CAPTURE_IN_DEV": "true"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_POSTHOG_DEBUG": "true",
+        "EXPO_PUBLIC_POSTHOG_CAPTURE_IN_DEV": "true"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_POSTHOG_DEBUG": "false",
+        "EXPO_PUBLIC_POSTHOG_CAPTURE_IN_DEV": "false"
+      }
     }
   },
   "submit": {

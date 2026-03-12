@@ -7,6 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { BillingCard } from "@/components/BillingCard";
 import { WineThumbnailImage } from "@/components/WineThumbnailImage";
 import { TabScreenHeader } from "@/components/layout/TabScreenHeader";
+import { isNativePurchasesPlatform } from "@/lib/billing-config";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
@@ -165,6 +166,7 @@ export default function CellarScreen() {
     }
   };
 
+  const isNativeBilling = isNativePurchasesPlatform(Platform.OS);
   const cellarUpsell = !effectivePremiumActive ? (
     <View style={styles.upsellSection}>
       <BillingCard
@@ -174,31 +176,31 @@ export default function CellarScreen() {
         description="Track your at-home bottles, uploads, and private cellar history."
         badge={hasAdminBillingBypass ? (billingAccessLabel ?? "Admin override") : "Cellar premium"}
         primaryLabel={
-          Platform.OS === "ios" && !nativePurchasesAvailable
-            ? "Use iOS Dev Build"
+          isNativeBilling && !nativePurchasesAvailable
+            ? "Use Native Build"
             : isPurchasingPremium
-              ? "Opening checkout..."
-              : Platform.OS === "ios"
+              ? "Opening purchase flow..."
+              : isNativeBilling
                 ? "Start Premium"
                 : "Subscribe with Stripe"
         }
         onPrimaryPress={() => {
           void handlePurchasePremium();
         }}
-        primaryDisabled={isPurchasingPremium || (Platform.OS === "ios" && !nativePurchasesAvailable)}
+        primaryDisabled={isPurchasingPremium || (isNativeBilling && !nativePurchasesAvailable)}
         secondaryLabel={
-          Platform.OS === "ios" && nativePurchasesAvailable
+          isNativeBilling && nativePurchasesAvailable
             ? (isRestoringPurchases ? "Restoring..." : "Restore")
             : undefined
         }
         onSecondaryPress={
-          Platform.OS === "ios" && nativePurchasesAvailable
+          isNativeBilling && nativePurchasesAvailable
             ? () => {
                 void handleRestorePurchases();
               }
             : undefined
         }
-        secondaryDisabled={Platform.OS === "ios" && nativePurchasesAvailable ? isRestoringPurchases : undefined}
+        secondaryDisabled={isNativeBilling && nativePurchasesAvailable ? isRestoringPurchases : undefined}
       />
       {hiddenPersonalWineCount > 0 ? (
         <Text style={[styles.upsellHint, { color: theme.textMuted }]}>

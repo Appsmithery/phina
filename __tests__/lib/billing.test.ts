@@ -1,9 +1,57 @@
+const mockIsRunningInExpoGo = jest.fn(() => false);
+const mockOpenURL = jest.fn();
+const mockIsConfigured = jest.fn();
+const mockGetAppUserID = jest.fn();
+const mockSetLogLevel = jest.fn(() => Promise.resolve());
+const mockConfigure = jest.fn();
+const mockLogIn = jest.fn(() => Promise.resolve());
+const mockSetEmail = jest.fn(() => Promise.resolve());
+const mockLogOut = jest.fn(() => Promise.resolve());
+
+process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY = "appl_test_key";
+
 jest.mock("@/lib/supabase", () => ({
   supabase: {
     rpc: jest.fn(),
     functions: {
       invoke: jest.fn(),
     },
+  },
+}));
+
+jest.mock("expo", () => ({
+  __esModule: true,
+  isRunningInExpoGo: mockIsRunningInExpoGo,
+  default: {
+    isRunningInExpoGo: mockIsRunningInExpoGo,
+  },
+}));
+
+jest.mock("react-native", () => ({
+  Linking: {
+    openURL: mockOpenURL,
+  },
+  Platform: {
+    OS: "ios",
+  },
+}));
+
+jest.mock("react-native-purchases", () => ({
+  __esModule: true,
+  default: {
+    isConfigured: mockIsConfigured,
+    getAppUserID: mockGetAppUserID,
+    setLogLevel: mockSetLogLevel,
+    configure: mockConfigure,
+    logIn: mockLogIn,
+    setEmail: mockSetEmail,
+    logOut: mockLogOut,
+  },
+  LOG_LEVEL: {
+    WARN: "WARN",
+  },
+  PURCHASE_TYPE: {
+    INAPP: "INAPP",
   },
 }));
 

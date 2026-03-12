@@ -27,12 +27,19 @@ interface RevenueCatEvent {
   store?: string | null;
 }
 
+const GOOGLE_PLAY_STORES = new Set(["google_play", "play_store"]);
+
 function mustGetEnv(name: string): string {
   const value = Deno.env.get(name);
   if (!value) {
     throw new Error(`${name} is not configured`);
   }
   return value;
+}
+
+function getRevenueCatBillingSource(store: string | null | undefined): "apple" | "google" {
+  const normalizedStore = store?.trim().toLowerCase() ?? "";
+  return GOOGLE_PLAY_STORES.has(normalizedStore) ? "google" : "apple";
 }
 
 function corsHeaders() {
@@ -108,6 +115,7 @@ async function upsertRevenueCatCustomer(memberId: string, appUserId: string | nu
 async function upsertPremiumEntitlement(params: {
   memberId: string;
   active: boolean;
+  source: "apple" | "google";
   startedAt: string | null;
   expiresAt: string | null;
   originalTransactionRef: string | null;
@@ -116,7 +124,7 @@ async function upsertPremiumEntitlement(params: {
     {
       member_id: params.memberId,
       premium_active: params.active,
-      source: "apple",
+      source: params.source,
       started_at: params.startedAt,
       expires_at: params.expiresAt,
       original_transaction_ref: params.originalTransactionRef,
@@ -127,10 +135,11 @@ async function upsertPremiumEntitlement(params: {
 }
 
 async function grantHostCredit(memberId: string, purchaseRef: string, event: RevenueCatEvent) {
+  const source = getRevenueCatBillingSource(event.store);
   await supabase.from("host_credit_ledger").insert({
     member_id: memberId,
     delta: 1,
-    source: "apple",
+    source,
     purchase_ref: purchaseRef,
     metadata: {
       product_id: event.product_id,
@@ -193,6 +202,7 @@ Deno.serve(async (req: Request) => {
       await upsertPremiumEntitlement({
         memberId,
         active: isPremiumActive(event),
+        source: getRevenueCatBillingSource(event.store),
         startedAt: toIsoFromMs(event.purchased_at_ms),
         expiresAt: toIsoFromMs(event.expiration_at_ms),
         originalTransactionRef: event.original_transaction_id ?? event.transaction_id ?? null,

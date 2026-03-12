@@ -26,6 +26,19 @@ try {
   console.warn("Observability init failed", e);
 }
 
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+} catch (e) {
+  console.warn("Notification handler init failed", e);
+}
+
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient({
@@ -163,6 +176,20 @@ function SupabaseLayout() {
   });
 
   useRouteScreenTracking();
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+
+    Notifications.setNotificationChannelAsync("rating-rounds", {
+      name: "Rating Rounds",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: "#B58271",
+      sound: "default",
+    }).catch((error) => {
+      console.warn("Notification channel setup failed", error);
+    });
+  }, []);
 
   // Deep link: when user taps a push notification, open the URL in data.url (e.g. /event/:id/rate/:wineId)
   useEffect(() => {

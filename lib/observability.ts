@@ -2,9 +2,9 @@ import * as Sentry from "@sentry/react-native";
 import PostHog from "posthog-react-native";
 import Constants from "expo-constants";
 
-type ObservabilityProps = Record<string, string | number | boolean | null | undefined>;
+import { getPostHogRuntimeConfig } from "@/lib/observability-config";
 
-const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
+type ObservabilityProps = Record<string, string | number | boolean | null | undefined>;
 
 let posthog: PostHog | null = null;
 let posthogDebugEnabled = false;
@@ -38,10 +38,9 @@ export function initObservability() {
   const extra = getExtra();
   const sentryDsn: string | undefined = extra.sentryDsn;
   const posthogKey: string | undefined = extra.posthogKey;
-  const posthogHost: string | undefined = extra.posthogHost;
-  posthogDebugEnabled = extra.posthogDebug === true || extra.posthogDebug === "true";
-  posthogCaptureInDev = extra.posthogCaptureInDev === true || extra.posthogCaptureInDev === "true";
-  const posthogDisabled = __DEV__ && !posthogCaptureInDev;
+  const posthogConfig = getPostHogRuntimeConfig(extra, __DEV__);
+  posthogDebugEnabled = posthogConfig.debugEnabled;
+  posthogCaptureInDev = posthogConfig.captureInDev;
 
   if (sentryDsn) {
     Sentry.init({
@@ -53,19 +52,19 @@ export function initObservability() {
 
   if (posthogKey) {
     posthog = new PostHog(posthogKey, {
-      host: posthogHost ?? DEFAULT_POSTHOG_HOST,
-      disabled: posthogDisabled,
+      host: posthogConfig.host,
+      disabled: posthogConfig.disabled,
       captureAppLifecycleEvents: true,
     });
   } else if (!__DEV__) {
     logMissingPostHogConfig("PostHog disabled because EXPO_PUBLIC_POSTHOG_KEY is missing.");
   }
 
-  if (!posthogHost && !__DEV__) {
-    console.warn(`[observability] EXPO_PUBLIC_POSTHOG_HOST missing. Falling back to ${DEFAULT_POSTHOG_HOST}.`);
+  if (!posthogConfig.hasCustomHost && !__DEV__) {
+    console.warn(`[observability] EXPO_PUBLIC_POSTHOG_HOST missing. Falling back to ${posthogConfig.host}.`);
   }
 
-  if (__DEV__ && !posthogCaptureInDev) {
+  if (__DEV__ && !posthogConfig.captureInDev) {
     console.info("[observability] PostHog is disabled in development. Set EXPO_PUBLIC_POSTHOG_CAPTURE_IN_DEV=true to test analytics locally.");
   }
 }

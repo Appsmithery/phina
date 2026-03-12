@@ -4,6 +4,86 @@ import { supabase } from "@/lib/supabase";
 import { showAlert } from "@/lib/alert";
 import { trackEvent } from "@/lib/observability";
 
+type PushSendResponse = {
+  sent?: number;
+  expo_recipients?: number;
+  web_recipients?: number;
+  expo_sent?: number;
+  web_sent?: number;
+  skipped_reason?: string | null;
+  error?: string;
+  error_code?: string;
+};
+
+function getTrackingErrorProps(error: unknown) {
+  if (error && typeof error === "object") {
+    const errorRecord = error as { code?: unknown; name?: unknown; message?: unknown };
+    const errorCode = typeof errorRecord.code === "string"
+      ? errorRecord.code
+      : typeof errorRecord.name === "string"
+        ? errorRecord.name
+        : "unknown_error";
+    const errorMessage = typeof errorRecord.message === "string" ? errorRecord.message : "Unknown error";
+
+    return { error_code: errorCode, error_message: errorMessage };
+  }
+
+  if (error instanceof Error) {
+    return { error_code: error.name, error_message: error.message };
+  }
+
+  return { error_code: "unknown_error", error_message: "Unknown error" };
+}
+
+async function getPushFailureProps(error: unknown, response?: Response) {
+  const props: Record<string, string | number | boolean | null> = { ...getTrackingErrorProps(error) };
+  if (!response) return props;
+
+  let payload: PushSendResponse | null = null;
+  try {
+    payload = await response.clone().json() as PushSendResponse;
+  } catch {
+    payload = null;
+  }
+
+  if (typeof response.status === "number") {
+    props.http_status = response.status;
+  }
+
+  if (typeof payload?.error === "string" && payload.error.length > 0) {
+    props.error_message = payload.error;
+  }
+
+  const responseErrorCode = typeof payload?.error_code === "string" ? payload.error_code : null;
+  if (responseErrorCode) {
+    props.error_code = responseErrorCode;
+    return props;
+  }
+
+  if (response.status === 401) {
+    props.error_code = "unauthorized";
+  } else if (response.status === 403) {
+    props.error_code = "forbidden";
+  } else if (response.status === 404) {
+    props.error_code = "wine_not_found";
+  } else if (response.status >= 500) {
+    props.error_code = "internal_error";
+  }
+
+  return props;
+}
+
+function getPushSuccessProps(result: PushSendResponse | null | undefined) {
+  return {
+    sent: typeof result?.sent === "number" ? result.sent : 0,
+    expo_recipients: typeof result?.expo_recipients === "number" ? result.expo_recipients : 0,
+    web_recipients: typeof result?.web_recipients === "number" ? result.web_recipients : 0,
+    expo_sent: typeof result?.expo_sent === "number" ? result.expo_sent : 0,
+    web_sent: typeof result?.web_sent === "number" ? result.web_sent : 0,
+    skipped_reason: result?.skipped_reason ?? null,
+  };
+}
+
 export function useStartRatingRound(eventId: string, wineId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -16,35 +96,73 @@ export function useStartRatingRound(eventId: string, wineId: string) {
       if (error) throw error;
     },
     onSuccess: async () => {
+      trackEvent("rating_round_started", {
+        event_id: eventId,
+        wine_id: wineId,
+        platform: Platform.OS,
+        source: "host_controls",
+        success: true,
+      });
       qc.invalidateQueries({ queryKey: ["rating_rounds", eventId] });
       qc.invalidateQueries({ queryKey: ["ratingRound", eventId, wineId] });
       await qc.refetchQueries({ queryKey: ["rating_rounds", eventId] });
       await qc.refetchQueries({ queryKey: ["ratingRound", eventId, wineId] });
-      supabase.functions
-        .invoke("send-rating-round-push", {
-          body: { event_id: eventId, wine_id: wineId },
-        })
-        .then(({ data, error }) => {
-          if (__DEV__) {
-            console.log("[send-rating-round-push] invoke result", { data, error });
-          }
-          if (error) {
-            console.warn("Push notification send failed:", error);
-            showAlert(
-              "Push notifications",
-              "Round started, but we couldn't send push notifications. You can still share the link."
-            );
-          }
-        })
-        .catch((err) => {
-          if (__DEV__) {
-            console.warn("Push notification send failed:", err);
-          }
-          showAlert(
-            "Push notifications",
-            "Round started, but we couldn't send push notifications. You can still share the link."
-          );
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+
+      if (!accessToken) {
+        trackEvent("rating_round_push_failed", {
+          event_id: eventId,
+          wine_id: wineId,
+          platform: Platform.OS,
+          source: "host_controls",
+          success: false,
+          error_code: "missing_session",
+          error_message: "No active session available for push invocation.",
         });
+        showAlert(
+          "Push notifications",
+          "Round started, but we couldn't send push notifications. You can still share the link."
+        );
+        return;
+      }
+
+      const { data, error, response } = await supabase.functions.invoke<PushSendResponse>("send-rating-round-push", {
+        body: { event_id: eventId, wine_id: wineId },
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (__DEV__) {
+        console.log("[send-rating-round-push] invoke result", { data, error, status: response?.status ?? null });
+      }
+
+      if (error) {
+        trackEvent("rating_round_push_failed", {
+          event_id: eventId,
+          wine_id: wineId,
+          platform: Platform.OS,
+          source: "host_controls",
+          success: false,
+          ...await getPushFailureProps(error, response),
+        });
+        console.warn("Push notification send failed:", error);
+        showAlert(
+          "Push notifications",
+          "Round started, but we couldn't send push notifications. You can still share the link."
+        );
+        return;
+      }
+
+      trackEvent("rating_round_push_sent", {
+        event_id: eventId,
+        wine_id: wineId,
+        platform: Platform.OS,
+        source: "host_controls",
+        success: true,
+        ...getPushSuccessProps(data),
+      });
     },
   });
 }

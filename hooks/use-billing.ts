@@ -14,12 +14,9 @@ import {
   restoreNativePurchases,
   type BillingStatus,
 } from "@/lib/billing";
+import { getBillingSource, isNativePurchasesPlatform } from "@/lib/billing-config";
 import { trackEvent } from "@/lib/observability";
 import { useSupabase } from "@/lib/supabase-context";
-
-function getBillingSource() {
-  return Platform.OS === "ios" ? "native_ios" : "stripe";
-}
 
 function getBillingErrorCode(error: unknown) {
   if (error && typeof error === "object" && "code" in error) {
@@ -53,10 +50,10 @@ export function useBilling() {
     mutationFn: async () => {
       if (!member?.id) throw new Error("Sign in to subscribe.");
 
-      trackEvent("premium_purchase_started", { platform: Platform.OS, source: getBillingSource() });
+      trackEvent("premium_purchase_started", { platform: Platform.OS, source: getBillingSource(Platform.OS) });
       await purchasePremium(member.id, session?.user?.email ?? member.email ?? null);
 
-      if (Platform.OS === "ios") {
+      if (isNativePurchasesPlatform(Platform.OS)) {
         return pollBillingStatus((status) => isPremiumActive(status));
       }
 
@@ -64,14 +61,18 @@ export function useBilling() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["billing", member?.id] });
-      if (Platform.OS === "ios") {
-        trackEvent("premium_purchase_completed", { platform: Platform.OS, source: getBillingSource(), success: true });
+      if (isNativePurchasesPlatform(Platform.OS)) {
+        trackEvent("premium_purchase_completed", {
+          platform: Platform.OS,
+          source: getBillingSource(Platform.OS),
+          success: true,
+        });
       }
     },
     onError: (error) => {
       trackEvent("premium_purchase_failed", {
         platform: Platform.OS,
-        source: getBillingSource(),
+        source: getBillingSource(Platform.OS),
         success: false,
         error_code: getBillingErrorCode(error),
       });
@@ -83,10 +84,10 @@ export function useBilling() {
       if (!member?.id) throw new Error("Sign in to buy host credits.");
 
       const startingBalance = billingQuery.data?.host_credit_balance ?? 0;
-      trackEvent("host_credit_purchase_started", { platform: Platform.OS, source: getBillingSource() });
+      trackEvent("host_credit_purchase_started", { platform: Platform.OS, source: getBillingSource(Platform.OS) });
       await purchaseHostCredit(member.id, session?.user?.email ?? member.email ?? null);
 
-      if (Platform.OS === "ios") {
+      if (isNativePurchasesPlatform(Platform.OS)) {
         return pollBillingStatus((status) => status.host_credit_balance > startingBalance);
       }
 
@@ -94,14 +95,18 @@ export function useBilling() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["billing", member?.id] });
-      if (Platform.OS === "ios") {
-        trackEvent("host_credit_purchase_completed", { platform: Platform.OS, source: getBillingSource(), success: true });
+      if (isNativePurchasesPlatform(Platform.OS)) {
+        trackEvent("host_credit_purchase_completed", {
+          platform: Platform.OS,
+          source: getBillingSource(Platform.OS),
+          success: true,
+        });
       }
     },
     onError: (error) => {
       trackEvent("host_credit_purchase_failed", {
         platform: Platform.OS,
-        source: getBillingSource(),
+        source: getBillingSource(Platform.OS),
         success: false,
         error_code: getBillingErrorCode(error),
       });
@@ -112,18 +117,22 @@ export function useBilling() {
     mutationFn: async () => {
       if (!member?.id) throw new Error("Sign in to restore purchases.");
 
-      trackEvent("billing_restore_started", { platform: Platform.OS, source: "native_ios" });
+      trackEvent("billing_restore_started", { platform: Platform.OS, source: getBillingSource(Platform.OS) });
       await restoreNativePurchases(member.id, session?.user?.email ?? member.email ?? null);
       return pollBillingStatus((status) => status.host_credit_balance >= 0, 8, 1000);
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["billing", member?.id] });
-      trackEvent("billing_restore_completed", { platform: Platform.OS, source: "native_ios", success: true });
+      trackEvent("billing_restore_completed", {
+        platform: Platform.OS,
+        source: getBillingSource(Platform.OS),
+        success: true,
+      });
     },
     onError: (error) => {
       trackEvent("billing_restore_failed", {
         platform: Platform.OS,
-        source: "native_ios",
+        source: getBillingSource(Platform.OS),
         success: false,
         error_code: getBillingErrorCode(error),
       });
