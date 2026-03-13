@@ -39,7 +39,12 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const fetchMember = async (user: User) => {
     setMemberLoaded(false);
     try {
-      const { data } = await supabase.from("members").select("*").eq("id", user.id).single();
+      const { data, error } = await supabase
+        .from("members")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (error) throw error;
       if (data) {
         let nextMember: Member = data;
         const googleAvatarUrl = extractGoogleAvatarUrl(user);
@@ -63,16 +68,20 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 
       if (user.email) {
         const googleAvatarUrl = extractGoogleAvatarUrl(user);
-        await supabase.from("members").upsert(
-          {
-            id: user.id,
-            email: user.email,
-            ...(googleAvatarUrl ? { avatar_url: googleAvatarUrl, avatar_source: "google" as const } : {}),
-          },
-          { onConflict: "id" }
-        );
-        const { data: created } = await supabase.from("members").select("*").eq("id", user.id).single();
-        setMember(created ?? null);
+        const { data: created, error: upsertError } = await supabase
+          .from("members")
+          .upsert(
+            {
+              id: user.id,
+              email: user.email,
+              ...(googleAvatarUrl ? { avatar_url: googleAvatarUrl, avatar_source: "google" as const } : {}),
+            },
+            { onConflict: "id" }
+          )
+          .select("*")
+          .single();
+        if (upsertError) throw upsertError;
+        setMember(created);
         identifyUser(user.id);
         trackEvent("user_signed_up", { platform: Platform.OS, source: "member_bootstrap" });
         configureRevenueCatForMember(user.id, user.email).catch(() => {});

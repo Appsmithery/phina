@@ -27,7 +27,7 @@ type WineWithEvent = WineWithPricePrivacy & {
 export default function CellarScreen() {
   const theme = useTheme();
   const tabBarHeight = useOptionalBottomTabBarHeight();
-  const { member } = useSupabase();
+  const { session, sessionLoaded, member, memberLoaded } = useSupabase();
   const {
     hasAdminBillingBypass,
     effectivePremiumActive,
@@ -138,11 +138,29 @@ export default function CellarScreen() {
   const storageCt = useMemo(() => accessibleWines.filter((w) => w.status !== "consumed").length, [accessibleWines]);
   const historyCt = useMemo(() => accessibleWines.filter((w) => w.status === "consumed").length, [accessibleWines]);
 
-  if (!member?.id) {
+  if (!sessionLoaded || (session && !memberLoaded)) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.container, styles.centeredState, { backgroundColor: theme.background }]}>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading your cellar...</Text>
+      </View>
+    );
+  }
+
+  if (!session) {
+    return (
+      <View style={[styles.container, styles.centeredState, { backgroundColor: theme.background }]}>
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>
           Sign in to see your cellar.
+        </Text>
+      </View>
+    );
+  }
+
+  if (!member?.id || !member.profile_complete) {
+    return (
+      <View style={[styles.container, styles.centeredState, { backgroundColor: theme.background }]}>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>
+          Finishing your account setup...
         </Text>
       </View>
     );

@@ -64,7 +64,7 @@ export default function Index() {
     );
   }
 
-  if (session && member && !member.profile_complete) {
+  if (session && (!member || !member.profile_complete)) {
     if (pendingJoinId) {
       setPendingJoinEventId(pendingJoinId);
     }

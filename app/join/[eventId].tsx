@@ -21,7 +21,7 @@ import { getJoinStoreTarget, isMobileWebUserAgent } from "@/lib/join-store-links
 
 export default function JoinEventScreen() {
   const { eventId } = useLocalSearchParams<{ eventId: string }>();
-  const { session, sessionLoaded } = useSupabase();
+  const { session, sessionLoaded, member, memberLoaded } = useSupabase();
   const theme = useTheme();
   const [joining, setJoining] = useState(false);
   const [done, setDone] = useState(false);
@@ -45,15 +45,24 @@ export default function JoinEventScreen() {
       return;
     }
 
+    if (!memberLoaded) {
+      return;
+    }
+
     (async () => {
       setJoining(true);
       try {
-        await supabase.from("event_members").upsert(
-          { event_id: eventId, member_id: session.user.id, checked_in: true },
+        if (!member?.id) {
+          throw new Error("Your profile is still being set up. Please finish onboarding and try joining again.");
+        }
+        const { error } = await supabase.from("event_members").upsert(
+          { event_id: eventId, member_id: member.id, checked_in: true },
           { onConflict: "event_id,member_id" }
         );
+        if (error) throw error;
         queryClient.invalidateQueries({ queryKey: ["events"] });
         queryClient.invalidateQueries({ queryKey: ["event", eventId] });
+        queryClient.invalidateQueries({ queryKey: ["event_members_count", eventId] });
         queryClient.invalidateQueries({ queryKey: ["profile", "event_members"] });
         setDone(true);
         trackEvent("event_joined", {
@@ -70,7 +79,7 @@ export default function JoinEventScreen() {
         setJoining(false);
       }
     })();
-  }, [sessionLoaded, session, eventId, queryClient, isMobileWeb]);
+  }, [sessionLoaded, session, member, memberLoaded, eventId, queryClient, isMobileWeb]);
 
   const handleOpenStore = async () => {
     if (!storeTarget) return;
@@ -98,7 +107,7 @@ export default function JoinEventScreen() {
     }
   };
 
-  if (!sessionLoaded || joining) {
+  if (!sessionLoaded || (session && !memberLoaded) || joining) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
