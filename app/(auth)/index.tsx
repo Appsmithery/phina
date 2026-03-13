@@ -315,7 +315,7 @@ export default function AuthScreen() {
               onPress={handleGoogleSignIn}
               disabled={socialLoading || loading}
               accessibilityRole="button"
-              accessibilityLabel="Sign in with Google"
+              accessibilityLabel="Continue with Google"
             >
               <Text
                 style={[styles.googleButtonText, { color: theme.text }]}
@@ -323,9 +323,12 @@ export default function AuthScreen() {
                 adjustsFontSizeToFit
                 minimumFontScale={0.8}
               >
-                {googleLoading ? "Signing in..." : "Sign in with Google"}
+                {googleLoading ? "Signing in..." : "Continue with Google"}
               </Text>
             </TouchableOpacity>
+            <Text style={[styles.socialHint, { color: theme.textMuted }]}>
+              New to Phina? Continue with Google to create your account and finish setup.
+            </Text>
             {isAppleAuthAvailable() ? (
               <TouchableOpacity
                 style={styles.appleButton}
@@ -524,6 +527,14 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_400Regular",
     fontSize: 14,
     marginHorizontal: 12,
+  },
+  socialHint: {
+    fontFamily: "Montserrat_400Regular",
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: -4,
+    marginBottom: 12,
+    paddingHorizontal: 8,
   },
   googleButton: {
     paddingVertical: 14,

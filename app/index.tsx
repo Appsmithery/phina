@@ -10,7 +10,7 @@ const loadingStyles = StyleSheet.create({
 });
 
 export default function Index() {
-  const { session, sessionLoaded, member } = useSupabase();
+  const { session, sessionLoaded, member, memberLoaded } = useSupabase();
   const [pendingJoinId, setPendingJoinId] = useState<string | null>(null);
   const [pendingJoinCheckDone, setPendingJoinCheckDone] = useState(false);
 
@@ -18,6 +18,7 @@ export default function Index() {
     if (__DEV__) {
       console.log("[auth] index state", {
         sessionLoaded,
+        memberLoaded,
         hasSession: !!session,
         userId: session?.user?.id ?? null,
         hasMember: !!member,
@@ -25,10 +26,10 @@ export default function Index() {
         pendingJoinId,
       });
     }
-  }, [sessionLoaded, session, member, pendingJoinCheckDone, pendingJoinId]);
+  }, [sessionLoaded, memberLoaded, session, member, pendingJoinCheckDone, pendingJoinId]);
 
   useEffect(() => {
-    if (!sessionLoaded || !session) {
+    if (!sessionLoaded || !session || !memberLoaded) {
       setPendingJoinCheckDone(false);
       setPendingJoinId(null);
       return;
@@ -43,9 +44,9 @@ export default function Index() {
         setPendingJoinCheckDone(true);
       })
       .catch(() => setPendingJoinCheckDone(true));
-  }, [sessionLoaded, session]);
+  }, [sessionLoaded, session, memberLoaded]);
 
-  if (!sessionLoaded) {
+  if (!sessionLoaded || (session && !memberLoaded)) {
     return (
       <View style={loadingStyles.container}>
         <ActivityIndicator size="large" />
@@ -86,6 +87,7 @@ export default function Index() {
   if (__DEV__) {
     console.log("[auth] index redirect to auth", {
       sessionLoaded,
+      memberLoaded,
       hasSession: !!session,
       pendingJoinCheckDone,
     });

@@ -238,10 +238,10 @@ export default function SignInScreen() {
           onPress={handleGoogleSignIn}
           disabled={googleLoading || loading}
           accessibilityRole="button"
-          accessibilityLabel="Sign in with Google"
+          accessibilityLabel="Continue with Google"
         >
           <Text style={[styles.googleButtonText, { color: theme.text }]}>
-            {googleLoading ? "Signing in..." : "Sign in with Google"}
+            {googleLoading ? "Signing in..." : "Continue with Google"}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
