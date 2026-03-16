@@ -81,7 +81,23 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   plugins: [
     "expo-router",
-    "expo-camera",
+    [
+      "expo-camera",
+      {
+        cameraPermission:
+          "Phina uses your camera to scan wine bottle labels and extract wine details automatically.",
+        microphonePermission: false,
+        recordAudioAndroid: false,
+      },
+    ],
+    [
+      "expo-image-picker",
+      {
+        photosPermission:
+          "Phina lets you choose photos from your library for avatars and wine labels.",
+        microphonePermission: false,
+      },
+    ],
     "expo-web-browser",
     "expo-apple-authentication",
     "@react-native-community/datetimepicker",

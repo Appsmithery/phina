@@ -9,6 +9,8 @@ export const FEEDBACK_CATEGORIES = [
   { value: "confusing", label: "Something confusing" },
   { value: "general_feedback", label: "General feedback" },
   { value: "praise", label: "Praise" },
+  { value: "report_user_content", label: "Report user content" },
+  { value: "report_ai_content", label: "Report AI content" },
 ] as const;
 
 export const FEEDBACK_SENTIMENTS = [
@@ -52,6 +54,9 @@ export function buildFeedbackContext(base: {
   previousScreen: string;
   eventId?: string | null;
   wineId?: string | null;
+  reportTarget?: string | null;
+  reportTargetId?: string | null;
+  reportedMemberId?: string | null;
 }): Json {
   return {
     app_version: Constants.expoConfig?.version ?? null,
@@ -60,5 +65,8 @@ export function buildFeedbackContext(base: {
     previous_screen: base.previousScreen,
     event_id: base.eventId ?? null,
     wine_id: base.wineId ?? null,
+    report_target: base.reportTarget ?? null,
+    report_target_id: base.reportTargetId ?? null,
+    reported_member_id: base.reportedMemberId ?? null,
   };
 }

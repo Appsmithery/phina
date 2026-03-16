@@ -470,6 +470,21 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.cardTitle, { color: theme.text }]}>Account</Text>
+          <Text style={[styles.supportBody, { color: theme.textSecondary }]}>
+            You can permanently delete your account and associated personal data from the app.
+          </Text>
+          <TouchableOpacity
+            style={[styles.supportAction, { borderColor: "#B55A5A30", backgroundColor: theme.background }]}
+            onPress={() => router.push("/account/delete")}
+          >
+            <Ionicons name="trash-outline" size={18} color="#B55A5A" />
+            <Text style={[styles.supportActionText, { color: "#B55A5A" }]}>Delete account</Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity style={[styles.signOut, { borderColor: theme.border }]} onPress={signOut}>
           <Text style={[styles.signOutText, { color: theme.textSecondary }]}>Sign out</Text>
         </TouchableOpacity>

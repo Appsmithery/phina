@@ -29,10 +29,21 @@ export default function FeedbackScreen() {
     screen?: string;
     eventId?: string;
     wineId?: string;
+    category?: string;
+    reportTarget?: string;
+    reportTargetId?: string;
+    reportedMemberId?: string;
   }>();
   const { member, session } = useSupabase();
   const theme = useTheme();
-  const [category, setCategory] = useState<FeedbackCategory | null>(null);
+  const initialCategory = useMemo(() => {
+    const requestedCategory = typeof params.category === "string" ? params.category : null;
+    if (!requestedCategory) return null;
+    return FEEDBACK_CATEGORIES.some((option) => option.value === requestedCategory)
+      ? (requestedCategory as FeedbackCategory)
+      : null;
+  }, [params.category]);
+  const [category, setCategory] = useState<FeedbackCategory | null>(initialCategory);
   const [sentiment, setSentiment] = useState<FeedbackSentiment | null>(null);
   const [message, setMessage] = useState("");
   const [wantsFollowUp, setWantsFollowUp] = useState(false);
@@ -49,6 +60,20 @@ export default function FeedbackScreen() {
       : "unknown";
   const eventId = typeof params.eventId === "string" ? params.eventId : null;
   const wineId = typeof params.wineId === "string" ? params.wineId : null;
+  const reportTarget =
+    typeof params.reportTarget === "string" && params.reportTarget.length > 0
+      ? params.reportTarget
+      : null;
+  const reportTargetId =
+    typeof params.reportTargetId === "string" && params.reportTargetId.length > 0
+      ? params.reportTargetId
+      : null;
+  const reportedMemberId =
+    typeof params.reportedMemberId === "string" && params.reportedMemberId.length > 0
+      ? params.reportedMemberId
+      : null;
+  const isReportFlow =
+    initialCategory === "report_user_content" || initialCategory === "report_ai_content";
 
   const contextJson = useMemo(
     () =>
@@ -57,8 +82,19 @@ export default function FeedbackScreen() {
         previousScreen,
         eventId,
         wineId,
+        reportTarget,
+        reportTargetId,
+        reportedMemberId,
       }),
-    [eventId, feedbackSource, previousScreen, wineId]
+    [
+      eventId,
+      feedbackSource,
+      previousScreen,
+      reportTarget,
+      reportTargetId,
+      reportedMemberId,
+      wineId,
+    ]
   );
 
   useEffect(() => {
@@ -148,16 +184,20 @@ export default function FeedbackScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Stack.Screen options={{ title: "Feedback" }} />
+      <Stack.Screen options={{ title: isReportFlow ? "Report Content" : "Feedback" }} />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.title, { color: theme.text }]}>Share feedback</Text>
+        <Text style={[styles.title, { color: theme.text }]}>
+          {isReportFlow ? "Report content" : "Share feedback"}
+        </Text>
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          Tell us what is working, what is confusing, or what you want next.
+          {isReportFlow
+            ? "Tell us what looks wrong, unsafe, or misleading. We will review the report."
+            : "Tell us what is working, what is confusing, or what you want next."}
         </Text>
 
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -221,7 +261,11 @@ export default function FeedbackScreen() {
               styles.messageInput,
               { borderColor: theme.border, color: theme.text, backgroundColor: theme.background },
             ]}
-            placeholder="What happened, what felt off, or what would make the app better?"
+            placeholder={
+              isReportFlow
+                ? "What should we review? Include anything misleading, unsafe, or inappropriate."
+                : "What happened, what felt off, or what would make the app better?"
+            }
             placeholderTextColor={theme.textMuted}
             multiline
             value={message}
@@ -230,7 +274,9 @@ export default function FeedbackScreen() {
             maxLength={1000}
           />
           <Text style={[styles.helperText, { color: theme.textMuted }]}>
-            We also capture app version, platform, and the screen where you opened feedback.
+            {isReportFlow
+              ? "We also capture app version, platform, the screen, and the reported content context."
+              : "We also capture app version, platform, and the screen where you opened feedback."}
           </Text>
 
           <TouchableOpacity
@@ -261,7 +307,7 @@ export default function FeedbackScreen() {
             disabled={submitting}
           >
             <Text style={styles.submitButtonText}>
-              {submitting ? "Sending..." : "Send feedback"}
+              {submitting ? "Sending..." : isReportFlow ? "Send report" : "Send feedback"}
             </Text>
           </TouchableOpacity>
 

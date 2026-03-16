@@ -118,6 +118,14 @@ export default function WineDetailScreen() {
       (member?.id === wine.brought_by || event?.created_by === member?.id)
   );
   const canRemove = Boolean(wine && eventId && event?.created_by === member?.id);
+  const canReportWineContent = Boolean(userId && wine && userId !== wine.brought_by);
+  const hasAiDetails = Boolean(
+    wine?.ai_summary ||
+      wine?.ai_geography ||
+      wine?.ai_production ||
+      wine?.ai_tasting_notes ||
+      wine?.ai_pairings
+  );
 
   const handleRemove = () => {
     if (!wine?.id || !eventId) return;
@@ -370,6 +378,56 @@ export default function WineDetailScreen() {
           ) : null}
         </>
       ) : null}
+      {canReportWineContent ? (
+        <>
+          <TouchableOpacity
+            style={[styles.reportButton, { borderColor: theme.border }]}
+            onPress={() =>
+              router.push({
+                pathname: "/feedback",
+                params: {
+                  source: "report_wine_content",
+                  screen: "/event/[id]/wine/[wineId]",
+                  eventId,
+                  wineId,
+                  category: "report_user_content",
+                  reportTarget: "wine",
+                  reportTargetId: wine.id,
+                  reportedMemberId: wine.brought_by,
+                },
+              })
+            }
+          >
+            <Text style={[styles.reportButtonText, { color: theme.textSecondary }]}>
+              Report wine content
+            </Text>
+          </TouchableOpacity>
+          {hasAiDetails ? (
+            <TouchableOpacity
+              style={[styles.reportButton, { borderColor: theme.border }]}
+              onPress={() =>
+                router.push({
+                  pathname: "/feedback",
+                  params: {
+                    source: "report_ai_wine_content",
+                    screen: "/event/[id]/wine/[wineId]",
+                    eventId,
+                    wineId,
+                    category: "report_ai_content",
+                    reportTarget: "wine_ai_details",
+                    reportTargetId: wine.id,
+                    reportedMemberId: wine.brought_by,
+                  },
+                })
+              }
+            >
+              <Text style={[styles.reportButtonText, { color: theme.textSecondary }]}>
+                Report AI wine details
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+        </>
+      ) : null}
     </ScrollView>
   );
 }
@@ -401,6 +459,8 @@ const styles = StyleSheet.create({
   editButtonText: { color: "#fff", fontSize: 16, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   removeButton: { borderWidth: 1, borderRadius: 12, padding: 12, alignItems: "center", marginTop: 12 },
   removeButtonText: { fontSize: 16, fontWeight: "500", fontFamily: "Montserrat_400Regular" },
+  reportButton: { borderWidth: 1, borderRadius: 12, padding: 12, alignItems: "center", marginTop: 12 },
+  reportButtonText: { fontSize: 15, fontFamily: "Montserrat_400Regular" },
   placeholder: { padding: 24, fontFamily: "Montserrat_400Regular" },
   badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
   badge: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },

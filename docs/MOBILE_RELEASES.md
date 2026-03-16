@@ -38,6 +38,28 @@ Why Starter instead of Free:
 
 The droplet is not part of the native app runtime.
 
+## Android store note
+
+For the first Google Play submission, use
+`docs/planning/setup/GOOGLE_PLAY_FIRST_SUBMISSION.md` as the operational
+checklist. The Android path assumes:
+
+- personal Play account testing requirements
+- billing included in the first Android release
+- production access only after the closed-test gate is satisfied
+- target API compliance tracked against current Play policy, not older repo notes
+
+## iOS store note
+
+For the first App Store / TestFlight submission, use
+`docs/planning/setup/APPLE_APP_STORE_FIRST_SUBMISSION.md` as the operational
+checklist. The iOS path assumes:
+
+- billing included in the first iOS release
+- Sign in with Apple and Google Sign-In both remain available
+- App Review is given seeded reviewer credentials instead of relying on QR join
+- privacy, support, and account deletion URLs are all repo-backed static pages
+
 ## GitHub Actions workflows
 
 - `checks.yml`

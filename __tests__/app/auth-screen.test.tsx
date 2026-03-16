@@ -47,7 +47,7 @@ describe("AuthScreen", () => {
     expect(screen.getByLabelText("Phína logo")).toBeTruthy();
     expect(screen.getByText("Enter your email to receive a secure sign-in magic link.")).toBeTruthy();
     expect(screen.getByText("Send magic link")).toBeTruthy();
-    expect(screen.getByText("Sign in with Google")).toBeTruthy();
+    expect(screen.getByText("Continue with Google")).toBeTruthy();
     expect(screen.getByText("Sign in with Apple")).toBeTruthy();
     expect(screen.getByText("Sign in with password")).toBeTruthy();
   });

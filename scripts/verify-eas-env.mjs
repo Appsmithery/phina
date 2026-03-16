@@ -41,6 +41,14 @@ const commonRequired = [
 
 const required = new Set(commonRequired);
 
+if (platform === "ios" || platform === "all") {
+  required.add("EXPO_PUBLIC_REVENUECAT_IOS_API_KEY");
+}
+
+if (platform === "android" || platform === "all") {
+  required.add("EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY");
+}
+
 const result =
   process.platform === "win32"
     ? spawnSync(

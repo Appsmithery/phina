@@ -549,7 +549,9 @@ export interface Database {
             | "feature_request"
             | "confusing"
             | "general_feedback"
-            | "praise";
+            | "praise"
+            | "report_user_content"
+            | "report_ai_content";
           message: string;
           sentiment: "negative" | "neutral" | "positive" | null;
           source: string;
@@ -566,7 +568,9 @@ export interface Database {
             | "feature_request"
             | "confusing"
             | "general_feedback"
-            | "praise";
+            | "praise"
+            | "report_user_content"
+            | "report_ai_content";
           message: string;
           sentiment?: "negative" | "neutral" | "positive" | null;
           source: string;
@@ -583,7 +587,9 @@ export interface Database {
             | "feature_request"
             | "confusing"
             | "general_feedback"
-            | "praise";
+            | "praise"
+            | "report_user_content"
+            | "report_ai_content";
           message?: string;
           sentiment?: "negative" | "neutral" | "positive" | null;
           source?: string;

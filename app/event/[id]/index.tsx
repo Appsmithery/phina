@@ -631,6 +631,37 @@ export default function EventDetailScreen() {
         </TouchableOpacity>
       ) : null}
 
+      <TouchableOpacity
+        style={[
+          styles.actionRow,
+          { backgroundColor: theme.surface, borderColor: theme.border },
+        ]}
+        onPress={() =>
+          router.push({
+            pathname: "/feedback",
+            params: {
+              source: "report_event_content",
+              screen: "/event/[id]",
+              eventId: event.id,
+              category: "report_user_content",
+              reportTarget: "event",
+              reportTargetId: event.id,
+              reportedMemberId: event.created_by,
+            },
+          })
+        }
+      >
+        <Ionicons name="alert-circle-outline" size={20} color={theme.text} />
+        <Text style={[styles.actionLabel, { color: theme.text }]}>
+          Report event content
+        </Text>
+        <Ionicons
+          name="chevron-forward"
+          size={18}
+          color={theme.textSecondary}
+        />
+      </TouchableOpacity>
+
       {(isHost && event.status === "active") || canDeleteEvent ? (
         <View style={styles.dangerRow}>
           {isHost && event.status === "active" ? (
