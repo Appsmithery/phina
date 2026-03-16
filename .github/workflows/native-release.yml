@@ -66,6 +66,9 @@ jobs:
             [[ -n "${{ secrets.EXPO_ASC_ISSUER_ID }}" ]] || { echo "::error::EXPO_ASC_ISSUER_ID missing"; exit 1; }
           fi
 
+      - name: Verify production EAS environment
+        run: node scripts/verify-eas-env.mjs --environment production --platform ${{ inputs.platform }}
+
       - name: Write Android submit credentials
         if: inputs.action == 'build_and_submit' && (inputs.platform == 'android' || inputs.platform == 'all')
         run: printf '%s' '${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}' > google-play-service-account.json

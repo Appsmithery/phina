@@ -74,6 +74,28 @@ The repo uses three EAS build profiles:
 The app already uses `runtimeVersion: { policy: "appVersion" }`. That means OTA
 updates only apply to installed binaries with the same app version/runtime.
 
+## EAS environment hydration
+
+Native EAS builds do not read your local `.env` automatically in a reliable way.
+Phina expects the full native `EXPO_PUBLIC_*` matrix to exist in the matching EAS
+project environment.
+
+Before the first `preview` or `production` build, and any time those values change:
+
+```bash
+bash scripts/push-env-to-eas.sh --env preview --apply
+bash scripts/push-env-to-eas.sh --env production --apply
+```
+
+Verification is built into the repo:
+
+- `node scripts/verify-eas-env.mjs --environment preview --platform ios`
+- `node scripts/verify-eas-env.mjs --environment production --platform all`
+
+The native preview and native release GitHub workflows now fail fast if the
+required EAS environment variables are missing, instead of producing a broken
+standalone binary.
+
 ## Release decision tree
 
 Use **EAS Update** when the change is JS-only:

@@ -50,6 +50,9 @@ jobs:
           [[ -n "${{ secrets.EXPO_TOKEN }}" ]] || { echo "::error::EXPO_TOKEN missing"; exit 1; }
           eas whoami
 
+      - name: Verify preview EAS environment
+        run: node scripts/verify-eas-env.mjs --environment preview --platform ${{ matrix.platform }}
+
       - name: Start ${{ matrix.platform }} preview build
         run: eas build --platform ${{ matrix.platform }} --profile preview --non-interactive --no-wait --json > build.json
 

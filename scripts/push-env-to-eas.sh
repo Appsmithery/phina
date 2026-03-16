@@ -52,8 +52,11 @@ declare -A VISIBILITY=(
   [EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID]="plaintext"
   [EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME]="plaintext"
   [EXPO_PUBLIC_REVENUECAT_IOS_API_KEY]="sensitive"
+  [EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY]="sensitive"
   [EXPO_PUBLIC_REVENUECAT_PREMIUM_PACKAGE_ID]="plaintext"
   [EXPO_PUBLIC_REVENUECAT_HOST_CREDIT_PRODUCT_ID]="plaintext"
+  [EXPO_PUBLIC_REVENUECAT_ANDROID_PREMIUM_PACKAGE_ID]="plaintext"
+  [EXPO_PUBLIC_REVENUECAT_ANDROID_HOST_CREDIT_PRODUCT_ID]="plaintext"
   [EXPO_PUBLIC_SENTRY_DSN]="plaintext"
   [EXPO_PUBLIC_POSTHOG_KEY]="plaintext"
   [EXPO_PUBLIC_POSTHOG_HOST]="plaintext"
@@ -105,9 +108,9 @@ for var in "${!VISIBILITY[@]}"; do
       # Already exists — update instead
       echo -n "(exists, updating) "
       if npx eas env:update \
-          --environment "$ENVIRONMENT" \
+          "$ENVIRONMENT" \
           --variable-name "$var" \
-          --variable-value "$val" \
+          --value "$val" \
           --non-interactive 2>/dev/null; then
         echo "✅"
       else
