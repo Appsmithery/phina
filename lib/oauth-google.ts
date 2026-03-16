@@ -4,6 +4,7 @@ import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { createSessionFromUrl } from "./auth-callback";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -40,41 +41,6 @@ export function getOAuthRedirectUrl(): string {
 
   if (__DEV__) console.log("[oauth-google] Generated redirect URI:", redirectUri);
   return redirectUri;
-}
-
-/**
- * Parse tokens or code from the redirect URL and set the session.
- * Returns the session if successful, null otherwise.
- */
-export async function createSessionFromUrl(url: string): Promise<Session | null> {
-  try {
-    const urlObj = new URL(url);
-    const params = new URLSearchParams(urlObj.hash.replace("#", "") || urlObj.search.replace("?", ""));
-
-    const accessToken = params.get("access_token");
-    const refreshToken = params.get("refresh_token");
-    const code = params.get("code");
-
-    if (accessToken && refreshToken) {
-      const { data, error } = await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
-      if (error) throw error;
-      return data.session;
-    }
-
-    if (code) {
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-      if (error) throw error;
-      return data.session;
-    }
-
-    return null;
-  } catch (error) {
-    if (__DEV__) console.error("[oauth-google] createSessionFromUrl error:", error);
-    return null;
-  }
 }
 
 /**

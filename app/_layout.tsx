@@ -8,7 +8,7 @@ import * as Notifications from "expo-notifications";
 import { useFonts } from "expo-font";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SupabaseProvider, useSupabase } from "@/lib/supabase-context";
-import { createSessionFromUrl } from "@/lib/oauth-google";
+import { createSessionFromUrl, getPostAuthRouteFromUrl, looksLikeAuthCallback } from "@/lib/auth-callback";
 import {
   PlayfairDisplay_600SemiBold,
   PlayfairDisplay_700Bold,
@@ -216,11 +216,7 @@ function SupabaseLayout() {
 
       if (!url || url === processedUrl) return;
 
-      // Only handle URLs that look like OAuth callbacks (contain auth params)
-      const isOAuthCallback =
-        url.includes("access_token") ||
-        url.includes("refresh_token") ||
-        url.includes("code=");
+      const isOAuthCallback = looksLikeAuthCallback(url);
 
       if (__DEV__) {
         console.log("[deep-link] OAuth callback check", { isOAuthCallback });
@@ -231,9 +227,10 @@ function SupabaseLayout() {
         processedUrl = url;
         const session = await createSessionFromUrl(url);
         if (session) {
+          const nextRoute = getPostAuthRouteFromUrl(url);
           console.log("[deep-link] ✅ Session created, navigating to root guard");
           setSessionFromAuth(session);
-          router.replace("/");
+          router.replace(nextRoute ?? "/");
         } else {
           console.error("[deep-link] ❌ createSessionFromUrl returned null");
         }

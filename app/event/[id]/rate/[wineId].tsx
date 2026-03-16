@@ -4,7 +4,9 @@ import { Stack, useLocalSearchParams, router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Slider from "@react-native-community/slider";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
+import { RatingInfoModal, RatingSectionHeader, type RatingInfoKey } from "@/components/rating/RatingInfoModal";
+import { RatingVoteSelector } from "@/components/rating/RatingVoteSelector";
 import { WineHeroImage } from "@/components/WineHeroImage";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
@@ -106,6 +108,7 @@ export default function RateWineScreen() {
   const [confidence, setConfidence] = useState<number | null>(null);
   const [selectedTags, setSelectedTags] = useState<RatingTag[]>([]);
   const [note, setNote] = useState("");
+  const [activeInfoKey, setActiveInfoKey] = useState<RatingInfoKey | null>(null);
   const queryClient = useQueryClient();
   const trackedRatingFlowRef = useRef<string | null>(null);
 
@@ -256,7 +259,7 @@ export default function RateWineScreen() {
       return;
     }
     if (vote === null) {
-      showAlert("Choose a rating", "Select Down, Meh, or Up before submitting.");
+      showAlert("Choose a rating", "Select Dislike, Meh, or Like before submitting.");
       return;
     }
     if (!wineId || !round) {
@@ -375,79 +378,41 @@ export default function RateWineScreen() {
         <>
           {/* Vote section */}
           <Text style={[styles.sectionHeadingCentered, { color: theme.text }]}>How was this wine?</Text>
-          <View style={styles.voteRow}>
-            <TouchableOpacity
-              style={[
-                styles.voteBtn,
-                { backgroundColor: theme.background, borderColor: theme.border },
-                vote === -1 && { borderColor: theme.primary, borderWidth: 2, backgroundColor: theme.primary + "10" },
-              ]}
-              onPress={() => canVote && setVote(-1)}
-              disabled={!canVote}
-            >
-              <Ionicons name="thumbs-down" size={28} color={vote === -1 ? theme.thumbsDown : theme.textMuted} />
-              <Text style={[styles.voteLabel, { color: vote === -1 ? theme.thumbsDown : theme.textMuted }]}>Down</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.voteBtn,
-                { backgroundColor: theme.background, borderColor: theme.border },
-                vote === 0 && { borderColor: theme.primary, borderWidth: 2, backgroundColor: theme.primary + "10" },
-              ]}
-              onPress={() => canVote && setVote(0)}
-              disabled={!canVote}
-            >
-              <MaterialCommunityIcons name="emoticon-neutral-outline" size={28} color={vote === 0 ? theme.meh : theme.textMuted} />
-              <Text style={[styles.voteLabel, { color: vote === 0 ? theme.meh : theme.textMuted }]}>Meh</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.voteBtn,
-                { backgroundColor: theme.background, borderColor: theme.border },
-                vote === 1 && { borderColor: theme.primary, borderWidth: 2, backgroundColor: theme.primary + "10" },
-              ]}
-              onPress={() => canVote && setVote(1)}
-              disabled={!canVote}
-            >
-              <Ionicons name="thumbs-up" size={28} color={vote === 1 ? theme.thumbsUp : theme.textMuted} />
-              <Text style={[styles.voteLabel, { color: vote === 1 ? theme.thumbsUp : theme.textMuted }]}>Up</Text>
-            </TouchableOpacity>
-          </View>
+          <RatingVoteSelector value={vote} onChange={setVote} disabled={!canVote} />
 
           {/* Body */}
           <View style={styles.section}>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={[styles.sectionHeading, { color: theme.text }]}>Body</Text>
-              {body && (
-                <Text style={[styles.sectionValue, { color: theme.primary }]}>
-                  {body.toUpperCase()}
-                </Text>
-              )}
-            </View>
+            <RatingSectionHeader
+              title="Body"
+              infoKey="body"
+              value={body ? body.toUpperCase() : null}
+              onOpenInfo={setActiveInfoKey}
+              marginBottom={12}
+            />
             <SegmentedControl options={BODY_OPTIONS} value={body} onChange={setBody} theme={theme} />
           </View>
 
           {/* Dryness */}
           <View style={styles.section}>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={[styles.sectionHeading, { color: theme.text }]}>Dryness</Text>
-              {sweetness && (
-                <Text style={[styles.sectionValue, { color: theme.primary }]}>
-                  {sweetness.toUpperCase()}
-                </Text>
-              )}
-            </View>
+            <RatingSectionHeader
+              title="Dryness"
+              infoKey="dryness"
+              value={sweetness ? sweetness.toUpperCase() : null}
+              onOpenInfo={setActiveInfoKey}
+              marginBottom={12}
+            />
             <SegmentedControl options={SWEETNESS_OPTIONS} value={sweetness} onChange={setSweetness} theme={theme} />
           </View>
 
           {/* Confidence */}
           <View style={styles.section}>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={[styles.sectionHeading, { color: theme.text }]}>Confidence</Text>
-              <Text style={[styles.sectionValue, { color: theme.primary }]}>
-                {`${Math.round((confidence ?? 0.5) * 100)}% Sure`}
-              </Text>
-            </View>
+            <RatingSectionHeader
+              title="Confidence"
+              infoKey="confidence"
+              value={`${Math.round((confidence ?? 0.5) * 100)}% Sure`}
+              onOpenInfo={setActiveInfoKey}
+              marginBottom={12}
+            />
             <Slider
               style={styles.slider}
               minimumValue={0}
@@ -467,7 +432,12 @@ export default function RateWineScreen() {
 
           {/* Tasting Notes */}
           <View style={styles.section}>
-            <Text style={[styles.sectionHeading, { color: theme.text, marginBottom: 12 }]}>Tasting Notes</Text>
+            <RatingSectionHeader
+              title="Tasting Notes"
+              infoKey="tastingNotes"
+              onOpenInfo={setActiveInfoKey}
+              marginBottom={12}
+            />
             <View style={styles.tagGrid}>
               {RATING_TAGS.map((tag) => {
                 const selected = selectedTags.includes(tag.value);
@@ -515,6 +485,11 @@ export default function RateWineScreen() {
           >
             <Text style={styles.submitButtonText}>{submitting ? "Submitting…" : "Submit rating  ›"}</Text>
           </TouchableOpacity>
+          <RatingInfoModal
+            infoKey={activeInfoKey}
+            visible={activeInfoKey != null}
+            onClose={() => setActiveInfoKey(null)}
+          />
         </>
       )}
     </ScrollView>
@@ -534,22 +509,9 @@ const styles = StyleSheet.create({
 
   // Vote
   sectionHeadingCentered: { fontSize: 20, fontFamily: "PlayfairDisplay_700Bold", textAlign: "center", marginBottom: 16 },
-  voteRow: { flexDirection: "row", gap: 12, marginBottom: 28 },
-  voteBtn: {
-    flex: 1,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    paddingVertical: 22,
-    alignItems: "center",
-    gap: 6,
-  },
-  voteLabel: { fontSize: 12, fontFamily: "Montserrat_600SemiBold" },
 
   // Sections
   section: { marginBottom: 24 },
-  sectionHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-  sectionHeading: { fontSize: 20, fontFamily: "PlayfairDisplay_700Bold" },
-  sectionValue: { fontSize: 13, fontFamily: "Montserrat_600SemiBold", letterSpacing: 1 },
 
   // Slider
   slider: { width: "100%", height: 40 },

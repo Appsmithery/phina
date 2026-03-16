@@ -1,17 +1,19 @@
 import { Platform } from "react-native";
-import * as AuthSession from "expo-auth-session";
+import { NATIVE_MAGIC_LINK_NEXT_ROUTE, NATIVE_MAGIC_LINK_REDIRECT_URL } from "./auth-callback";
 
-export function getRedirectUrl(): string | undefined {
+export function getRedirectUrl(): string {
   const appUrl = (process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co").replace(/\/+$/, "");
 
   if (Platform.OS === "web") {
     return `${appUrl}/set-password`;
   }
 
-  // Native: route through the web callback intermediary because Supabase
-  // doesn't reliably redirect to non-HTTP custom URL schemes (phina://).
-  // The callback page at /callback detects the nativeRedirect param and
-  // forwards auth params (code or tokens) to the native app via deep link.
-  const nativeRedirectUrl = AuthSession.makeRedirectUri();
-  return `${appUrl}/callback?nativeRedirect=${encodeURIComponent(nativeRedirectUrl)}`;
+  // Native: route through the web callback intermediary, then hand off to the
+  // app's explicit custom scheme callback so dev, preview, and production
+  // builds all use the same return URL shape.
+  const params = new URLSearchParams({
+    nativeRedirect: NATIVE_MAGIC_LINK_REDIRECT_URL,
+    next: NATIVE_MAGIC_LINK_NEXT_ROUTE,
+  });
+  return `${appUrl}/callback?${params.toString()}`;
 }
