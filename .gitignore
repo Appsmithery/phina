@@ -25,6 +25,7 @@ web-build/
 
 # Google Play service account key — never commit
 google-play-service-account.json
+phina-488515-9d292237ff33.json
 
 # Apple APNs/Auth keys in repo root — never commit
 /AuthKey_*.p8
