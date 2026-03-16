@@ -49,19 +49,42 @@ if (platform === "android" || platform === "all") {
   required.add("EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY");
 }
 
-const result =
-  process.platform === "win32"
-    ? spawnSync(
-        "cmd.exe",
-        ["/d", "/s", "/c", `npx eas env:list --environment ${environment}`],
-        { encoding: "utf8" }
-      )
-    : spawnSync("npx", ["eas", "env:list", "--environment", environment], {
-        encoding: "utf8",
-      });
+function runCommand(command, commandArgs) {
+  return spawnSync(command, commandArgs, {
+    encoding: "utf8",
+    env: process.env,
+  });
+}
+
+function runEasEnvList() {
+  const cliArgs = ["env:list", environment, "--format", "short"];
+  const directResult =
+    process.platform === "win32"
+      ? runCommand("cmd.exe", ["/d", "/s", "/c", `eas ${cliArgs.join(" ")}`])
+      : runCommand("eas", cliArgs);
+
+  if (!directResult.error && directResult.status === 0) {
+    return directResult;
+  }
+
+  if (directResult.error?.code !== "ENOENT") {
+    return directResult;
+  }
+
+  return process.platform === "win32"
+    ? runCommand("cmd.exe", ["/d", "/s", "/c", `npx eas ${cliArgs.join(" ")}`])
+    : runCommand("npx", ["eas", ...cliArgs]);
+}
+
+const result = runEasEnvList();
 
 if (result.status !== 0) {
-  process.stderr.write(result.stderr || result.stdout || "Failed to read EAS environment.\n");
+  const errorMessage = result.error?.message
+    ? `${result.error.message}\n`
+    : "";
+  process.stderr.write(
+    errorMessage + (result.stderr || result.stdout || "Failed to read EAS environment.\n")
+  );
   process.exit(result.status ?? 1);
 }
 
