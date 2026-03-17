@@ -78,6 +78,7 @@ checklist. The iOS path assumes:
 - `ota-update.yml`
   - manual `workflow_dispatch`
   - publishes JS-only changes to the `preview` or `production` EAS channel
+  - must publish with the matching EAS environment (`preview` -> `preview`, `production` -> `production`)
 
 ## EAS lanes
 
@@ -101,6 +102,8 @@ Use `preview` when you need a standalone binary that behaves as close to product
 The app already uses `runtimeVersion: { policy: "appVersion" }`. That means OTA
 updates only apply to installed binaries with the same app version/runtime.
 
+That also means reinstalling a preview build does **not** guarantee you are running the embedded JS bundle. If a newer `preview` OTA exists for the same runtime, the app can still load that update after install.
+
 ## EAS environment hydration
 
 Native EAS builds do not read your local `.env` automatically in a reliable way.
@@ -118,6 +121,7 @@ Verification is built into the repo:
 
 - `node scripts/verify-eas-env.mjs --environment preview --platform ios`
 - `node scripts/verify-eas-env.mjs --environment production --platform all`
+- `ota-update.yml` now verifies the selected environment before publishing an OTA
 
 The native preview and native release GitHub workflows now fail fast if the
 required EAS environment variables are missing, instead of producing a broken
@@ -146,6 +150,13 @@ Example:
 
 - `Help me pick` can ship through `ota-update.yml` if it is only JS/UI/business logic
 - if it adds a new native SDK, it needs `native-release.yml`
+
+## OTA safety rules
+
+- Preview OTA updates must publish with `--channel preview --environment preview`.
+- Production OTA updates must publish with `--channel production --environment production`.
+- Do not publish preview OTA updates from a shell or CI context that relies on implicit local `.env` loading.
+- If a preview app shows behavior that contradicts a fresh preview binary, assume a newer `preview` OTA may be overriding the embedded bundle and inspect the last update published to that channel.
 
 ## Required GitHub secrets
 

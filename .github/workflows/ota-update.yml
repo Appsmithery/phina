@@ -29,6 +29,8 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      OTA_ENVIRONMENT: ${{ inputs.channel == 'preview' && 'preview' || 'production' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,8 +57,26 @@ jobs:
           [[ -n "${{ secrets.EXPO_TOKEN }}" ]] || { echo "::error::EXPO_TOKEN missing"; exit 1; }
           eas whoami
 
+      - name: Validate channel to environment mapping
+        run: |
+          case "${{ inputs.channel }}" in
+            preview)
+              [[ "${OTA_ENVIRONMENT}" == "preview" ]] || { echo "::error::Preview channel must publish with preview environment"; exit 1; }
+              ;;
+            production)
+              [[ "${OTA_ENVIRONMENT}" == "production" ]] || { echo "::error::Production channel must publish with production environment"; exit 1; }
+              ;;
+            *)
+              echo "::error::Unsupported channel ${{ inputs.channel }}"
+              exit 1
+              ;;
+          esac
+
+      - name: Verify EAS environment before publish
+        run: node scripts/verify-eas-env.mjs --environment "${OTA_ENVIRONMENT}" --platform all
+
       - name: Publish OTA update
-        run: eas update --channel ${{ inputs.channel }} --message "${{ inputs.message }}" --platform all --non-interactive
+        run: eas update --channel ${{ inputs.channel }} --environment "${OTA_ENVIRONMENT}" --message "${{ inputs.message }}" --platform all --non-interactive
 
       - name: Summarize OTA update
         run: |
@@ -65,5 +85,6 @@ jobs:
             echo ""
             echo "- Ref: ${{ inputs.git_ref }}"
             echo "- Channel: ${{ inputs.channel }}"
+            echo "- Environment: ${OTA_ENVIRONMENT}"
             echo "- Message: ${{ inputs.message }}"
           } >> "$GITHUB_STEP_SUMMARY"
