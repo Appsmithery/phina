@@ -16,6 +16,7 @@ const SUPABASE_SERVICE_ROLE_KEY = mustGetEnv("SUPABASE_SERVICE_ROLE_KEY");
 interface ReqBody {
   event_id?: string;
   wine_id?: string;
+  duration_minutes?: number;
 }
 
 interface WebPushSubscription {
@@ -139,6 +140,7 @@ Deno.serve(async (req: Request) => {
 
   const eventId = body.event_id;
   const wineId = body.wine_id;
+  const durationMinutes = body.duration_minutes;
   if (!eventId || !wineId) {
     return errorResponse("Provide event_id and wine_id", "invalid_request", 400);
   }
@@ -195,6 +197,10 @@ Deno.serve(async (req: Request) => {
     const typedWine = wine as WineRow;
     const wineLabel = [typedWine.producer, typedWine.varietal, typedWine.vintage].filter(Boolean).join(" ") || "This wine";
     const path = `/event/${eventId}/rate/${wineId}`;
+    const notificationBody =
+      typeof durationMinutes === "number" && durationMinutes > 0
+        ? `${wineLabel} - closes in ${durationMinutes} min`
+        : wineLabel;
 
     const { data: eventMembers, error: emError } = await adminSupabase
       .from("event_members")
@@ -280,7 +286,7 @@ Deno.serve(async (req: Request) => {
               privateJWK,
               subscription: subForPush,
               message: {
-                payload: { title: "Rate this wine", body: wineLabel, data: { url: path } },
+                payload: { title: "Rate this wine", body: notificationBody, data: { url: path } },
                 adminContact,
               },
             });
@@ -309,7 +315,7 @@ Deno.serve(async (req: Request) => {
         sound: "default" as const,
         interruptionLevel: "time-sensitive" as const,
         title: "Rate this wine",
-        body: wineLabel,
+        body: notificationBody,
         data: { url: path },
       }));
       const pushRes = await fetch(EXPO_PUSH_URL, {

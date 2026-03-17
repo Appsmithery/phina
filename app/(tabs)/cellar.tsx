@@ -29,11 +29,10 @@ export default function CellarScreen() {
   const tabBarHeight = useOptionalBottomTabBarHeight();
   const { session, sessionLoaded, member, memberLoaded } = useSupabase();
   const {
-    hasAdminBillingBypass,
     effectivePremiumActive,
-    billingAccessLabel,
     nativePurchasesAvailable,
     unsupportedReason,
+    lastPremiumError,
     isLoading: billingLoading,
     isPurchasingPremium,
     isRestoringPurchases,
@@ -209,13 +208,14 @@ export default function CellarScreen() {
 
   const isNativeBilling = isNativePurchasesPlatform(Platform.OS);
   const premiumDetail =
-    unsupportedReason && isNativeBilling && !nativePurchasesAvailable
-      ? `${
-          Platform.OS === "android"
-            ? "Track event wines here today, then validate premium purchases from a Google Play internal or closed test build. "
-            : "Track event wines here today, then validate premium purchases from a native preview or development build. "
-        }${unsupportedReason}`
-      : "Track your at-home bottles, uploads, and private cellar history.";
+    lastPremiumError?.message ??
+    (unsupportedReason && isNativeBilling && !nativePurchasesAvailable
+      ? Platform.OS === "android"
+        ? "Use a Play-installed internal or closed test build for billing validation."
+        : unsupportedReason.includes("Expo Go")
+          ? "Open the native preview or development build instead of Expo Go to test purchases."
+          : "Confirm this preview or development build has billing enabled and that your Sandbox Apple Account is signed in under Settings > Developer."
+      : undefined);
   const cellarUpsell = !effectivePremiumActive ? (
     <View style={styles.upsellSection}>
       <BillingCard
@@ -223,7 +223,6 @@ export default function CellarScreen() {
         icon="wine-outline"
         title="Unlock Personal Cellar"
         description="Track your at-home bottles, uploads, and private cellar history."
-        badge={hasAdminBillingBypass ? (billingAccessLabel ?? "Admin override") : "Cellar premium"}
         detail={premiumDetail}
         primaryLabel={
           isNativeBilling && !nativePurchasesAvailable
@@ -439,10 +438,16 @@ export default function CellarScreen() {
                         </Text>
                       )}
                       <TouchableOpacity
-                        style={[styles.manageButton, { backgroundColor: theme.primary }]}
+                        style={[
+                          styles.manageButton,
+                          {
+                            backgroundColor: `${theme.primary}18`,
+                            borderColor: `${theme.primary}26`,
+                          },
+                        ]}
                         onPress={() => router.push(destination)}
                       >
-                        <Text style={styles.manageButtonText}>Manage</Text>
+                        <Text style={[styles.manageButtonText, { color: theme.primary }]}>Manage</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -515,7 +520,7 @@ const styles = StyleSheet.create({
   cardMeta: { fontSize: 13, fontFamily: "Montserrat_400Regular" },
   cardFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 },
   cardBottleCount: { fontSize: 12, fontFamily: "Montserrat_400Regular" },
-  manageButton: { borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
-  manageButtonText: { color: "#fff", fontSize: 12, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
+  manageButton: { borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12, borderWidth: 1 },
+  manageButtonText: { fontSize: 12, fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
   placeholder: { padding: 24, textAlign: "center", fontFamily: "Montserrat_400Regular" },
 });

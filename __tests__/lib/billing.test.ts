@@ -7,6 +7,16 @@ const mockConfigure = jest.fn();
 const mockLogIn = jest.fn(() => Promise.resolve());
 const mockSetEmail = jest.fn(() => Promise.resolve());
 const mockLogOut = jest.fn(() => Promise.resolve());
+const mockCanMakePayments = jest.fn(() => Promise.resolve(true));
+const mockGetOfferings = jest.fn(() =>
+  Promise.resolve({
+    current: {
+      monthly: { identifier: "$rc_monthly" },
+      availablePackages: [{ identifier: "$rc_monthly" }],
+    },
+  })
+);
+const mockPurchasePackage = jest.fn(() => Promise.resolve());
 
 process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY = "appl_test_key";
 
@@ -20,11 +30,7 @@ jest.mock("@/lib/supabase", () => ({
 }));
 
 jest.mock("expo", () => ({
-  __esModule: true,
   isRunningInExpoGo: mockIsRunningInExpoGo,
-  default: {
-    isRunningInExpoGo: mockIsRunningInExpoGo,
-  },
 }));
 
 jest.mock("react-native", () => ({
@@ -46,6 +52,9 @@ jest.mock("react-native-purchases", () => ({
     logIn: mockLogIn,
     setEmail: mockSetEmail,
     logOut: mockLogOut,
+    canMakePayments: mockCanMakePayments,
+    getOfferings: mockGetOfferings,
+    purchasePackage: mockPurchasePackage,
   },
   LOG_LEVEL: {
     WARN: "WARN",
@@ -55,9 +64,40 @@ jest.mock("react-native-purchases", () => ({
   },
 }));
 
-import { getDefaultBillingStatus, getEffectiveBillingAccess, isPremiumActive } from "@/lib/billing";
+import {
+  assertCanMakePayments,
+  getBillingErrorMetadata,
+  getDefaultBillingStatus,
+  getEffectiveBillingAccess,
+  isPremiumActive,
+  normalizeBillingError,
+} from "@/lib/billing";
 
 describe("billing helpers", () => {
+  beforeEach(() => {
+    mockIsConfigured.mockReset();
+    mockGetAppUserID.mockReset();
+    mockSetLogLevel.mockClear();
+    mockConfigure.mockReset();
+    mockLogIn.mockReset();
+    mockSetEmail.mockReset();
+    mockLogOut.mockReset();
+    mockCanMakePayments.mockReset();
+    mockGetOfferings.mockReset();
+    mockPurchasePackage.mockReset();
+
+    mockIsConfigured.mockResolvedValue(false);
+    mockGetAppUserID.mockResolvedValue("member-1");
+    mockCanMakePayments.mockResolvedValue(true);
+    mockGetOfferings.mockResolvedValue({
+      current: {
+        monthly: { identifier: "$rc_monthly" },
+        availablePackages: [{ identifier: "$rc_monthly" }],
+      },
+    });
+    mockPurchasePackage.mockResolvedValue(undefined);
+  });
+
   it("returns an inactive default billing status", () => {
     expect(getDefaultBillingStatus()).toEqual({
       premium_active: false,
@@ -125,5 +165,62 @@ describe("billing helpers", () => {
       effectiveHostingAccess: false,
       billingAccessLabel: null,
     });
+  });
+
+  it("normalizes iOS premium purchase cancellation into sandbox guidance", () => {
+    const normalized = normalizeBillingError(
+      {
+        code: "PURCHASE_CANCELLED_ERROR",
+        userCancelled: true,
+        message: "Purchase was cancelled.",
+      },
+      { operation: "premium", memberId: "member-1", revenueCatAppUserId: "member-1" }
+    );
+
+    expect(normalized.message).toContain("sandbox account may already own Premium");
+    expect(getBillingErrorMetadata(normalized)).toEqual(
+      expect.objectContaining({
+        normalizedCode: "PURCHASE_CANCELLED",
+        operation: "premium",
+        memberId: "member-1",
+        revenueCatAppUserId: "member-1",
+        revenueCatCode: "PURCHASE_CANCELLED_ERROR",
+        userCancelled: true,
+      })
+    );
+  });
+
+  it("normalizes already-purchased errors into restore guidance", () => {
+    const normalized = normalizeBillingError({
+      code: "PRODUCT_ALREADY_PURCHASED_ERROR",
+      message: "Already purchased.",
+    });
+
+    expect(normalized.message).toContain("already owns this purchase");
+    expect(getBillingErrorMetadata(normalized).normalizedCode).toBe("PRODUCT_ALREADY_PURCHASED");
+  });
+
+  it("fails early when the device cannot make purchases", async () => {
+    mockCanMakePayments.mockResolvedValue(false);
+
+    await expect(
+      assertCanMakePayments(
+        {
+          canMakePayments: mockCanMakePayments,
+        },
+        { operation: "premium", memberId: "member-1", revenueCatAppUserId: "member-1" }
+      )
+    ).rejects.toMatchObject({
+      name: "BillingCheckoutError",
+      message: expect.stringContaining("Purchases are not allowed on this device"),
+      metadata: expect.objectContaining({
+        normalizedCode: "PURCHASE_NOT_ALLOWED",
+        canMakePayments: false,
+        operation: "premium",
+      }),
+    });
+
+    expect(mockGetOfferings).not.toHaveBeenCalled();
+    expect(mockPurchasePackage).not.toHaveBeenCalled();
   });
 });

@@ -6,7 +6,7 @@ import { useTheme } from "@/lib/theme";
 type BillingCardProps = {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
-  description: string;
+  description?: string;
   badge?: string;
   detail?: string;
   compact?: boolean;
@@ -54,9 +54,11 @@ export function BillingCard({
         </View>
         <View style={styles.headerText}>
           <Text style={[styles.title, compact && styles.titleCompact, { color: theme.text }]}>{title}</Text>
-          <Text style={[styles.description, compact && styles.descriptionCompact, { color: theme.textSecondary }]}>
-            {description}
-          </Text>
+          {description ? (
+            <Text style={[styles.description, compact && styles.descriptionCompact, { color: theme.textSecondary }]}>
+              {description}
+            </Text>
+          ) : null}
         </View>
       </View>
 

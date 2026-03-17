@@ -5,6 +5,10 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { EventForm, type EventFormValues } from "@/components/EventForm";
 import { showAlert } from "@/lib/alert";
+import {
+  extractTimeValue,
+  formatEventTime,
+} from "@/lib/event-scheduling";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
@@ -84,7 +88,14 @@ export default function EditEventScreen() {
           | "description"
           | "web_link"
           | "date"
+          | "starts_at"
+          | "ends_at"
+          | "timezone"
+          | "default_rating_window_minutes"
           | "tasting_mode"
+          | "event_image_url"
+          | "event_image_status"
+          | "event_image_source"
         >
       > = {
         title: values.title,
@@ -92,7 +103,14 @@ export default function EditEventScreen() {
         description: values.description,
         web_link: values.webLink,
         date: values.date,
+        starts_at: values.startsAt,
+        ends_at: values.endsAt,
+        timezone: values.timezone,
+        default_rating_window_minutes: values.defaultRatingWindowMinutes,
         tasting_mode: values.tastingMode,
+        event_image_url: values.heroImageUrl,
+        event_image_status: values.heroImageStatus,
+        event_image_source: values.heroImageUrl ? "uploaded" : "none",
       };
 
       const { error } = await supabase
@@ -107,7 +125,11 @@ export default function EditEventScreen() {
         queryClient.invalidateQueries({ queryKey: ["events"] }),
       ]);
 
-      router.replace(`/event/${id}`);
+      showAlert(
+        "Event updated",
+        `This event will end automatically at ${formatEventTime(values.endsAt, values.timezone)} and rating rounds will close after ${values.defaultRatingWindowMinutes} minutes.`,
+        [{ text: "OK", onPress: () => router.replace(`/event/${id}`) }],
+      );
     } catch (error) {
       showAlert(
         "Error",
@@ -182,6 +204,7 @@ export default function EditEventScreen() {
         heading="Edit event"
         showHeading={false}
         submitLabel="Save changes"
+        memberId={userId}
         isSubmitting={isSaving}
         initialValues={{
           title: data.event.title,
@@ -189,7 +212,12 @@ export default function EditEventScreen() {
           description: data.event.description ?? "",
           webLink: data.event.web_link ?? "",
           date: data.event.date,
+          startTime: extractTimeValue(data.event.starts_at),
+          endTime: extractTimeValue(data.event.ends_at),
+          ratingWindowMinutes: data.event.default_rating_window_minutes,
           tastingMode: data.event.tasting_mode,
+          heroImageUrl: data.event.event_image_url ?? null,
+          heroImageStatus: data.event.event_image_status,
         }}
         tastingModeLocked={tastingModeLocked}
         tastingModeLockedReason="Tasting mode is locked once wines or rating rounds exist for the event."

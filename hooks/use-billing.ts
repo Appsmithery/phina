@@ -4,10 +4,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   fetchBillingStatus,
+  getBillingErrorMetadata,
   getDefaultBillingStatus,
   getEffectiveBillingAccess,
   getNativePurchasesAvailability,
   isPremiumActive,
+  normalizeBillingError,
   pollBillingStatus,
   purchaseHostCredit,
   purchasePremium,
@@ -17,13 +19,6 @@ import {
 import { getBillingSource, isNativePurchasesPlatform } from "@/lib/billing-config";
 import { trackEvent } from "@/lib/observability";
 import { useSupabase } from "@/lib/supabase-context";
-
-function getBillingErrorCode(error: unknown) {
-  if (error && typeof error === "object" && "code" in error) {
-    return String((error as { code: unknown }).code);
-  }
-  return error instanceof Error ? error.name : "unknown_error";
-}
 
 export function useBilling() {
   const { member, session } = useSupabase();
@@ -70,11 +65,25 @@ export function useBilling() {
       }
     },
     onError: (error) => {
+      const normalizedError = normalizeBillingError(error, {
+        operation: "premium",
+        memberId: member?.id ?? null,
+      });
+      const metadata = getBillingErrorMetadata(normalizedError);
+
       trackEvent("premium_purchase_failed", {
         platform: Platform.OS,
         source: getBillingSource(Platform.OS),
         success: false,
-        error_code: getBillingErrorCode(error),
+        error_code: metadata.normalizedCode,
+        revenuecat_error_code: metadata.revenueCatCode,
+        user_cancelled: metadata.userCancelled,
+        package_identifier: metadata.packageIdentifier,
+        product_identifier: metadata.productIdentifier,
+        member_id: metadata.memberId,
+        revenuecat_app_user_id: metadata.revenueCatAppUserId,
+        can_make_payments: metadata.canMakePayments,
+        unsupported_reason: nativePurchases.unsupportedReason,
       });
     },
   });
@@ -104,11 +113,25 @@ export function useBilling() {
       }
     },
     onError: (error) => {
+      const normalizedError = normalizeBillingError(error, {
+        operation: "host_credit",
+        memberId: member?.id ?? null,
+      });
+      const metadata = getBillingErrorMetadata(normalizedError);
+
       trackEvent("host_credit_purchase_failed", {
         platform: Platform.OS,
         source: getBillingSource(Platform.OS),
         success: false,
-        error_code: getBillingErrorCode(error),
+        error_code: metadata.normalizedCode,
+        revenuecat_error_code: metadata.revenueCatCode,
+        user_cancelled: metadata.userCancelled,
+        package_identifier: metadata.packageIdentifier,
+        product_identifier: metadata.productIdentifier,
+        member_id: metadata.memberId,
+        revenuecat_app_user_id: metadata.revenueCatAppUserId,
+        can_make_payments: metadata.canMakePayments,
+        unsupported_reason: nativePurchases.unsupportedReason,
       });
     },
   });
@@ -130,11 +153,25 @@ export function useBilling() {
       });
     },
     onError: (error) => {
+      const normalizedError = normalizeBillingError(error, {
+        operation: "restore",
+        memberId: member?.id ?? null,
+      });
+      const metadata = getBillingErrorMetadata(normalizedError);
+
       trackEvent("billing_restore_failed", {
         platform: Platform.OS,
         source: getBillingSource(Platform.OS),
         success: false,
-        error_code: getBillingErrorCode(error),
+        error_code: metadata.normalizedCode,
+        revenuecat_error_code: metadata.revenueCatCode,
+        user_cancelled: metadata.userCancelled,
+        package_identifier: metadata.packageIdentifier,
+        product_identifier: metadata.productIdentifier,
+        member_id: metadata.memberId,
+        revenuecat_app_user_id: metadata.revenueCatAppUserId,
+        can_make_payments: metadata.canMakePayments,
+        unsupported_reason: nativePurchases.unsupportedReason,
       });
     },
   });
@@ -150,6 +187,15 @@ export function useBilling() {
     ...effectiveAccess,
     nativePurchasesAvailable: nativePurchases.nativePurchasesAvailable,
     unsupportedReason: nativePurchases.unsupportedReason,
+    lastPremiumError: premiumMutation.error
+      ? normalizeBillingError(premiumMutation.error, { operation: "premium", memberId: member?.id ?? null })
+      : null,
+    lastHostCreditError: hostCreditMutation.error
+      ? normalizeBillingError(hostCreditMutation.error, { operation: "host_credit", memberId: member?.id ?? null })
+      : null,
+    lastRestoreError: restoreMutation.error
+      ? normalizeBillingError(restoreMutation.error, { operation: "restore", memberId: member?.id ?? null })
+      : null,
     refreshBilling,
     purchasePremium: premiumMutation.mutateAsync,
     purchaseHostCredit: hostCreditMutation.mutateAsync,

@@ -160,13 +160,14 @@ export default function RateWineScreen() {
         .select("*")
         .eq("event_id", eventId!)
         .eq("wine_id", wineId!)
-        .eq("is_active", true)
+        .order("started_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
       if (error) throw error;
       return data as RatingRound | null;
     },
     enabled: !!eventId && !!wineId && isAuthenticated,
-    refetchInterval: (query) => (query.state.data == null ? 4_000 : false),
+    refetchInterval: 4_000,
   });
 
   const { data: existingRating } = useQuery({
@@ -376,6 +377,9 @@ export default function RateWineScreen() {
         <Text style={[styles.hint, { color: theme.textMuted }]}>This round has ended.</Text>
       ) : (
         <>
+          <Text style={[styles.windowHint, { color: theme.textMuted }]}>
+            This rating window closes automatically after {round.duration_minutes} minutes.
+          </Text>
           {/* Vote section */}
           <Text style={[styles.sectionHeadingCentered, { color: theme.text }]}>How was this wine?</Text>
           <RatingVoteSelector value={vote} onChange={setVote} disabled={!canVote} />
@@ -536,6 +540,12 @@ const styles = StyleSheet.create({
   submitButton: { borderRadius: 28, padding: 16, alignItems: "center", marginTop: 4 },
   submitButtonText: { color: "#fff", fontSize: 16, fontFamily: "Montserrat_600SemiBold" },
 
+  windowHint: {
+    textAlign: "center",
+    fontSize: 13,
+    fontFamily: "Montserrat_400Regular",
+    marginBottom: 12,
+  },
   hint: { textAlign: "center", fontSize: 15, fontFamily: "Montserrat_400Regular", padding: 8 },
   placeholder: { textAlign: "center", fontFamily: "Montserrat_400Regular" },
 });

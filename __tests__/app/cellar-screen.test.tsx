@@ -1,5 +1,5 @@
 import React from "react";
-import { Platform } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 import { render, screen, waitFor } from "@testing-library/react-native";
 import CellarScreen from "@/app/(tabs)/cellar";
 
@@ -7,11 +7,10 @@ const mockTrackEvent = jest.fn();
 const mockUseQuery = jest.fn();
 
 let mockBillingState = {
-  hasAdminBillingBypass: false,
   effectivePremiumActive: false,
-  billingAccessLabel: null as string | null,
   nativePurchasesAvailable: false,
-  unsupportedReason: "Native purchases are not available in Expo Go.",
+  unsupportedReason: "Native purchases are not available in Expo Go." as string | null,
+  lastPremiumError: null as Error | null,
   isLoading: false,
   isPurchasingPremium: false,
   isRestoringPurchases: false,
@@ -67,11 +66,10 @@ describe("CellarScreen", () => {
     mockUseQuery.mockReset();
     mockTrackEvent.mockReset();
     mockBillingState = {
-      hasAdminBillingBypass: false,
       effectivePremiumActive: false,
-      billingAccessLabel: null,
       nativePurchasesAvailable: false,
       unsupportedReason: "Native purchases are not available in Expo Go.",
+      lastPremiumError: null,
       isLoading: false,
       isPurchasingPremium: false,
       isRestoringPurchases: false,
@@ -88,16 +86,16 @@ describe("CellarScreen", () => {
     });
   });
 
-  it("shows unsupported billing detail and tracks the unavailable paywall state", async () => {
+  it("shows concise unavailable billing guidance, removes the premium badge, and tracks the unavailable state", async () => {
     render(<CellarScreen />);
 
     expect(screen.getByText("Billing unavailable")).toBeTruthy();
-    expect(screen.getByText(/Native purchases are not available in Expo Go\./)).toBeTruthy();
+    expect(screen.queryByText("Cellar premium")).toBeNull();
     expect(
       screen.getByText(
         Platform.OS === "android"
-          ? /Google Play internal or closed test build/
-          : /native preview or development build/
+          ? "Use a Play-installed internal or closed test build for billing validation."
+          : "Open the native preview or development build instead of Expo Go to test purchases."
       )
     ).toBeTruthy();
 
@@ -108,5 +106,56 @@ describe("CellarScreen", () => {
         unsupported_reason: mockBillingState.unsupportedReason,
       });
     });
+  });
+
+  it("surfaces the last premium error on the paywall and uses a light-fill manage button", () => {
+    mockBillingState = {
+      ...mockBillingState,
+      nativePurchasesAvailable: true,
+      unsupportedReason: null,
+      lastPremiumError: new Error(
+        "This Apple sandbox account may already own Premium. Try Restore or use a fresh sandbox tester."
+      ),
+    };
+
+    mockUseQuery.mockReturnValue({
+      data: [
+        {
+          id: "wine-1",
+          event_id: "event-1",
+          status: "stored",
+          quantity: 1,
+          producer: "Louis Latour",
+          varietal: "Pinot Noir",
+          vintage: 2022,
+          region: "Bourgogne, Burgundy",
+          drink_from: 2024,
+          drink_until: 2028,
+          display_photo_url: null,
+          label_photo_url: null,
+        },
+      ],
+      error: null,
+      isError: false,
+      isLoading: false,
+      refetch: jest.fn(),
+    });
+
+    render(<CellarScreen />);
+
+    expect(
+      screen.getByText("This Apple sandbox account may already own Premium. Try Restore or use a fresh sandbox tester.")
+    ).toBeTruthy();
+    expect(screen.queryByText("Cellar premium")).toBeNull();
+
+    const manageButton = screen.getByText("Manage").parent?.parent;
+    const flattenedStyle = StyleSheet.flatten(manageButton?.props.style);
+
+    expect(flattenedStyle).toEqual(
+      expect.objectContaining({
+        backgroundColor: "#B5827118",
+        borderColor: "#B5827126",
+      })
+    );
   });
 });

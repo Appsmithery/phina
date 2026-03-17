@@ -117,6 +117,10 @@ export interface Database {
           title: string;
           theme: string;
           date: string;
+          starts_at: string;
+          ends_at: string;
+          timezone: string;
+          default_rating_window_minutes: 5 | 10 | 15;
           status: "active" | "ended";
           tasting_mode: "single_blind" | "double_blind";
           created_by: string;
@@ -124,13 +128,23 @@ export interface Database {
           web_link: string | null;
           description: string | null;
           event_image_url: string | null;
-          event_image_status: "none" | "pending" | "generated" | "failed";
+          event_image_status:
+            | "none"
+            | "pending"
+            | "generated"
+            | "uploaded"
+            | "failed";
+          event_image_source: "none" | "generated" | "uploaded";
         };
         Insert: {
           id?: string;
           title: string;
           theme: string;
           date: string;
+          starts_at: string;
+          ends_at: string;
+          timezone?: string;
+          default_rating_window_minutes?: 5 | 10 | 15;
           status?: "active" | "ended";
           tasting_mode?: "single_blind" | "double_blind";
           created_by: string;
@@ -138,13 +152,23 @@ export interface Database {
           web_link?: string | null;
           description?: string | null;
           event_image_url?: string | null;
-          event_image_status?: "none" | "pending" | "generated" | "failed";
+          event_image_status?:
+            | "none"
+            | "pending"
+            | "generated"
+            | "uploaded"
+            | "failed";
+          event_image_source?: "none" | "generated" | "uploaded";
         };
         Update: {
           id?: string;
           title?: string;
           theme?: string;
           date?: string;
+          starts_at?: string;
+          ends_at?: string;
+          timezone?: string;
+          default_rating_window_minutes?: 5 | 10 | 15;
           status?: "active" | "ended";
           tasting_mode?: "single_blind" | "double_blind";
           created_by?: string;
@@ -152,7 +176,13 @@ export interface Database {
           web_link?: string | null;
           description?: string | null;
           event_image_url?: string | null;
-          event_image_status?: "none" | "pending" | "generated" | "failed";
+          event_image_status?:
+            | "none"
+            | "pending"
+            | "generated"
+            | "uploaded"
+            | "failed";
+          event_image_source?: "none" | "generated" | "uploaded";
         };
         Relationships: [];
       };
@@ -521,6 +551,7 @@ export interface Database {
           started_at: string;
           ended_at: string | null;
           is_active: boolean;
+          duration_minutes: 5 | 10 | 15;
         };
         Insert: {
           id?: string;
@@ -529,6 +560,7 @@ export interface Database {
           started_at?: string;
           ended_at?: string | null;
           is_active?: boolean;
+          duration_minutes?: 5 | 10 | 15;
         };
         Update: {
           id?: string;
@@ -537,6 +569,7 @@ export interface Database {
           started_at?: string;
           ended_at?: string | null;
           is_active?: boolean;
+          duration_minutes?: 5 | 10 | 15;
         };
         Relationships: [];
       };
@@ -674,9 +707,16 @@ export interface Database {
           p_title: string;
           p_theme: string;
           p_date: string;
+          p_starts_at: string;
+          p_ends_at: string;
+          p_timezone: string;
+          p_default_rating_window_minutes?: number;
           p_tasting_mode?: string;
           p_description?: string | null;
           p_web_link?: string | null;
+          p_partiful_url?: string | null;
+          p_event_image_url?: string | null;
+          p_event_image_status?: string;
         };
         Returns: string;
       };

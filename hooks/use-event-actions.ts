@@ -15,6 +15,10 @@ type PushSendResponse = {
   error_code?: string;
 };
 
+type EventRoundConfig = {
+  default_rating_window_minutes: 5 | 10 | 15;
+};
+
 function getTrackingErrorProps(error: unknown) {
   if (error && typeof error === "object") {
     const errorRecord = error as { code?: unknown; name?: unknown; message?: unknown };
@@ -84,21 +88,39 @@ function getPushSuccessProps(result: PushSendResponse | null | undefined) {
   };
 }
 
-export function useStartRatingRound(eventId: string, wineId: string) {
+export function useStartRatingRound(
+  eventId: string,
+  wineId: string,
+  durationMinutes: 5 | 10 | 15,
+) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
+      const { data: eventConfig, error: eventError } = await supabase
+        .from("events")
+        .select("default_rating_window_minutes")
+        .eq("id", eventId)
+        .single();
+      if (eventError) throw eventError;
+
+      const resolvedDuration =
+        (eventConfig as EventRoundConfig | null)?.default_rating_window_minutes ??
+        durationMinutes;
+
       const { error } = await supabase.from("rating_rounds").insert({
         event_id: eventId,
         wine_id: wineId,
         is_active: true,
+        duration_minutes: resolvedDuration,
       });
       if (error) throw error;
+      return resolvedDuration;
     },
-    onSuccess: async () => {
+    onSuccess: async (resolvedDuration) => {
       trackEvent("rating_round_started", {
         event_id: eventId,
         wine_id: wineId,
+        duration_minutes: resolvedDuration,
         platform: Platform.OS,
         source: "host_controls",
         success: true,
@@ -116,6 +138,7 @@ export function useStartRatingRound(eventId: string, wineId: string) {
         trackEvent("rating_round_push_failed", {
           event_id: eventId,
           wine_id: wineId,
+          duration_minutes: resolvedDuration,
           platform: Platform.OS,
           source: "host_controls",
           success: false,
@@ -124,13 +147,17 @@ export function useStartRatingRound(eventId: string, wineId: string) {
         });
         showAlert(
           "Push notifications",
-          "Round started, but we couldn't send push notifications. You can still share the link."
+          `Round started and will close automatically in ${resolvedDuration} minutes, but we couldn't send push notifications. You can still share the link.`
         );
         return;
       }
 
       const { data, error, response } = await supabase.functions.invoke<PushSendResponse>("send-rating-round-push", {
-        body: { event_id: eventId, wine_id: wineId },
+        body: {
+          event_id: eventId,
+          wine_id: wineId,
+          duration_minutes: resolvedDuration,
+        },
         headers: { Authorization: `Bearer ${accessToken}` },
       });
 
@@ -142,6 +169,7 @@ export function useStartRatingRound(eventId: string, wineId: string) {
         trackEvent("rating_round_push_failed", {
           event_id: eventId,
           wine_id: wineId,
+          duration_minutes: resolvedDuration,
           platform: Platform.OS,
           source: "host_controls",
           success: false,
@@ -150,7 +178,7 @@ export function useStartRatingRound(eventId: string, wineId: string) {
         console.warn("Push notification send failed:", error);
         showAlert(
           "Push notifications",
-          "Round started, but we couldn't send push notifications. You can still share the link."
+          `Round started and will close automatically in ${resolvedDuration} minutes, but we couldn't send push notifications. You can still share the link.`
         );
         return;
       }
@@ -158,11 +186,16 @@ export function useStartRatingRound(eventId: string, wineId: string) {
       trackEvent("rating_round_push_sent", {
         event_id: eventId,
         wine_id: wineId,
+        duration_minutes: resolvedDuration,
         platform: Platform.OS,
         source: "host_controls",
         success: true,
         ...getPushSuccessProps(data),
       });
+      showAlert(
+        "Round started",
+        `Guests can rate this wine for the next ${resolvedDuration} minutes.`,
+      );
     },
   });
 }

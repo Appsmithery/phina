@@ -1,5 +1,5 @@
 import { Linking, Platform } from "react-native";
-import { isRunningInExpoGo } from "expo";
+import * as Expo from "expo";
 
 import {
   getRevenueCatApiKey,
@@ -12,12 +12,52 @@ import type { Database } from "@/types/database";
 
 export type BillingStatus = Database["public"]["Functions"]["get_my_billing_status"]["Returns"][number];
 export type CheckoutKind = "premium" | "host_credit";
+export type BillingOperation = CheckoutKind | "restore";
 export type EffectiveBillingAccess = {
   hasAdminBillingBypass: boolean;
   effectivePremiumActive: boolean;
   effectiveHostingAccess: boolean;
   billingAccessLabel: string | null;
 };
+export type BillingFailureCode =
+  | "PURCHASE_CANCELLED"
+  | "PRODUCT_ALREADY_PURCHASED"
+  | "PURCHASE_NOT_ALLOWED"
+  | "STORE_PROBLEM"
+  | "RECEIPT_ALREADY_IN_USE"
+  | "NATIVE_PURCHASES_DISABLED"
+  | "UNKNOWN";
+export type BillingErrorMetadata = {
+  normalizedCode: BillingFailureCode;
+  operation: BillingOperation | null;
+  platform: string;
+  revenueCatCode: string | null;
+  userCancelled: boolean;
+  packageIdentifier: string | null;
+  productIdentifier: string | null;
+  memberId: string | null;
+  revenueCatAppUserId: string | null;
+  canMakePayments: boolean | null;
+  debugMessage: string | null;
+};
+
+type BillingErrorContext = {
+  operation?: BillingOperation | null;
+  packageIdentifier?: string | null;
+  productIdentifier?: string | null;
+  memberId?: string | null;
+  revenueCatAppUserId?: string | null;
+  canMakePayments?: boolean | null;
+  platform?: string;
+};
+
+const PURCHASES_ERROR_CODES = {
+  PURCHASE_CANCELLED_ERROR: "PURCHASE_CANCELLED_ERROR",
+  PRODUCT_ALREADY_PURCHASED_ERROR: "PRODUCT_ALREADY_PURCHASED_ERROR",
+  PURCHASE_NOT_ALLOWED_ERROR: "PURCHASE_NOT_ALLOWED_ERROR",
+  STORE_PROBLEM_ERROR: "STORE_PROBLEM_ERROR",
+  RECEIPT_ALREADY_IN_USE_ERROR: "RECEIPT_ALREADY_IN_USE_ERROR",
+} as const;
 
 const APP_URL = process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co";
 export const EXPO_GO_NATIVE_PURCHASES_MESSAGE =
@@ -28,6 +68,16 @@ let configuredRevenueCatEmail: string | null = null;
 let revenueCatConfigurationTargetUserId: string | null = null;
 let revenueCatConfigurationPromise: Promise<boolean> | null = null;
 
+export class BillingCheckoutError extends Error {
+  readonly metadata: BillingErrorMetadata;
+
+  constructor(message: string, metadata: BillingErrorMetadata) {
+    super(message);
+    this.name = "BillingCheckoutError";
+    this.metadata = metadata;
+  }
+}
+
 function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -36,6 +86,132 @@ async function getPurchasesModule() {
   if (!isNativePurchasesPlatform(Platform.OS)) return null;
   if (!getNativePurchasesAvailability().nativePurchasesAvailable) return null;
   return import("react-native-purchases");
+}
+
+function getErrorString(error: unknown, key: string): string | null {
+  if (!error || typeof error !== "object" || !(key in error)) return null;
+  const value = (error as Record<string, unknown>)[key];
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function getErrorBoolean(error: unknown, key: string): boolean | null {
+  if (!error || typeof error !== "object" || !(key in error)) return null;
+  const value = (error as Record<string, unknown>)[key];
+  return typeof value === "boolean" ? value : null;
+}
+
+function createBillingError(
+  message: string,
+  metadata: BillingErrorMetadata
+): BillingCheckoutError {
+  return new BillingCheckoutError(message, metadata);
+}
+
+function getBaseBillingMetadata(
+  error: unknown,
+  context: BillingErrorContext = {}
+): BillingErrorMetadata {
+  return {
+    normalizedCode: "UNKNOWN",
+    operation: context.operation ?? null,
+    platform: context.platform ?? Platform.OS,
+    revenueCatCode: getErrorString(error, "code"),
+    userCancelled: getErrorBoolean(error, "userCancelled") === true,
+    packageIdentifier: context.packageIdentifier ?? null,
+    productIdentifier: context.productIdentifier ?? null,
+    memberId: context.memberId ?? null,
+    revenueCatAppUserId: context.revenueCatAppUserId ?? configuredRevenueCatUserId ?? null,
+    canMakePayments: context.canMakePayments ?? null,
+    debugMessage: error instanceof Error ? error.message : getErrorString(error, "message"),
+  };
+}
+
+export function getBillingErrorMetadata(error: unknown): BillingErrorMetadata {
+  if (error instanceof BillingCheckoutError) {
+    return error.metadata;
+  }
+
+  return getBaseBillingMetadata(error);
+}
+
+export function normalizeBillingError(
+  error: unknown,
+  context: BillingErrorContext = {}
+): BillingCheckoutError {
+  if (error instanceof BillingCheckoutError) {
+    return error;
+  }
+
+  const metadata = getBaseBillingMetadata(error, context);
+
+  if (metadata.canMakePayments === false) {
+    metadata.normalizedCode = "PURCHASE_NOT_ALLOWED";
+    return createBillingError(
+      "Purchases are not allowed on this device. Check Screen Time and App Store purchase restrictions, then confirm your Sandbox Apple Account is signed in under Settings > Developer.",
+      metadata
+    );
+  }
+
+  switch (metadata.revenueCatCode) {
+    case PURCHASES_ERROR_CODES.PURCHASE_CANCELLED_ERROR:
+      metadata.normalizedCode = "PURCHASE_CANCELLED";
+      if (metadata.platform === "ios" && metadata.operation === "premium") {
+        return createBillingError(
+          "The purchase did not complete. This Apple sandbox account may already own Premium. Try Restore or use a fresh sandbox tester.",
+          metadata
+        );
+      }
+      return createBillingError("Purchase was cancelled.", metadata);
+    case PURCHASES_ERROR_CODES.PRODUCT_ALREADY_PURCHASED_ERROR:
+      metadata.normalizedCode = "PRODUCT_ALREADY_PURCHASED";
+      return createBillingError(
+        "This Apple sandbox account already owns this purchase. Try Restore or use a fresh sandbox tester.",
+        metadata
+      );
+    case PURCHASES_ERROR_CODES.PURCHASE_NOT_ALLOWED_ERROR:
+      metadata.normalizedCode = "PURCHASE_NOT_ALLOWED";
+      return createBillingError(
+        "Purchases are not allowed on this device. Check Screen Time and App Store purchase restrictions, then confirm your Sandbox Apple Account is signed in under Settings > Developer.",
+        metadata
+      );
+    case PURCHASES_ERROR_CODES.STORE_PROBLEM_ERROR:
+      metadata.normalizedCode = "STORE_PROBLEM";
+      return createBillingError(
+        "The App Store could not complete the purchase right now. Retry in a moment. Apple sandbox can be unreliable.",
+        metadata
+      );
+    case PURCHASES_ERROR_CODES.RECEIPT_ALREADY_IN_USE_ERROR:
+      metadata.normalizedCode = "RECEIPT_ALREADY_IN_USE";
+      return createBillingError(
+        "This purchase receipt is already linked to another account. Try Restore first. If it still fails, use the original account or a fresh sandbox tester.",
+        metadata
+      );
+    default:
+      metadata.normalizedCode = "UNKNOWN";
+      return createBillingError(
+        metadata.debugMessage ?? "Could not complete the purchase right now.",
+        metadata
+      );
+  }
+}
+
+export async function assertCanMakePayments(
+  Purchases: { canMakePayments?: () => Promise<boolean> },
+  context: BillingErrorContext
+): Promise<void> {
+  if (typeof Purchases.canMakePayments !== "function") return;
+
+  const canMakePayments = await Purchases.canMakePayments().catch(() => true);
+  if (canMakePayments) return;
+
+  throw createBillingError(
+    "Purchases are not allowed on this device. Check Screen Time and App Store purchase restrictions, then confirm your Sandbox Apple Account is signed in under Settings > Developer.",
+    {
+      ...getBaseBillingMetadata(null, context),
+      normalizedCode: "PURCHASE_NOT_ALLOWED",
+      canMakePayments: false,
+    }
+  );
 }
 
 export function getNativePurchasesAvailability(): {
@@ -49,7 +225,7 @@ export function getNativePurchasesAvailability(): {
     };
   }
 
-  if (isRunningInExpoGo()) {
+  if (typeof Expo.isRunningInExpoGo === "function" && Expo.isRunningInExpoGo()) {
     return {
       nativePurchasesAvailable: false,
       unsupportedReason: EXPO_GO_NATIVE_PURCHASES_MESSAGE,
@@ -71,7 +247,22 @@ export function getNativePurchasesAvailability(): {
 
 function getUnsupportedNativePurchasesError() {
   const { unsupportedReason } = getNativePurchasesAvailability();
-  return new Error(unsupportedReason ?? "RevenueCat is not configured for native purchases.");
+  return createBillingError(
+    unsupportedReason ?? "RevenueCat is not configured for native purchases.",
+    {
+      normalizedCode: "NATIVE_PURCHASES_DISABLED",
+      operation: null,
+      platform: Platform.OS,
+      revenueCatCode: null,
+      userCancelled: false,
+      packageIdentifier: null,
+      productIdentifier: null,
+      memberId: null,
+      revenueCatAppUserId: configuredRevenueCatUserId,
+      canMakePayments: null,
+      debugMessage: unsupportedReason ?? "RevenueCat is not configured for native purchases.",
+    }
+  );
 }
 
 export function getDefaultBillingStatus(): BillingStatus {
@@ -267,14 +458,34 @@ export async function purchasePremium(memberId: string, email?: string | null): 
   if (!PurchasesModule) throw new Error("Purchases SDK is unavailable.");
 
   const Purchases = PurchasesModule.default;
-  const offerings = await Purchases.getOfferings();
-  const premiumPackage = getPremiumPackage(offerings);
+  let premiumPackage: any = null;
 
-  if (!premiumPackage) {
-    throw new Error("Premium subscription is not configured in RevenueCat.");
+  try {
+    await assertCanMakePayments(Purchases, {
+      operation: "premium",
+      memberId,
+      revenueCatAppUserId: configuredRevenueCatUserId ?? memberId,
+    });
+    const offerings = await Purchases.getOfferings();
+    premiumPackage = getPremiumPackage(offerings);
+
+    if (!premiumPackage) {
+      throw new Error("Premium subscription is not configured in RevenueCat.");
+    }
+
+    await Purchases.purchasePackage(premiumPackage);
+  } catch (error) {
+    if (error instanceof Error && error.message === "Premium subscription is not configured in RevenueCat.") {
+      throw error;
+    }
+
+    throw normalizeBillingError(error, {
+      operation: "premium",
+      packageIdentifier: premiumPackage?.identifier ?? null,
+      memberId,
+      revenueCatAppUserId: configuredRevenueCatUserId ?? memberId,
+    });
   }
-
-  await Purchases.purchasePackage(premiumPackage);
 }
 
 export async function purchaseHostCredit(memberId: string, email?: string | null): Promise<void> {
@@ -301,17 +512,38 @@ export async function purchaseHostCredit(memberId: string, email?: string | null
   if (!PurchasesModule) throw new Error("Purchases SDK is unavailable.");
 
   const Purchases = PurchasesModule.default;
-  const products = await Purchases.getProducts(
-    [hostCreditProductId],
-    PurchasesModule.PURCHASE_TYPE.INAPP
-  );
-  const hostCreditProduct = products[0];
+  let hostCreditProduct: any = null;
 
-  if (!hostCreditProduct) {
-    throw new Error("Host credit product is not available in RevenueCat.");
+  try {
+    await assertCanMakePayments(Purchases, {
+      operation: "host_credit",
+      memberId,
+      productIdentifier: hostCreditProductId,
+      revenueCatAppUserId: configuredRevenueCatUserId ?? memberId,
+    });
+    const products = await Purchases.getProducts(
+      [hostCreditProductId],
+      PurchasesModule.PURCHASE_TYPE.INAPP
+    );
+    hostCreditProduct = products[0];
+
+    if (!hostCreditProduct) {
+      throw new Error("Host credit product is not available in RevenueCat.");
+    }
+
+    await Purchases.purchaseStoreProduct(hostCreditProduct);
+  } catch (error) {
+    if (error instanceof Error && error.message === "Host credit product is not available in RevenueCat.") {
+      throw error;
+    }
+
+    throw normalizeBillingError(error, {
+      operation: "host_credit",
+      productIdentifier: hostCreditProduct?.identifier ?? hostCreditProductId,
+      memberId,
+      revenueCatAppUserId: configuredRevenueCatUserId ?? memberId,
+    });
   }
-
-  await Purchases.purchaseStoreProduct(hostCreditProduct);
 }
 
 export async function restoreNativePurchases(memberId: string, email?: string | null): Promise<void> {
@@ -329,7 +561,20 @@ export async function restoreNativePurchases(memberId: string, email?: string | 
   const PurchasesModule = await getPurchasesModule();
   if (!PurchasesModule) throw new Error("Purchases SDK is unavailable.");
 
-  await PurchasesModule.default.restorePurchases();
+  try {
+    await assertCanMakePayments(PurchasesModule.default, {
+      operation: "restore",
+      memberId,
+      revenueCatAppUserId: configuredRevenueCatUserId ?? memberId,
+    });
+    await PurchasesModule.default.restorePurchases();
+  } catch (error) {
+    throw normalizeBillingError(error, {
+      operation: "restore",
+      memberId,
+      revenueCatAppUserId: configuredRevenueCatUserId ?? memberId,
+    });
+  }
 }
 
 export async function pollBillingStatus(

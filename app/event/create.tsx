@@ -9,21 +9,17 @@ import { EventForm, type EventFormValues } from "@/components/EventForm";
 import { showAlert } from "@/lib/alert";
 import { isNativePurchasesPlatform } from "@/lib/billing-config";
 import { generateEventImage } from "@/lib/event-image-generation";
+import {
+  DEFAULT_RATING_WINDOW_MINUTES,
+  formatEventDateLong,
+  formatEventTimeRange,
+} from "@/lib/event-scheduling";
 import { useBilling } from "@/hooks/use-billing";
 import { PAGE_HORIZONTAL_PADDING } from "@/lib/layout";
 import { trackEvent } from "@/lib/observability";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
-
-function formatDisplayDate(dateString: string): string {
-  return new Date(`${dateString}T00:00:00`).toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 const APP_BASE_URL =
   process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co";
@@ -55,13 +51,23 @@ export default function CreateEventScreen() {
     });
   }, [billingLoading, effectiveHostingAccess, session?.user?.id]);
 
-  const showSharePrompt = (eventId: string, date: string) => {
+  const showSharePrompt = (
+    eventId: string,
+    values: Pick<
+      EventFormValues,
+      | "date"
+      | "startsAt"
+      | "endsAt"
+      | "timezone"
+      | "defaultRatingWindowMinutes"
+    >,
+  ) => {
     const joinUrl = `${APP_BASE_URL}/join/${eventId}`;
-    const shareMessage = `I'm using Phina for our wine tasting on ${formatDisplayDate(date)}! Set up your account before the event so you're ready to rate: ${joinUrl}`;
+    const shareMessage = `I'm using Phina for our wine tasting on ${formatEventDateLong(values.startsAt, values.timezone)} from ${formatEventTimeRange(values.startsAt, values.endsAt, values.timezone)}. Rating rounds close automatically after ${values.defaultRatingWindowMinutes} minutes. Set up your account before the event so you're ready to rate: ${joinUrl}`;
 
     showAlert(
       "Share event link",
-      "Post this in your event page or ticketing site so guests can set up before the tasting.",
+      `Post this in your event page or ticketing site so guests can set up before the tasting. This event will end automatically at ${formatEventTimeRange(values.startsAt, values.endsAt, values.timezone).split("-")[1]}.`,
       [
         {
           text: "Copy Message",
@@ -107,20 +113,28 @@ export default function CreateEventScreen() {
         p_title: values.title,
         p_theme: values.theme,
         p_date: values.date,
+        p_starts_at: values.startsAt,
+        p_ends_at: values.endsAt,
+        p_timezone: values.timezone,
+        p_default_rating_window_minutes: values.defaultRatingWindowMinutes,
         p_tasting_mode: values.tastingMode,
         p_description: values.description,
         p_web_link: values.webLink,
+        p_event_image_url: values.heroImageUrl,
+        p_event_image_status: values.heroImageStatus,
       });
 
       if (error) throw error;
       if (!data) throw new Error("Event was not created. Please try again.");
 
-      void generateEventImage(
-        data,
-        values.title,
-        values.theme,
-        values.description,
-      );
+      if (!values.heroImageUrl) {
+        void generateEventImage(
+          data,
+          values.title,
+          values.theme,
+          values.description,
+        );
+      }
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["events"] }),
@@ -134,11 +148,12 @@ export default function CreateEventScreen() {
       trackEvent("event_created", {
         event_id: data,
         has_web_link: !!values.webLink,
+        rating_window_minutes: values.defaultRatingWindowMinutes,
         platform: Platform.OS,
         source: "event_create",
       });
 
-      showSharePrompt(data, values.date);
+      showSharePrompt(data, values);
     } catch (error) {
       showAlert(
         "Error",
@@ -288,13 +303,19 @@ export default function CreateEventScreen() {
         heading="New event"
         showHeading={false}
         submitLabel="Create"
+        memberId={session.user.id}
         initialValues={{
           title: "",
           theme: "",
           description: "",
           webLink: "",
           date: new Date().toISOString().slice(0, 10),
+          startTime: "19:00",
+          endTime: "21:00",
+          ratingWindowMinutes: DEFAULT_RATING_WINDOW_MINUTES,
           tastingMode: "single_blind",
+          heroImageUrl: null,
+          heroImageStatus: "none",
         }}
         isSubmitting={isCreating}
         minDate={new Date()}

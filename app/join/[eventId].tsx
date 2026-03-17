@@ -25,6 +25,7 @@ export default function JoinEventScreen() {
   const theme = useTheme();
   const [joining, setJoining] = useState(false);
   const [done, setDone] = useState(false);
+  const [storeRedirectReturned, setStoreRedirectReturned] = useState(false);
   const queryClient = useQueryClient();
   const webUserAgent =
     Platform.OS === "web" && typeof navigator !== "undefined" ? navigator.userAgent : "";
@@ -81,6 +82,24 @@ export default function JoinEventScreen() {
     })();
   }, [sessionLoaded, session, member, memberLoaded, eventId, queryClient, isMobileWeb]);
 
+  useEffect(() => {
+    if (!eventId || session || !isMobileWeb || !storeTarget) return;
+    if (Platform.OS !== "web" || typeof window === "undefined") return;
+
+    setStoreRedirectReturned(false);
+    const redirectTimer = window.setTimeout(() => {
+      window.location.assign(storeTarget.url);
+    }, 250);
+    const fallbackTimer = window.setTimeout(() => {
+      setStoreRedirectReturned(true);
+    }, 1500);
+
+    return () => {
+      window.clearTimeout(redirectTimer);
+      window.clearTimeout(fallbackTimer);
+    };
+  }, [eventId, isMobileWeb, session, storeTarget]);
+
   const handleOpenStore = async () => {
     if (!storeTarget) return;
 
@@ -127,32 +146,33 @@ export default function JoinEventScreen() {
         >
           <Text style={[styles.storeEyebrow, { color: theme.primary }]}>Event Invite</Text>
           <Text style={[styles.storeTitle, { color: theme.text }]}>
-            Open Phina to join this event
+            Redirecting to {storeTarget.storeName}
           </Text>
           <Text style={[styles.storeBody, { color: theme.textSecondary }]}>
-            New mobile visitors should open the app first. If you do not have it yet,
-            use the {storeTarget.storeName} button below.
+            New mobile visitors are sent to the app download automatically before joining this event.
           </Text>
           <Text style={[styles.storeHint, { color: theme.textMuted }]}>
             {storeTarget.placeholderMessage}
           </Text>
 
-          <TouchableOpacity
-            style={[styles.primaryStoreButton, { backgroundColor: theme.primary }]}
-            onPress={handleOpenStore}
-          >
-            <Ionicons name="download-outline" size={18} color="#FFFFFF" />
-            <Text style={styles.primaryStoreButtonText}>
-              Open {storeTarget.storeName}
-            </Text>
-          </TouchableOpacity>
+          {storeRedirectReturned ? (
+            <TouchableOpacity
+              style={[styles.primaryStoreButton, { backgroundColor: theme.primary }]}
+              onPress={handleOpenStore}
+            >
+              <Ionicons name="download-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.primaryStoreButtonText}>
+                Open {storeTarget.storeName}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
 
           <TouchableOpacity
             style={[styles.secondaryStoreButton, { borderColor: theme.border }]}
             onPress={handleContinueOnWeb}
           >
             <Text style={[styles.secondaryStoreButtonText, { color: theme.text }]}>
-              Continue on web
+              {storeRedirectReturned ? "Continue on web" : "Skip store and continue on web"}
             </Text>
           </TouchableOpacity>
 

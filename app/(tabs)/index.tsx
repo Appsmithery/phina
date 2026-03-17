@@ -6,6 +6,11 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { EventHeroImage } from "@/components/EventHeroImage";
 import { TabScreenHeader } from "@/components/layout/TabScreenHeader";
+import {
+  formatEventDate,
+  formatEventTimeRange,
+  isEventEnded,
+} from "@/lib/event-scheduling";
 import { PAGE_HORIZONTAL_PADDING, getTabContentBottomPadding, useOptionalBottomTabBarHeight } from "@/lib/layout";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
@@ -53,16 +58,18 @@ export default function EventsScreen() {
   });
 
   const filteredEvents = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const now = Date.now();
     const query = search.trim().toLowerCase();
 
     let filtered: Event[];
     switch (activeTab) {
       case "upcoming":
-        filtered = events.filter((event) => event.date >= today && event.status !== "ended").sort((a, b) => a.date.localeCompare(b.date));
+        filtered = events
+          .filter((event) => !isEventEnded(event) && new Date(event.ends_at).getTime() >= now)
+          .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
         break;
       case "past":
-        filtered = events.filter((event) => event.date < today || event.status === "ended");
+        filtered = events.filter((event) => isEventEnded(event) || new Date(event.ends_at).getTime() < now);
         break;
       case "my-events":
         filtered = events.filter((event) => myEventIds.has(event.id) || event.created_by === member?.id);
@@ -91,10 +98,11 @@ export default function EventsScreen() {
   }, [activeTab, search]);
 
   const renderItem = ({ item }: { item: Event }) => {
-    const date = new Date(`${item.date}T00:00:00`);
+    const date = new Date(item.starts_at);
     const dayNum = date.getDate();
     const monthAbbr = date.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
-    const dateLabel = date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+    const dateLabel = `${formatEventDate(item.starts_at, item.timezone)} - ${formatEventTimeRange(item.starts_at, item.ends_at, item.timezone)}`;
+    const ended = isEventEnded(item);
 
     return (
       <TouchableOpacity
@@ -116,12 +124,12 @@ export default function EventsScreen() {
             <View
               style={[
                 styles.statusBadge,
-                item.status === "ended"
+                ended
                   ? { backgroundColor: "rgba(0,0,0,0.55)" }
                   : { backgroundColor: "rgba(75, 140, 75, 0.9)" },
               ]}
             >
-              <Text style={styles.statusBadgeText}>{item.status === "ended" ? "Ended" : "Active"}</Text>
+              <Text style={styles.statusBadgeText}>{ended ? "Ended" : "Active"}</Text>
             </View>
           </View>
 

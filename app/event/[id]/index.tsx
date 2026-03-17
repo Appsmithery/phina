@@ -19,6 +19,11 @@ import { WineThumbnailImage } from "@/components/WineThumbnailImage";
 import { showAlert } from "@/lib/alert";
 import { generateEventImage } from "@/lib/event-image-generation";
 import {
+  formatEventDateLong,
+  formatEventTimeRange,
+  isEventEnded,
+} from "@/lib/event-scheduling";
+import {
   useEndEvent,
   useEndRatingRound,
   useStartRatingRound,
@@ -214,8 +219,9 @@ export default function EventDetailScreen() {
   const [qrExpanded, setQrExpanded] = useState(false);
 
   const isHost = event?.created_by === member?.id;
+  const eventClosed = event ? isEventEnded(event) : false;
   const isDoubleBlind =
-    event?.tasting_mode === "double_blind" && event?.status === "active";
+    event?.tasting_mode === "double_blind" && !eventClosed;
   const hideWineDetails = isDoubleBlind && !isHost;
   const canSeeMetrics = isHost || member?.is_admin;
   const canDeleteEvent = isHost || member?.is_admin;
@@ -386,9 +392,12 @@ export default function EventDetailScreen() {
     );
   }
 
-  const eventDateLabel = new Date(
-    `${event.date}T00:00:00`,
-  ).toLocaleDateString();
+  const eventDateLabel = formatEventDateLong(event.starts_at, event.timezone);
+  const eventTimeLabel = formatEventTimeRange(
+    event.starts_at,
+    event.ends_at,
+    event.timezone,
+  );
 
   const listHeader = (
     <>
@@ -409,7 +418,7 @@ export default function EventDetailScreen() {
           ]}
         >
           <Text style={[styles.statusBadgeText, { color: theme.primary }]}>
-            {event.status === "active" ? "ACTIVE EVENT" : "PAST EVENT"}
+            {eventClosed ? "ENDED EVENT" : "ACTIVE EVENT"}
           </Text>
         </View>
         {event.tasting_mode ? (
@@ -442,9 +451,14 @@ export default function EventDetailScreen() {
           </View>
         ) : null}
         <Text style={[styles.meta, { color: theme.textSecondary }]}>
-          {event.theme} - {eventDateLabel}
+          {event.theme} - {eventDateLabel} - {eventTimeLabel}
         </Text>
       </View>
+
+      <Text style={[styles.scheduleHint, { color: theme.textMuted }]}>
+        Event ends automatically at {eventTimeLabel.split("-")[1]}. Rating rounds close after{" "}
+        {event.default_rating_window_minutes} minutes.
+      </Text>
 
       {event.description ? (
         <Text style={[styles.description, { color: theme.textSecondary }]}>
@@ -662,9 +676,9 @@ export default function EventDetailScreen() {
         />
       </TouchableOpacity>
 
-      {(isHost && event.status === "active") || canDeleteEvent ? (
+      {(isHost && !eventClosed) || canDeleteEvent ? (
         <View style={styles.dangerRow}>
-          {isHost && event.status === "active" ? (
+          {isHost && !eventClosed ? (
             <TouchableOpacity
               style={[
                 styles.actionRowHalf,
@@ -849,8 +863,8 @@ export default function EventDetailScreen() {
                 </View>
               </TouchableOpacity>
 
-              {event.status === "ended" && summary ? (
-                <View style={styles.resultRow}>
+      {eventClosed && summary ? (
+        <View style={styles.resultRow}>
                   <Text style={[styles.resultText, { color: theme.text }]}>
                     Up {summary.thumbs_up} Meh {summary.meh} Down{" "}
                     {summary.thumbs_down}
@@ -858,17 +872,18 @@ export default function EventDetailScreen() {
                 </View>
               ) : null}
 
-              {event.status === "active" && isHost ? (
+              {!eventClosed && isHost ? (
                 <WineHostActions
                   eventId={id!}
                   wine={item}
                   round={activeRound ?? round}
+                  defaultRoundDurationMinutes={event.default_rating_window_minutes}
                   theme={theme}
                   onRate={() => router.push(`/event/${id}/rate/${item.id}`)}
                 />
               ) : null}
 
-              {event.status === "active" && !isHost && activeRound ? (
+              {!eventClosed && !isHost && activeRound ? (
                 <TouchableOpacity
                   style={[
                     styles.rateButton,
@@ -880,11 +895,16 @@ export default function EventDetailScreen() {
                 </TouchableOpacity>
               ) : null}
 
-              {event.status === "active" &&
+              {!eventClosed &&
               !isHost &&
               !activeRound &&
               member?.is_admin ? (
-                <WineAdminReopen eventId={id!} wineId={item.id} theme={theme} />
+                <WineAdminReopen
+                  eventId={id!}
+                  wineId={item.id}
+                  defaultRoundDurationMinutes={event.default_rating_window_minutes}
+                  theme={theme}
+                />
               ) : null}
             </View>
           );
@@ -924,6 +944,12 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 15,
     lineHeight: 22,
+    marginBottom: 16,
+    fontFamily: "Montserrat_400Regular",
+  },
+  scheduleHint: {
+    fontSize: 13,
+    lineHeight: 20,
     marginBottom: 16,
     fontFamily: "Montserrat_400Regular",
   },
@@ -1043,6 +1069,16 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "Montserrat_600SemiBold",
   },
+  rateButtonLight: {
+    borderRadius: 12,
+    padding: 10,
+    alignItems: "center",
+    borderWidth: 1,
+  },
+  rateButtonLightText: {
+    fontWeight: "600",
+    fontFamily: "Montserrat_600SemiBold",
+  },
   resultRow: { marginTop: 12 },
   resultText: { fontSize: 15, fontFamily: "Montserrat_400Regular" },
   statusMessage: {
@@ -1085,16 +1121,22 @@ function WineHostActions({
   eventId,
   wine,
   round,
+  defaultRoundDurationMinutes,
   theme: t,
   onRate,
 }: {
   eventId: string;
   wine: WineWithPricePrivacy;
   round: RatingRound | undefined;
+  defaultRoundDurationMinutes: 5 | 10 | 15;
   theme: ReturnType<typeof useTheme>;
   onRate: () => void;
 }) {
-  const startRound = useStartRatingRound(eventId, wine.id);
+  const startRound = useStartRatingRound(
+    eventId,
+    wine.id,
+    defaultRoundDurationMinutes,
+  );
   const endRound = useEndRatingRound(round?.id ?? "", eventId, wine.id);
 
   const handleStartRound = () => {
@@ -1143,11 +1185,18 @@ function WineHostActions({
 
   return (
     <TouchableOpacity
-      style={[styles.rateButton, { backgroundColor: t.primary, marginTop: 12 }]}
+      style={[
+        styles.rateButtonLight,
+        {
+          backgroundColor: `${t.primary}18`,
+          borderColor: `${t.primary}26`,
+          marginTop: 12,
+        },
+      ]}
       onPress={handleStartRound}
       disabled={startRound.isPending}
     >
-      <Text style={styles.rateButtonText}>
+      <Text style={[styles.rateButtonLightText, { color: t.primary }]}>
         {startRound.isPending ? "Starting..." : "Start Rating"}
       </Text>
     </TouchableOpacity>
@@ -1157,13 +1206,19 @@ function WineHostActions({
 function WineAdminReopen({
   eventId,
   wineId,
+  defaultRoundDurationMinutes,
   theme: t,
 }: {
   eventId: string;
   wineId: string;
+  defaultRoundDurationMinutes: 5 | 10 | 15;
   theme: ReturnType<typeof useTheme>;
 }) {
-  const startRound = useStartRatingRound(eventId, wineId);
+  const startRound = useStartRatingRound(
+    eventId,
+    wineId,
+    defaultRoundDurationMinutes,
+  );
 
   const handleReopen = () => {
     startRound.mutate(undefined, {
@@ -1180,11 +1235,17 @@ function WineAdminReopen({
   return (
     <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
       <TouchableOpacity
-        style={[styles.rateButton, { backgroundColor: t.textMuted }]}
+        style={[
+          styles.rateButtonLight,
+          {
+            backgroundColor: `${t.textMuted}18`,
+            borderColor: `${t.textMuted}26`,
+          },
+        ]}
         onPress={handleReopen}
         disabled={startRound.isPending}
       >
-        <Text style={styles.rateButtonText}>
+        <Text style={[styles.rateButtonLightText, { color: t.textSecondary }]}>
           {startRound.isPending ? "Starting..." : "Reopen ratings"}
         </Text>
       </TouchableOpacity>
