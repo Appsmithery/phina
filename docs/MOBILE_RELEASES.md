@@ -87,11 +87,16 @@ The repo uses three EAS build profiles:
   - local dev-client work
   - channel: `development`
 - `preview`
-  - internal builds from `main`
+  - production-like internal builds from `main`
   - channel: `preview`
 - `production`
   - store binaries only
   - channel: `production`
+
+Use `preview` when you need a standalone binary that behaves as close to production as possible without store submission. For native billing, that means:
+
+- iOS preview builds are valid for Apple Sandbox purchase testing.
+- Android preview builds are useful for native smoke checks, but real Play Billing validation should come from Google Play internal or closed testing.
 
 The app already uses `runtimeVersion: { policy: "appVersion" }`. That means OTA
 updates only apply to installed binaries with the same app version/runtime.

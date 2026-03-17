@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Alert, Platform } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -33,6 +33,7 @@ export default function CellarScreen() {
     effectivePremiumActive,
     billingAccessLabel,
     nativePurchasesAvailable,
+    unsupportedReason,
     isLoading: billingLoading,
     isPurchasingPremium,
     isRestoringPurchases,
@@ -42,6 +43,7 @@ export default function CellarScreen() {
   const params = useLocalSearchParams<{ tab?: string }>();
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<CellarTab>(params.tab === "history" ? "history" : "storage");
+  const trackedUnavailableBillingRef = useRef<string | null>(null);
 
   const memberId = member?.id;
   useEffect(() => {
@@ -54,6 +56,27 @@ export default function CellarScreen() {
     if (!memberId || billingLoading || effectivePremiumActive) return;
     trackEvent("premium_paywall_viewed", { platform: Platform.OS, source: "cellar_tab" });
   }, [billingLoading, effectivePremiumActive, memberId]);
+
+  useEffect(() => {
+    if (!memberId || billingLoading || effectivePremiumActive) return;
+    if (!isNativePurchasesPlatform(Platform.OS) || nativePurchasesAvailable || !unsupportedReason) return;
+
+    const trackingKey = `${memberId}:${Platform.OS}:${unsupportedReason}`;
+    if (trackedUnavailableBillingRef.current === trackingKey) return;
+    trackedUnavailableBillingRef.current = trackingKey;
+
+    trackEvent("premium_paywall_unavailable", {
+      platform: Platform.OS,
+      source: "cellar_tab",
+      unsupported_reason: unsupportedReason,
+    });
+  }, [
+    billingLoading,
+    effectivePremiumActive,
+    memberId,
+    nativePurchasesAvailable,
+    unsupportedReason,
+  ]);
 
   const {
     data: wines = [],
@@ -185,6 +208,14 @@ export default function CellarScreen() {
   };
 
   const isNativeBilling = isNativePurchasesPlatform(Platform.OS);
+  const premiumDetail =
+    unsupportedReason && isNativeBilling && !nativePurchasesAvailable
+      ? `${
+          Platform.OS === "android"
+            ? "Track event wines here today, then validate premium purchases from a Google Play internal or closed test build. "
+            : "Track event wines here today, then validate premium purchases from a native preview or development build. "
+        }${unsupportedReason}`
+      : "Track your at-home bottles, uploads, and private cellar history.";
   const cellarUpsell = !effectivePremiumActive ? (
     <View style={styles.upsellSection}>
       <BillingCard
@@ -193,9 +224,10 @@ export default function CellarScreen() {
         title="Unlock Personal Cellar"
         description="Track your at-home bottles, uploads, and private cellar history."
         badge={hasAdminBillingBypass ? (billingAccessLabel ?? "Admin override") : "Cellar premium"}
+        detail={premiumDetail}
         primaryLabel={
           isNativeBilling && !nativePurchasesAvailable
-            ? "Use Native Build"
+            ? "Billing unavailable"
             : isPurchasingPremium
               ? "Opening purchase flow..."
               : isNativeBilling
