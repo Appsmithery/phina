@@ -7,6 +7,14 @@ on:
         description: "Git ref to release"
         required: true
         default: "main"
+      profile:
+        description: "EAS build profile"
+        required: true
+        type: choice
+        default: "preview"
+        options:
+          - preview
+          - production
       platform:
         description: "Platform to build"
         required: true
@@ -24,7 +32,7 @@ on:
           - build_and_submit
 
 concurrency:
-  group: native-release-${{ inputs.git_ref }}-${{ inputs.platform }}
+  group: native-release-${{ inputs.profile }}-${{ inputs.git_ref }}-${{ inputs.platform }}
   cancel-in-progress: false
 
 permissions:
@@ -57,6 +65,10 @@ jobs:
       - name: Check release secrets
         run: |
           [[ -n "${{ secrets.EXPO_TOKEN }}" ]] || { echo "::error::EXPO_TOKEN missing"; exit 1; }
+          if [[ "${{ inputs.profile }}" == "preview" && "${{ inputs.action }}" == "build_and_submit" ]]; then
+            echo "::error::Preview builds cannot use build_and_submit"
+            exit 1
+          fi
           if [[ "${{ inputs.action }}" == "build_and_submit" && ("${{ inputs.platform }}" == "android" || "${{ inputs.platform }}" == "all") ]]; then
             [[ -n "${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}" ]] || { echo "::error::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON missing"; exit 1; }
           fi
@@ -66,8 +78,8 @@ jobs:
             [[ -n "${{ secrets.EXPO_ASC_ISSUER_ID }}" ]] || { echo "::error::EXPO_ASC_ISSUER_ID missing"; exit 1; }
           fi
 
-      - name: Verify production EAS environment
-        run: node scripts/verify-eas-env.mjs --environment production --platform ${{ inputs.platform }}
+      - name: Verify selected EAS environment
+        run: node scripts/verify-eas-env.mjs --environment ${{ inputs.profile }} --platform ${{ inputs.platform }}
 
       - name: Write Android submit credentials
         if: inputs.action == 'build_and_submit' && (inputs.platform == 'android' || inputs.platform == 'all')
@@ -82,7 +94,7 @@ jobs:
           echo "EXPO_ASC_KEY_ID=${{ secrets.EXPO_ASC_KEY_ID }}" >> "$GITHUB_ENV"
           echo "EXPO_ASC_ISSUER_ID=${{ secrets.EXPO_ASC_ISSUER_ID }}" >> "$GITHUB_ENV"
 
-      - name: Run production release
+      - name: Run native build
         run: |
           set -euo pipefail
           platforms=()
@@ -94,21 +106,21 @@ jobs:
           esac
 
           for platform in "${platforms[@]}"; do
-            echo "Starting production build for $platform"
+            echo "Starting ${{ inputs.profile }} build for $platform"
             if [[ "${{ inputs.action }}" == "build_and_submit" ]]; then
-              eas build --platform "$platform" --profile production --non-interactive --auto-submit
+              eas build --platform "$platform" --profile "${{ inputs.profile }}" --non-interactive --auto-submit
             else
-              eas build --platform "$platform" --profile production --non-interactive
+              eas build --platform "$platform" --profile "${{ inputs.profile }}" --non-interactive
             fi
           done
 
       - name: Summarize release
         run: |
           {
-            echo "## Native release"
+            echo "## Native build"
             echo ""
             echo "- Ref: ${{ inputs.git_ref }}"
+            echo "- Profile: ${{ inputs.profile }}"
             echo "- Platform: ${{ inputs.platform }}"
             echo "- Action: ${{ inputs.action }}"
-            echo "- Profile: production"
           } >> "$GITHUB_STEP_SUMMARY"
