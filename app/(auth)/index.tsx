@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -11,12 +11,12 @@ import {
   useWindowDimensions,
   ScrollView,
 } from "react-native";
-import { router } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
 import { getRedirectUrl } from "@/lib/auth-redirect";
-import { setLastUsedEmail } from "@/lib/last-email";
+import { getLastUsedEmail, setLastUsedEmail } from "@/lib/last-email";
 import { useSupabase } from "@/lib/supabase-context";
 import { signInWithGoogle } from "@/lib/oauth-google";
 import { signInWithApple, isAppleAuthAvailable } from "@/lib/oauth-apple";
@@ -25,21 +25,55 @@ import { navigateAfterAuth } from "@/lib/post-auth-navigate";
 const UNAUTHORIZED_HINT =
   "In Supabase: Authentication → Providers → turn Email ON. Check Project Settings → API: use the anon public key and project URL in .env, then restart the app.";
 
-const RESEND_COOLDOWN_SECONDS = 60;
+const INVALID_CREDENTIALS_HINT = "Incorrect email or password. Please try again.";
+const DUPLICATE_ACCOUNT_HINT = "An account with this email already exists. Sign in or reset your password.";
+const MIN_PASSWORD_LENGTH = 8;
 const LOGO_MAX_SIDE = 672;
 const LOGO_MIN_SIDE = 384;
 const LOGO_WIDTH_RATIO = 0.9;
 
+type AuthMode = "sign-in" | "sign-up";
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function getInitialMode(mode?: string | string[]): AuthMode {
+  return mode === "sign-up" ? "sign-up" : "sign-in";
+}
+
+function isInvalidCredentialsError(message: string, code?: string): boolean {
+  const lowered = message.toLowerCase();
+  return (
+    lowered.includes("invalid login credentials") ||
+    lowered.includes("invalid_credentials") ||
+    code === "invalid_credentials"
+  );
+}
+
+function isDuplicateEmailError(message: string, code?: string): boolean {
+  const lowered = message.toLowerCase();
+  return (
+    lowered.includes("user already registered") ||
+    lowered.includes("already registered") ||
+    lowered.includes("already exists") ||
+    code === "user_already_exists"
+  );
+}
+
 export default function AuthScreen() {
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const [email, setEmail] = useState("");
+  const params = useLocalSearchParams<{ email?: string; mode?: string }>();
+  const initialParamEmail = typeof params.email === "string" ? normalizeEmail(params.email) : "";
+  const [mode, setMode] = useState<AuthMode>(getInitialMode(params.mode));
+  const [email, setEmail] = useState(initialParamEmail);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [errorHint, setErrorHint] = useState<string | null>(null);
-  const [magicLinkSentTo, setMagicLinkSentTo] = useState<string | null>(null);
-  const [resendCooldownSeconds, setResendCooldownSeconds] = useState(0);
-  const cooldownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const theme = useTheme();
   const { setSessionFromAuth } = useSupabase();
 
@@ -48,99 +82,164 @@ export default function AuthScreen() {
     Math.min(LOGO_MAX_SIDE, screenWidth * LOGO_WIDTH_RATIO, screenHeight * 0.6)
   );
 
-  const startCooldown = () => {
-    if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current);
-    setResendCooldownSeconds(RESEND_COOLDOWN_SECONDS);
-    cooldownIntervalRef.current = setInterval(() => {
-      setResendCooldownSeconds((s) => {
-        if (s <= 1) {
-          if (cooldownIntervalRef.current) {
-            clearInterval(cooldownIntervalRef.current);
-            cooldownIntervalRef.current = null;
-          }
-          return 0;
+  useEffect(() => {
+    setMode(getInitialMode(params.mode));
+  }, [params.mode]);
+
+  useEffect(() => {
+    if (initialParamEmail) {
+      setEmail(initialParamEmail);
+      return;
+    }
+
+    let active = true;
+    getLastUsedEmail()
+      .then((lastEmail) => {
+        if (active && lastEmail) {
+          setEmail(lastEmail);
         }
-        return s - 1;
-      });
-    }, 1000);
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [initialParamEmail]);
+
+  const handleModeChange = (nextMode: AuthMode) => {
+    setMode(nextMode);
+    setErrorHint(null);
+    if (nextMode === "sign-in") {
+      setConfirmPassword("");
+    }
   };
 
-  useEffect(() => {
-    return () => {
-      if (cooldownIntervalRef.current) clearInterval(cooldownIntervalRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!magicLinkSentTo && cooldownIntervalRef.current) {
-      clearInterval(cooldownIntervalRef.current);
-      cooldownIntervalRef.current = null;
-      setResendCooldownSeconds(0);
+  const handleSignIn = async () => {
+    const trimmedEmail = normalizeEmail(email);
+    if (!trimmedEmail || !password) {
+      setErrorHint("Please enter your email and password.");
+      return;
     }
-  }, [magicLinkSentTo]);
 
-  const sendMagicLink = async (trimmedEmail: string): Promise<boolean> => {
-    const redirectUrl = getRedirectUrl();
-    const { error } = await supabase.auth.signInWithOtp({
-      email: trimmedEmail,
-      options: { emailRedirectTo: redirectUrl },
-    });
-    if (error) throw error;
-    setMagicLinkSentTo(trimmedEmail);
+    setLoading(true);
     setErrorHint(null);
-    startCooldown();
-    return true;
+
+    try {
+      await setLastUsedEmail(trimmedEmail);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: trimmedEmail,
+        password,
+      });
+      if (error) throw error;
+      if (!data.session) {
+        setErrorHint("Sign-in did not return a session. Please try again.");
+        return;
+      }
+      setSessionFromAuth(data.session);
+      await navigateAfterAuth();
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      const code = e && typeof e === "object" && "code" in e ? String((e as { code: string }).code) : "";
+      const is401 = message.includes("401") || message.toLowerCase().includes("unauthorized");
+      const userMessage = is401
+        ? UNAUTHORIZED_HINT
+        : isInvalidCredentialsError(message, code)
+          ? INVALID_CREDENTIALS_HINT
+          : message;
+      setErrorHint(userMessage);
+      showAlert("Sign in failed", userMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSignUp = async () => {
-    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedEmail = normalizeEmail(email);
     if (!trimmedEmail) {
       setErrorHint("Please enter your email.");
       return;
     }
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setErrorHint(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      return;
+    }
+    if (password !== confirmPassword) {
+      setErrorHint("Passwords do not match.");
+      return;
+    }
+
     setLoading(true);
     setErrorHint(null);
+
     try {
-      await sendMagicLink(trimmedEmail);
+      await setLastUsedEmail(trimmedEmail);
+      const { data, error } = await supabase.auth.signUp({
+        email: trimmedEmail,
+        password,
+      });
+      if (error) throw error;
+
+      if (data.session) {
+        setSessionFromAuth(data.session);
+        await navigateAfterAuth();
+        return;
+      }
+
+      setMode("sign-in");
+      setPassword("");
+      setConfirmPassword("");
       showAlert(
         "Check your email",
-        "We sent you a magic link. Tap it to set your password and sign in.",
+        "Your account was created. Check your email to confirm your address, then sign in with your password.",
+        [{ text: "OK" }]
+      );
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      const code = e && typeof e === "object" && "code" in e ? String((e as { code: string }).code) : "";
+      const is401 = message.includes("401") || message.toLowerCase().includes("unauthorized");
+      const userMessage = is401
+        ? UNAUTHORIZED_HINT
+        : isDuplicateEmailError(message, code)
+          ? DUPLICATE_ACCOUNT_HINT
+          : message;
+      setErrorHint(userMessage);
+      showAlert("Create account failed", userMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    const trimmedEmail = normalizeEmail(email);
+    if (!trimmedEmail) {
+      setErrorHint("Enter your email first to reset your password.");
+      return;
+    }
+
+    setResetLoading(true);
+    setErrorHint(null);
+
+    try {
+      await setLastUsedEmail(trimmedEmail);
+      const redirectUrl = getRedirectUrl();
+      const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+        redirectTo: redirectUrl,
+      });
+      if (error) throw error;
+      showAlert(
+        "Check your email",
+        "We sent a password reset link. Open it to choose a new password.",
         [{ text: "OK" }]
       );
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
       const is401 = message.includes("401") || message.toLowerCase().includes("unauthorized");
-      setErrorHint(is401 ? UNAUTHORIZED_HINT : message);
-      showAlert("Error", is401 ? UNAUTHORIZED_HINT : message);
+      const userMessage = is401 ? UNAUTHORIZED_HINT : message;
+      setErrorHint(userMessage);
+      showAlert("Reset password failed", userMessage);
     } finally {
-      setLoading(false);
+      setResetLoading(false);
     }
-  };
-
-  const handleResend = async () => {
-    if (!magicLinkSentTo || resendCooldownSeconds > 0) return;
-    setLoading(true);
-    setErrorHint(null);
-    try {
-      await sendMagicLink(magicLinkSentTo);
-      showAlert("Link sent again", "Check your inbox for the magic link.", [{ text: "OK" }]);
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : String(e);
-      setErrorHint(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const canSignIn = Boolean(email.trim());
-  const handleSignIn = async () => {
-    if (!canSignIn) return;
-    const trimmedEmail = email.trim().toLowerCase();
-    await setLastUsedEmail(trimmedEmail);
-    router.push({
-      pathname: "/(auth)/sign-in",
-      params: { email: trimmedEmail },
-    });
   };
 
   const handleGoogleSignIn = async () => {
@@ -182,7 +281,8 @@ export default function AuthScreen() {
   };
 
   const socialLoading = googleLoading || appleLoading;
-
+  const busy = loading || resetLoading;
+  const canSubmit = Boolean(normalizeEmail(email) && password);
   const inputStyle = [
     styles.input,
     {
@@ -203,194 +303,212 @@ export default function AuthScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-      <View style={styles.content}>
-        <View style={styles.logoWrapper}>
-          <Image
-            source={require("@/assets/phina_logo.png")}
-            style={[styles.logo, { width: logoSize, height: logoSize }]}
-            resizeMode="contain"
-            accessibilityLabel="Phína logo"
-          />
-        </View>
-        <Text style={[styles.heading, { color: theme.text }]}>
-          {magicLinkSentTo ? "Check your email" : "Welcome to the Club"}
-        </Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          {magicLinkSentTo
-            ? ""
-            : "Enter your email to receive a secure sign-in magic link."}
-        </Text>
-        {magicLinkSentTo ? (
-          <>
-            <Text
-              style={[styles.successHint, { color: theme.textSecondary }]}
-              accessibilityRole="text"
-              accessibilityLiveRegion="polite"
-            >
-              We sent a magic link to {magicLinkSentTo}. Check your inbox and tap the link to set
-              your password.
-            </Text>
-            <TouchableOpacity
-              style={[styles.linkButton, { borderColor: theme.border }]}
-              onPress={() => setMagicLinkSentTo(null)}
-              disabled={loading}
-              accessibilityRole="button"
-              accessibilityLabel="Use a different email"
-            >
-              <Text style={[styles.linkButtonText, { color: theme.textSecondary }]}>
-                Use a different email
-              </Text>
-            </TouchableOpacity>
-            {resendCooldownSeconds > 0 ? (
-              <Text
-                style={[styles.cooldownHint, { color: theme.textMuted }]}
-                accessibilityRole="text"
-                accessibilityLiveRegion="polite"
-              >
-                You can resend in {resendCooldownSeconds} seconds
-              </Text>
-            ) : (
-              <TouchableOpacity
-                style={[styles.linkButton, { borderColor: theme.border }]}
-                onPress={handleResend}
-                disabled={loading}
-                accessibilityRole="button"
-                accessibilityLabel="Resend magic link"
-              >
-                <Text style={[styles.linkButtonText, { color: theme.textSecondary }]}>
-                  Resend link
-                </Text>
-              </TouchableOpacity>
-            )}
-          </>
-        ) : (
-          <>
-            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>EMAIL ADDRESS</Text>
-            <TextInput
-              style={inputStyle}
-              placeholder="you@example.com"
-              placeholderTextColor={theme.textMuted}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!loading}
+        <View style={styles.content}>
+          <View style={styles.logoWrapper}>
+            <Image
+              source={require("@/assets/phina_logo.png")}
+              style={[styles.logo, { width: logoSize, height: logoSize }]}
+              resizeMode="contain"
+              accessibilityLabel="Phína logo"
             />
+          </View>
+          <Text style={[styles.heading, { color: theme.text }]}>
+            {mode === "sign-in" ? "Welcome back" : "Create your account"}
+          </Text>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            {mode === "sign-in"
+              ? "Sign in with your email and password."
+              : "Create an account with your email and password."}
+          </Text>
+
+          <View style={[styles.modeToggle, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <TouchableOpacity
               style={[
-                styles.primaryButton,
-                {
-                  backgroundColor: theme.primary,
-                  opacity: canSignIn && !loading ? 1 : 0.6,
-                },
+                styles.modeButton,
+                mode === "sign-in" && { backgroundColor: theme.primary },
               ]}
-              onPress={canSignIn && !loading ? handleSignUp : undefined}
-              disabled={!canSignIn || loading}
+              onPress={() => handleModeChange("sign-in")}
               accessibilityRole="button"
-              accessibilityLabel="Send magic link"
-            >
-              <Text
-                style={[styles.primaryButtonText, { color: "#FFFFFF" }]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.8}
-              >
-                Send magic link
-              </Text>
-            </TouchableOpacity>
-            <View style={styles.divider}>
-              <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
-              <Text style={[styles.dividerText, { color: theme.textSecondary }]}>or</Text>
-              <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
-            </View>
-            <TouchableOpacity
-              style={[
-                styles.googleButton,
-                {
-                  borderColor: theme.border,
-                  backgroundColor: theme.surface,
-                },
-              ]}
-              onPress={handleGoogleSignIn}
-              disabled={socialLoading || loading}
-              accessibilityRole="button"
-              accessibilityLabel="Continue with Google"
-            >
-              <Text
-                style={[styles.googleButtonText, { color: theme.text }]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.8}
-              >
-                {googleLoading ? "Signing in..." : "Continue with Google"}
-              </Text>
-            </TouchableOpacity>
-            <Text style={[styles.socialHint, { color: theme.textMuted }]}>
-              New to Phina? Continue with Google to create your account and finish setup.
-            </Text>
-            {isAppleAuthAvailable() ? (
-              <TouchableOpacity
-                style={styles.appleButton}
-                onPress={handleAppleSignIn}
-                disabled={socialLoading || loading}
-                accessibilityRole="button"
-                accessibilityLabel="Sign in with Apple"
-              >
-                <Text
-                  style={styles.appleButtonText}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.8}
-                >
-                  {appleLoading ? "Signing in..." : "Sign in with Apple"}
-                </Text>
-              </TouchableOpacity>
-            ) : null}
-          </>
-        )}
-        {!magicLinkSentTo ? (
-          <View style={styles.nudgeBlock}>
-            <Text
-              style={[styles.nudgeHint, { color: theme.textMuted }]}
-              accessibilityRole="text"
-            >
-              Enter your email above to continue.
-            </Text>
-            <TouchableOpacity
-              onPress={canSignIn && !loading ? handleSignIn : undefined}
-              disabled={!canSignIn || loading}
-              accessibilityRole="link"
-              accessibilityLabel="Sign in with password"
-              accessibilityState={{ disabled: !canSignIn || loading }}
+              accessibilityLabel="Switch to sign in"
             >
               <Text
                 style={[
-                  styles.nudgeLink,
-                  {
-                    color: theme.primary,
-                    opacity: canSignIn && !loading ? 1 : 0.6,
-                  },
+                  styles.modeButtonText,
+                  { color: mode === "sign-in" ? "#FFFFFF" : theme.textSecondary },
                 ]}
+              >
+                Sign In
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                mode === "sign-up" && { backgroundColor: theme.primary },
+              ]}
+              onPress={() => handleModeChange("sign-up")}
+              accessibilityRole="button"
+              accessibilityLabel="Switch to create account"
+            >
+              <Text
+                style={[
+                  styles.modeButtonText,
+                  { color: mode === "sign-up" ? "#FFFFFF" : theme.textSecondary },
+                ]}
+              >
+                Create Account
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>EMAIL ADDRESS</Text>
+          <TextInput
+            style={inputStyle}
+            placeholder="you@example.com"
+            placeholderTextColor={theme.textMuted}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!busy}
+          />
+
+          <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>PASSWORD</Text>
+          <TextInput
+            style={inputStyle}
+            placeholder="Password"
+            placeholderTextColor={theme.textMuted}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!busy}
+          />
+
+          {mode === "sign-up" ? (
+            <>
+              <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>CONFIRM PASSWORD</Text>
+              <TextInput
+                style={inputStyle}
+                placeholder="Confirm password"
+                placeholderTextColor={theme.textMuted}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!busy}
+              />
+            </>
+          ) : (
+            <TouchableOpacity
+              onPress={handleForgotPassword}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel="Forgot password"
+            >
+              <Text style={[styles.inlineLink, { color: theme.primary, opacity: busy ? 0.6 : 1 }]}>
+                Forgot password?
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={[
+              styles.primaryButton,
+              {
+                backgroundColor: theme.primary,
+                opacity: canSubmit && !busy ? 1 : 0.6,
+              },
+            ]}
+            onPress={mode === "sign-in" ? handleSignIn : handleSignUp}
+            disabled={!canSubmit || busy}
+            accessibilityRole="button"
+            accessibilityLabel={mode === "sign-in" ? "Sign in" : "Create account"}
+          >
+            <Text
+              style={[styles.primaryButtonText, { color: "#FFFFFF" }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+            >
+              {loading ? (mode === "sign-in" ? "Signing in..." : "Creating account...") : mode === "sign-in" ? "Sign In" : "Create Account"}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.linkButton, { borderColor: theme.border }]}
+            onPress={() => handleModeChange(mode === "sign-in" ? "sign-up" : "sign-in")}
+            disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel={mode === "sign-in" ? "Need an account? Create one" : "Already have an account? Sign in"}
+          >
+            <Text style={[styles.linkButtonText, { color: theme.textSecondary }]}>
+              {mode === "sign-in" ? "Need an account? Create one" : "Already have an account? Sign in"}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.divider}>
+            <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+            <Text style={[styles.dividerText, { color: theme.textSecondary }]}>or</Text>
+            <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.googleButton,
+              {
+                borderColor: theme.border,
+                backgroundColor: theme.surface,
+              },
+            ]}
+            onPress={handleGoogleSignIn}
+            disabled={socialLoading || busy}
+            accessibilityRole="button"
+            accessibilityLabel="Continue with Google"
+          >
+            <Text
+              style={[styles.googleButtonText, { color: theme.text }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+            >
+              {googleLoading ? "Signing in..." : "Continue with Google"}
+            </Text>
+          </TouchableOpacity>
+          <Text style={[styles.socialHint, { color: theme.textMuted }]}>
+            Google and Apple sign-in still work for members who prefer a provider account.
+          </Text>
+          {isAppleAuthAvailable() ? (
+            <TouchableOpacity
+              style={styles.appleButton}
+              onPress={handleAppleSignIn}
+              disabled={socialLoading || busy}
+              accessibilityRole="button"
+              accessibilityLabel="Sign in with Apple"
+            >
+              <Text
+                style={styles.appleButtonText}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.8}
               >
-                Sign in with password
+                {appleLoading ? "Signing in..." : "Sign in with Apple"}
               </Text>
             </TouchableOpacity>
-          </View>
-        ) : null}
-        {errorHint ? (
-          <Text
-            style={[styles.errorHint, { color: theme.textMuted }]}
-            accessibilityRole="text"
-            accessibilityLiveRegion="polite"
-          >
-            {errorHint}
-          </Text>
-        ) : null}
-      </View>
+          ) : null}
+
+          {errorHint ? (
+            <Text
+              style={[styles.errorHint, { color: theme.textMuted }]}
+              accessibilityRole="text"
+              accessibilityLiveRegion="polite"
+            >
+              {errorHint}
+            </Text>
+          ) : null}
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -438,6 +556,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     lineHeight: 22,
   },
+  modeToggle: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 16,
+  },
+  modeButton: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  modeButtonText: {
+    fontFamily: "Montserrat_600SemiBold",
+    fontSize: 13,
+  },
   inputLabel: {
     fontFamily: "Montserrat_600SemiBold",
     fontSize: 11,
@@ -452,6 +587,14 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_400Regular",
     marginBottom: 12,
   },
+  inlineLink: {
+    fontFamily: "Montserrat_600SemiBold",
+    fontSize: 12,
+    textAlign: "right",
+    marginTop: -4,
+    marginBottom: 16,
+    textDecorationLine: "underline",
+  },
   primaryButton: {
     paddingVertical: 14,
     paddingHorizontal: 24,
@@ -464,36 +607,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     width: "100%",
     textAlign: "center",
-  },
-  cooldownHint: {
-    fontFamily: "Montserrat_400Regular",
-    fontSize: 12,
-    textAlign: "center",
-    marginBottom: 12,
-  },
-  nudgeBlock: {
-    alignItems: "center",
-    marginTop: 8,
-    paddingHorizontal: 8,
-  },
-  nudgeHint: {
-    fontFamily: "Montserrat_400Regular",
-    fontSize: 12,
-    textAlign: "center",
-    marginBottom: 4,
-  },
-  nudgeLink: {
-    fontFamily: "Montserrat_600SemiBold",
-    fontSize: 12,
-    textDecorationLine: "underline",
-    textAlign: "center",
-  },
-  successHint: {
-    fontFamily: "Montserrat_400Regular",
-    fontSize: 14,
-    textAlign: "center",
-    marginBottom: 16,
-    paddingHorizontal: 8,
   },
   linkButton: {
     alignSelf: "center",

@@ -33,7 +33,7 @@ export default function SetPasswordScreen() {
   useEffect(() => {
     if (!sessionLoaded) return;
     if (!session) {
-      // Brief delay so Supabase can process hash from magic link before we redirect
+      // Brief delay so Supabase can process the reset callback before we redirect.
       const t = setTimeout(() => {
         router.replace("/(auth)");
       }, 2000);
@@ -88,8 +88,8 @@ export default function SetPasswordScreen() {
     const email = session?.user?.email?.trim();
     if (email) {
       router.replace({
-        pathname: "/(auth)/sign-in",
-        params: { email },
+        pathname: "/(auth)",
+        params: { email, mode: "sign-in" },
       });
     } else {
       router.replace("/(auth)");
@@ -110,7 +110,7 @@ export default function SetPasswordScreen() {
       <View style={styles.content}>
         <Text style={[styles.title, { color: theme.text }]}>Set your password</Text>
         <Text style={[styles.subtitle, { color: theme.text }]}>
-          Choose a password to sign in next time without email
+          Choose a password for future sign-ins.
         </Text>
         <View style={styles.passwordRow}>
           <TextInput

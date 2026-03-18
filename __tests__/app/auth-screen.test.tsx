@@ -1,21 +1,30 @@
 import React from "react";
-import { render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+
 import AuthScreen from "@/app/(auth)/index";
+import { supabase } from "@/lib/supabase";
+import { showAlert } from "@/lib/alert";
+import { navigateAfterAuth } from "@/lib/post-auth-navigate";
+
+const mockSetSessionFromAuth = jest.fn();
 
 jest.mock("expo-router", () => ({
-  router: { push: jest.fn() },
+  router: { push: jest.fn(), replace: jest.fn() },
+  useLocalSearchParams: () => ({}),
 }));
 
 jest.mock("@/lib/supabase-context", () => ({
   useSupabase: () => ({
-    setSessionFromAuth: jest.fn(),
+    setSessionFromAuth: mockSetSessionFromAuth,
   }),
 }));
 
 jest.mock("@/lib/supabase", () => ({
   supabase: {
     auth: {
-      signInWithOtp: jest.fn(() => Promise.resolve({ error: null })),
+      signUp: jest.fn(),
+      signInWithPassword: jest.fn(),
+      resetPasswordForEmail: jest.fn(),
     },
   },
 }));
@@ -41,21 +50,135 @@ jest.mock("@/lib/theme", () => ({
   }),
 }));
 
+jest.mock("@/lib/last-email", () => ({
+  getLastUsedEmail: jest.fn(() => Promise.resolve(null)),
+  setLastUsedEmail: jest.fn(() => Promise.resolve()),
+}));
+
+jest.mock("@/lib/alert", () => ({
+  showAlert: jest.fn(),
+}));
+
+jest.mock("@/lib/post-auth-navigate", () => ({
+  navigateAfterAuth: jest.fn(() => Promise.resolve()),
+}));
+
 describe("AuthScreen", () => {
-  it("renders Phína logo, Send magic link button, Google sign-in, and sign in with password link", () => {
-    render(<AuthScreen />);
-    expect(screen.getByLabelText("Phína logo")).toBeTruthy();
-    expect(screen.getByText("Enter your email to receive a secure sign-in magic link.")).toBeTruthy();
-    expect(screen.getByText("Send magic link")).toBeTruthy();
-    expect(screen.getByText("Continue with Google")).toBeTruthy();
-    expect(screen.getByText("Sign in with Apple")).toBeTruthy();
-    expect(screen.getByText("Sign in with password")).toBeTruthy();
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
-  it("has email input only", () => {
+  it("renders a password-first auth screen with sign-in default and social options", () => {
     render(<AuthScreen />);
+
+    expect(screen.getByLabelText("Phína logo")).toBeTruthy();
+    expect(screen.getByText("Welcome back")).toBeTruthy();
+    expect(screen.getByText("Sign in with your email and password.")).toBeTruthy();
     expect(screen.getByPlaceholderText("you@example.com")).toBeTruthy();
-    expect(screen.queryByPlaceholderText("Password")).toBeNull();
+    expect(screen.getByPlaceholderText("Password")).toBeTruthy();
     expect(screen.queryByPlaceholderText("Confirm password")).toBeNull();
+    expect(screen.getByText("Forgot password?")).toBeTruthy();
+    expect(screen.getByText("Continue with Google")).toBeTruthy();
+    expect(screen.getByText("Sign in with Apple")).toBeTruthy();
+  });
+
+  it("signs in an existing user with password from the main auth screen", async () => {
+    (supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({
+      data: { session: { access_token: "token" } },
+      error: null,
+    });
+
+    render(<AuthScreen />);
+
+    fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "alex@example.com");
+    fireEvent.changeText(screen.getByPlaceholderText("Password"), "password123");
+    fireEvent.press(screen.getByLabelText("Sign in"));
+
+    await waitFor(() => {
+      expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
+        email: "alex@example.com",
+        password: "password123",
+      });
+    });
+
+    expect(mockSetSessionFromAuth).toHaveBeenCalledWith({ access_token: "token" });
+    expect(navigateAfterAuth).toHaveBeenCalled();
+  });
+
+  it("creates a new account with password and confirm password", async () => {
+    (supabase.auth.signUp as jest.Mock).mockResolvedValue({
+      data: { session: { access_token: "token" } },
+      error: null,
+    });
+
+    render(<AuthScreen />);
+
+    fireEvent.press(screen.getByLabelText("Switch to create account"));
+    fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "alex@example.com");
+    fireEvent.changeText(screen.getByPlaceholderText("Password"), "password123");
+    fireEvent.changeText(screen.getByPlaceholderText("Confirm password"), "password123");
+    fireEvent.press(screen.getByLabelText("Create account"));
+
+    await waitFor(() => {
+      expect(supabase.auth.signUp).toHaveBeenCalledWith({
+        email: "alex@example.com",
+        password: "password123",
+      });
+    });
+
+    expect(mockSetSessionFromAuth).toHaveBeenCalledWith({ access_token: "token" });
+    expect(navigateAfterAuth).toHaveBeenCalled();
+  });
+
+  it("tells duplicate-email sign-up attempts to sign in instead", async () => {
+    (supabase.auth.signUp as jest.Mock).mockRejectedValue({
+      message: "User already registered",
+      code: "user_already_exists",
+    });
+
+    render(<AuthScreen />);
+
+    fireEvent.press(screen.getByLabelText("Switch to create account"));
+    fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "alex@example.com");
+    fireEvent.changeText(screen.getByPlaceholderText("Password"), "password123");
+    fireEvent.changeText(screen.getByPlaceholderText("Confirm password"), "password123");
+    fireEvent.press(screen.getByLabelText("Create account"));
+
+    await waitFor(() => {
+      expect(showAlert).toHaveBeenCalledWith(
+        "Create account failed",
+        "An account with this email already exists. Sign in or reset your password."
+      );
+    });
+
+    expect(
+      screen.getByText("An account with this email already exists. Sign in or reset your password.")
+    ).toBeTruthy();
+  });
+
+  it("sends a password reset email from the main auth screen", async () => {
+    (supabase.auth.resetPasswordForEmail as jest.Mock).mockResolvedValue({
+      error: null,
+    });
+
+    render(<AuthScreen />);
+
+    fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "alex@example.com");
+    fireEvent.press(screen.getByText("Forgot password?"));
+
+    await waitFor(() => {
+      expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith(
+        "alex@example.com",
+        expect.objectContaining({
+          redirectTo: expect.stringContaining("set-password"),
+        })
+      );
+    });
+
+    expect(showAlert).toHaveBeenCalledWith(
+      "Check your email",
+      "We sent a password reset link. Open it to choose a new password.",
+      [{ text: "OK" }]
+    );
   });
 });

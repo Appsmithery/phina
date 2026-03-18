@@ -374,7 +374,7 @@ export default function EventDetailScreen() {
         </Text>
         <TouchableOpacity
           style={[styles.primaryButton, { backgroundColor: theme.primary }]}
-          onPress={() => router.replace("/(auth)/sign-in")}
+          onPress={() => router.replace("/(auth)")}
         >
           <Text style={styles.primaryButtonText}>Sign in</Text>
         </TouchableOpacity>
