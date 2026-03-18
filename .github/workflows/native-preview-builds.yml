@@ -1,16 +1,16 @@
 name: Native Preview Builds
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
-      - "supabase/**"
-      - "public/**"
-      - ".github/workflows/**"
-      - "scripts/deploy-do.sh"
   workflow_dispatch:
+    inputs:
+      git_ref:
+        description: "Git ref to build"
+        required: true
+        default: "main"
+      reason:
+        description: "Why this preview build is worth EAS build minutes"
+        required: true
+        default: "Native-risk QA or release candidate validation"
 
 concurrency:
   group: native-preview-${{ github.ref }}
@@ -28,6 +28,8 @@ jobs:
         platform: [ios, android]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.git_ref }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -77,8 +79,12 @@ jobs:
           {
             echo "## ${{ matrix.platform }} preview build"
             echo ""
+            echo "> Use this workflow only for native-risk QA, Apple Sandbox testing, or formal release candidates."
+            echo ""
+            echo "- Ref: ${{ inputs.git_ref }}"
             echo "- Platform: ${{ matrix.platform }}"
             echo "- Profile: preview"
+            echo "- Reason: ${{ inputs.reason }}"
             echo "- Build ID: ${{ steps.metadata.outputs.build_id }}"
             echo "- Build URL: ${{ steps.metadata.outputs.build_url }}"
           } >> "$GITHUB_STEP_SUMMARY"

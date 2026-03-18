@@ -7,6 +7,10 @@ on:
         description: "Git ref to release"
         required: true
         default: "main"
+      reason:
+        description: "Why this native build is needed instead of OTA"
+        required: true
+        default: "Release candidate, store submission, or native-risk validation"
       profile:
         description: "EAS build profile"
         required: true
@@ -119,7 +123,10 @@ jobs:
           {
             echo "## Native build"
             echo ""
+            echo "> Use native builds only for release candidates, app-store artifacts, or changes that require a new binary."
+            echo ""
             echo "- Ref: ${{ inputs.git_ref }}"
+            echo "- Reason: ${{ inputs.reason }}"
             echo "- Profile: ${{ inputs.profile }}"
             echo "- Platform: ${{ inputs.platform }}"
             echo "- Action: ${{ inputs.action }}"

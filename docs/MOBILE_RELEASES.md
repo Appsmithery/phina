@@ -16,16 +16,15 @@ Verified on March 12, 2026:
 Recommended starting point for Phina:
 
 - use **Expo Starter**
-- keep **preview** builds automatic on `main`
+- keep **preview** builds manual
 - keep **production** builds manual
 - use **EAS Update** for JS-only published app changes
 
 Why Starter instead of Free:
 
-- the Free tier is likely too tight once `main` automatically starts both iOS and
-  Android preview builds
-- Starter is the cheapest lane that still gives Phina headroom for internal build
-  automation plus OTA updates
+- the Free tier only works if native builds stay scarce and intentional
+- Starter is the cheapest lane that still gives Phina headroom for OTA updates plus
+  occasional release-candidate binaries
 
 ## What runs where
 
@@ -69,12 +68,14 @@ checklist. The iOS path assumes:
   - deploys the web export to the DigitalOcean droplet
   - skips docs-only and backend-only changes
 - `native-preview-builds.yml`
-  - starts iOS and Android `preview` builds on `main`
-  - skips docs-only, backend-only, and droplet-only changes
+  - manual `workflow_dispatch`
+  - starts iOS and Android `preview` builds only when an operator explicitly chooses to spend build minutes
+  - intended for native-risk QA, Apple Sandbox testing, and release candidates
 - `native-release.yml`
   - manual `workflow_dispatch`
-  - builds production iOS / Android binaries
+  - builds `preview` or `production` iOS / Android binaries
   - optional store submit path
+  - intended for release-only or binary-required validation
 - `ota-update.yml`
   - manual `workflow_dispatch`
   - publishes JS-only changes to the `preview` or `production` EAS channel
@@ -103,6 +104,14 @@ The app already uses `runtimeVersion: { policy: "appVersion" }`. That means OTA
 updates only apply to installed binaries with the same app version/runtime.
 
 That also means reinstalling a preview build does **not** guarantee you are running the embedded JS bundle. If a newer `preview` OTA exists for the same runtime, the app can still load that update after install.
+
+## Build budget rules
+
+- Routine merges to `main` should consume **zero** EAS build minutes.
+- Default validation path: local dev build or simulator/emulator first, then `checks.yml`, then `preview` OTA if the change is JS-only.
+- Do not use preview builds to verify copy, layout, screen logic, hooks, or server-driven behavior.
+- Use iOS as the first paid native gate when a native binary is actually required.
+- Build Android only for native smoke checks that cannot be covered locally, or for Play internal / billing validation.
 
 ## EAS environment hydration
 
@@ -137,19 +146,24 @@ Use **EAS Update** when the change is JS-only:
 - routing changes
 - React hooks/components/screens
 - non-native analytics changes
+- server-driven behavior or Edge Function changes that do not alter the native binary
 
-Use a **new production build** when the change touches native behavior:
+Use a **manual native build** when the change touches native behavior:
 
 - new native modules or Expo plugins
 - new permissions or entitlements
 - app config changes that require a rebuild
 - deep-link / associated-domain changes
+- notification credential or push capability changes
+- StoreKit / Play Billing binary-level validation
 - store metadata or signing/credential changes
 
 Example:
 
-- `Help me pick` can ship through `ota-update.yml` if it is only JS/UI/business logic
-- if it adds a new native SDK, it needs `native-release.yml`
+- rating-page copy/UI changes -> `ota-update.yml`
+- paywall copy/layout changes with no native SDK change -> `ota-update.yml`
+- RevenueCat config display fix in JS -> `ota-update.yml`
+- if a feature adds a new native SDK or changes `app.config.ts` plugins, it needs a manual native build
 
 ## OTA safety rules
 
@@ -204,18 +218,29 @@ exact program terms can change.
 
 1. Merge the feature to `main`
 2. Let `checks.yml` pass
-3. Validate with a `preview` OTA update or preview build
-4. Run `ota-update.yml` to `production`
+3. Validate locally with a dev build or simulator/emulator
+4. Publish a `preview` OTA for stakeholder QA on installed preview binaries
+5. Run `ota-update.yml` to `production`
 
 Store review is not required if the installed binary already supports the feature.
+
+### Minimum-cost release-candidate matrix
+
+- Every change: local dev build + `checks.yml`
+- Release candidate, JS-only: `preview` OTA on an iOS physical device
+- Release candidate with native risk: one manual iOS preview build
+- Pre-ship Android billing or release validation: one Google Play internal or closed-test install cycle
+- Reserve both-platform native builds for final release windows, billing changes, or shared native infrastructure changes
 
 ### Native-affecting feature after launch
 
 1. Merge to `main`
 2. Let `checks.yml` pass
-3. Validate preview builds
-4. Run `native-release.yml` with `build` or `build_and_submit`
-5. Complete TestFlight / Play review as needed
+3. Validate locally first
+4. Trigger a manual iOS preview build if the change has native risk or needs Apple Sandbox validation
+5. Trigger Android preview only if local coverage is insufficient, or move straight to Play internal testing for billing/release checks
+6. Run `native-release.yml` with `preview` or `production` as needed
+7. Complete TestFlight / Play review as needed
 
 ## Source links
 
