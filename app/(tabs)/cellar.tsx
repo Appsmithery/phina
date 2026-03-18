@@ -165,7 +165,7 @@ export default function CellarScreen() {
 
   const storageCt = useMemo(() => accessibleWines.filter((w) => w.status !== "consumed").length, [accessibleWines]);
   const historyCt = useMemo(() => accessibleWines.filter((w) => w.status === "consumed").length, [accessibleWines]);
-  const floatingAddButtonBottom = Math.max(tabBarHeight, bottomInset) + FLOATING_ADD_BUTTON_GAP;
+  const floatingAddButtonBottom = bottomInset + FLOATING_ADD_BUTTON_GAP;
   const floatingAddButtonListPadding = getTabContentBottomPadding(tabBarHeight, 0) +
     FLOATING_ADD_BUTTON_HEIGHT +
     FLOATING_ADD_BUTTON_GAP;

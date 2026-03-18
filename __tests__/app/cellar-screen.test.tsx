@@ -187,7 +187,7 @@ describe("CellarScreen", () => {
 
     expect(flattenedStyle).toEqual(
       expect.objectContaining({
-        bottom: 100,
+        bottom: 46,
       })
     );
   });
