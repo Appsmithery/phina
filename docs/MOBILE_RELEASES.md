@@ -19,6 +19,7 @@ Recommended starting point for Phina:
 - keep **preview** builds manual
 - keep **production** builds manual
 - use **EAS Update** for JS-only published app changes
+- defer Expo build-cache provider work until after v0.1 submission
 
 Why Starter instead of Free:
 
@@ -112,6 +113,7 @@ That also means reinstalling a preview build does **not** guarantee you are runn
 - Do not use preview builds to verify copy, layout, screen logic, hooks, or server-driven behavior.
 - Use iOS as the first paid native gate when a native binary is actually required.
 - Build Android only for native smoke checks that cannot be covered locally, or for Play internal / billing validation.
+- Do not add Expo build-cache provider during MVP validation; it is a post-launch Android-iteration optimization, not part of the submission path.
 
 ## EAS environment hydration
 
@@ -231,6 +233,7 @@ Store review is not required if the installed binary already supports the featur
 - Release candidate with native risk: one manual iOS preview build
 - Pre-ship Android billing or release validation: one Google Play internal or closed-test install cycle
 - Reserve both-platform native builds for final release windows, billing changes, or shared native infrastructure changes
+- For v0.1, iOS approval readiness is the primary submission gate; Android store-track validation may trail if needed.
 
 ### Native-affecting feature after launch
 
