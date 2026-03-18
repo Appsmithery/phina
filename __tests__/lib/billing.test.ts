@@ -66,9 +66,11 @@ jest.mock("react-native-purchases", () => ({
 
 import {
   assertCanMakePayments,
+  buildBillingMerchandise,
   getBillingErrorMetadata,
   getDefaultBillingStatus,
   getEffectiveBillingAccess,
+  getUserFacingNativeBillingGuidance,
   isPremiumActive,
   normalizeBillingError,
 } from "@/lib/billing";
@@ -222,5 +224,38 @@ describe("billing helpers", () => {
 
     expect(mockGetOfferings).not.toHaveBeenCalled();
     expect(mockPurchasePackage).not.toHaveBeenCalled();
+  });
+
+  it("builds premium merchandising data from StoreKit-style product fields", () => {
+    expect(
+      buildBillingMerchandise(
+        {
+          identifier: "$rc_monthly",
+          product: {
+            title: "Premium Monthly",
+              priceString: "$4.99",
+            subscriptionPeriod: { unit: "MONTH", numberOfUnits: 1 },
+          },
+        },
+        {
+          identifier: "host-credit",
+          priceString: "$10.00",
+        }
+      )
+    ).toEqual({
+      premiumDisplayName: "Premium Monthly",
+      premiumDisplayPrice: "$4.99",
+      premiumPeriodLabel: "Monthly",
+      premiumDisplayPriceWithPeriod: "$4.99/month",
+      hostCreditDisplayPrice: "$10.00",
+    });
+  });
+
+  it("maps Expo Go billing failures to production-safe guidance", () => {
+    expect(
+      getUserFacingNativeBillingGuidance(
+        "Native purchases are not available in Expo Go. Install a native development build or use the store-distributed test app to validate purchases."
+      )
+    ).toBe("Open the native preview or development build instead of Expo Go to make purchases.");
   });
 });

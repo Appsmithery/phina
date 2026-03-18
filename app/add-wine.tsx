@@ -7,6 +7,7 @@ import { AddWineForm } from "@/components/AddWineForm";
 import { BillingCard } from "@/components/BillingCard";
 import { useBilling } from "@/hooks/use-billing";
 import { showAlert } from "@/lib/alert";
+import { getUserFacingNativeBillingGuidance } from "@/lib/billing";
 import { PAGE_HORIZONTAL_PADDING } from "@/lib/layout";
 import { trackEvent } from "@/lib/observability";
 import { useSupabase } from "@/lib/supabase-context";
@@ -22,6 +23,8 @@ export default function AddWineScreen() {
     billingAccessLabel,
     nativePurchasesAvailable,
     unsupportedReason,
+    premiumDisplayName,
+    premiumDisplayPriceWithPeriod,
     isLoading: billingLoading,
     isPurchasingPremium,
     isRestoringPurchases,
@@ -101,15 +104,19 @@ export default function AddWineScreen() {
   if (!effectivePremiumActive) {
     const premiumDetail =
       unsupportedReason && Platform.OS === "ios" && !nativePurchasesAvailable
-        ? `Join and rate events for free, then upgrade when you want long-term collection tracking. ${unsupportedReason}`
+        ? `Join and rate events for free, then upgrade when you want long-term collection tracking. ${getUserFacingNativeBillingGuidance(unsupportedReason)}`
         : "Join and rate events for free, then upgrade when you want long-term collection tracking.";
+    const premiumMarketingTitle =
+      premiumDisplayPriceWithPeriod
+        ? `${premiumDisplayName ?? "Premium Monthly"} · ${premiumDisplayPriceWithPeriod}`
+        : "Premium Monthly";
 
     return (
       <View style={[styles.container, styles.paywallContainer, { backgroundColor: theme.background }]}>
         <Stack.Screen options={{ title: "Add to Cellar" }} />
         <BillingCard
           icon="sparkles-outline"
-          title="Premium required"
+          title={premiumMarketingTitle}
           description="Adding bottles to your personal cellar is part of the premium membership."
           badge={hasAdminBillingBypass ? (billingAccessLabel ?? "Admin override") : "Cellar premium"}
           detail={premiumDetail}
@@ -121,6 +128,12 @@ export default function AddWineScreen() {
                 : Platform.OS === "ios"
                   ? "Start Premium"
                   : "Subscribe with Stripe"
+          }
+          primaryAccessibilityLabel="Start premium subscription"
+          primaryAccessibilityHint={
+            premiumDisplayPriceWithPeriod
+              ? `Premium renews at ${premiumDisplayPriceWithPeriod} until canceled.`
+              : undefined
           }
           onPrimaryPress={() => {
             void handlePurchasePremium();
@@ -136,9 +149,10 @@ export default function AddWineScreen() {
               ? () => {
                   void handleRestorePurchases();
                 }
-              : undefined
+                : undefined
           }
           secondaryDisabled={Platform.OS === "ios" && nativePurchasesAvailable ? isRestoringPurchases : undefined}
+          secondaryAccessibilityLabel={Platform.OS === "ios" && nativePurchasesAvailable ? "Restore premium purchases" : undefined}
         />
       </View>
     );

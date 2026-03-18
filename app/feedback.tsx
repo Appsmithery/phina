@@ -315,9 +315,9 @@ export default function FeedbackScreen() {
             Prefer email?{" "}
             <Text
               style={[styles.footerLink, { color: theme.primary }]}
-              onPress={() => Linking.openURL("mailto:help@appsmithery.co")}
+                  onPress={() => Linking.openURL("mailto:support@appsmithery.co")}
             >
-              help@appsmithery.co
+                  support@appsmithery.co
             </Text>
             .
           </Text>

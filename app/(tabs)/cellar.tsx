@@ -33,6 +33,8 @@ export default function CellarScreen() {
     nativePurchasesAvailable,
     unsupportedReason,
     lastPremiumError,
+    premiumDisplayName,
+    premiumDisplayPriceWithPeriod,
     isLoading: billingLoading,
     isPurchasingPremium,
     isRestoringPurchases,
@@ -216,12 +218,16 @@ export default function CellarScreen() {
           ? "Open the native preview or development build instead of Expo Go to test purchases."
           : "Confirm this preview or development build has billing enabled and that your Sandbox Apple Account is signed in under Settings > Developer."
       : undefined);
+  const premiumMarketingTitle =
+    premiumDisplayPriceWithPeriod
+      ? `${premiumDisplayName ?? "Premium Monthly"} · ${premiumDisplayPriceWithPeriod}`
+      : "Premium Monthly";
   const cellarUpsell = !effectivePremiumActive ? (
     <View style={styles.upsellSection}>
       <BillingCard
         compact
         icon="wine-outline"
-        title="Unlock Personal Cellar"
+        title={premiumMarketingTitle}
         description="Track your at-home bottles, uploads, and private cellar history."
         detail={premiumDetail}
         primaryLabel={
@@ -232,6 +238,12 @@ export default function CellarScreen() {
               : isNativeBilling
                 ? "Start Premium"
                 : "Subscribe with Stripe"
+        }
+        primaryAccessibilityLabel="Start premium subscription"
+        primaryAccessibilityHint={
+          premiumDisplayPriceWithPeriod
+            ? `Premium renews at ${premiumDisplayPriceWithPeriod} until canceled.`
+            : undefined
         }
         onPrimaryPress={() => {
           void handlePurchasePremium();
@@ -250,6 +262,7 @@ export default function CellarScreen() {
             : undefined
         }
         secondaryDisabled={isNativeBilling && nativePurchasesAvailable ? isRestoringPurchases : undefined}
+        secondaryAccessibilityLabel={isNativeBilling && nativePurchasesAvailable ? "Restore premium purchases" : undefined}
       />
       {hiddenPersonalWineCount > 0 ? (
         <Text style={[styles.upsellHint, { color: theme.textMuted }]}>

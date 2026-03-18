@@ -13,9 +13,13 @@ type BillingCardProps = {
   primaryLabel: string;
   onPrimaryPress: () => void;
   primaryDisabled?: boolean;
+  primaryAccessibilityLabel?: string;
+  primaryAccessibilityHint?: string;
   secondaryLabel?: string;
   onSecondaryPress?: () => void;
   secondaryDisabled?: boolean;
+  secondaryAccessibilityLabel?: string;
+  secondaryAccessibilityHint?: string;
 };
 
 export function BillingCard({
@@ -28,9 +32,13 @@ export function BillingCard({
   primaryLabel,
   onPrimaryPress,
   primaryDisabled = false,
+  primaryAccessibilityLabel,
+  primaryAccessibilityHint,
   secondaryLabel,
   onSecondaryPress,
   secondaryDisabled = false,
+  secondaryAccessibilityLabel,
+  secondaryAccessibilityHint,
 }: BillingCardProps) {
   const theme = useTheme();
 
@@ -87,6 +95,10 @@ export function BillingCard({
           ]}
           onPress={onPrimaryPress}
           disabled={primaryDisabled}
+          accessibilityRole="button"
+          accessibilityLabel={primaryAccessibilityLabel ?? primaryLabel}
+          accessibilityHint={primaryAccessibilityHint}
+          accessibilityState={{ disabled: primaryDisabled }}
         >
           <Text style={[styles.primaryButtonText, compact && styles.buttonTextCompact]}>{primaryLabel}</Text>
         </TouchableOpacity>
@@ -100,6 +112,10 @@ export function BillingCard({
             ]}
             onPress={onSecondaryPress}
             disabled={secondaryDisabled}
+            accessibilityRole="button"
+            accessibilityLabel={secondaryAccessibilityLabel ?? secondaryLabel}
+            accessibilityHint={secondaryAccessibilityHint}
+            accessibilityState={{ disabled: secondaryDisabled }}
           >
             <Text style={[styles.secondaryButtonText, compact && styles.buttonTextCompact, { color: theme.text }]}>
               {secondaryLabel}

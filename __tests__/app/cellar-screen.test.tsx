@@ -11,6 +11,8 @@ let mockBillingState = {
   nativePurchasesAvailable: false,
   unsupportedReason: "Native purchases are not available in Expo Go." as string | null,
   lastPremiumError: null as Error | null,
+  premiumDisplayName: "Premium Monthly",
+  premiumDisplayPriceWithPeriod: "$4.99/month",
   isLoading: false,
   isPurchasingPremium: false,
   isRestoringPurchases: false,
@@ -70,6 +72,8 @@ describe("CellarScreen", () => {
       nativePurchasesAvailable: false,
       unsupportedReason: "Native purchases are not available in Expo Go.",
       lastPremiumError: null,
+      premiumDisplayName: "Premium Monthly",
+      premiumDisplayPriceWithPeriod: "$4.99/month",
       isLoading: false,
       isPurchasingPremium: false,
       isRestoringPurchases: false,
@@ -90,6 +94,7 @@ describe("CellarScreen", () => {
     render(<CellarScreen />);
 
     expect(screen.getByText("Billing unavailable")).toBeTruthy();
+    expect(screen.getByText("Premium Monthly · $4.99/month")).toBeTruthy();
     expect(screen.queryByText("Cellar premium")).toBeNull();
     expect(
       screen.getByText(
@@ -113,6 +118,8 @@ describe("CellarScreen", () => {
       ...mockBillingState,
       nativePurchasesAvailable: true,
       unsupportedReason: null,
+      premiumDisplayName: "Premium Monthly",
+      premiumDisplayPriceWithPeriod: "$4.99/month",
       lastPremiumError: new Error(
         "This Apple sandbox account may already own Premium. Try Restore or use a fresh sandbox tester."
       ),

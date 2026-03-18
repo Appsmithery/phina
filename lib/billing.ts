@@ -19,6 +19,13 @@ export type EffectiveBillingAccess = {
   effectiveHostingAccess: boolean;
   billingAccessLabel: string | null;
 };
+export type BillingMerchandise = {
+  premiumDisplayName: string | null;
+  premiumDisplayPrice: string | null;
+  premiumPeriodLabel: string | null;
+  premiumDisplayPriceWithPeriod: string | null;
+  hostCreditDisplayPrice: string | null;
+};
 export type BillingFailureCode =
   | "PURCHASE_CANCELLED"
   | "PRODUCT_ALREADY_PURCHASED"
@@ -82,6 +89,14 @@ function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function getStringValue(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function getNumberValue(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
 async function getPurchasesModule() {
   if (!isNativePurchasesPlatform(Platform.OS)) return null;
   if (!getNativePurchasesAvailability().nativePurchasesAvailable) return null;
@@ -98,6 +113,177 @@ function getErrorBoolean(error: unknown, key: string): boolean | null {
   if (!error || typeof error !== "object" || !(key in error)) return null;
   const value = (error as Record<string, unknown>)[key];
   return typeof value === "boolean" ? value : null;
+}
+
+function getProductPriceString(product: unknown): string | null {
+  if (!product || typeof product !== "object") return null;
+
+  const directPriceString = getStringValue((product as Record<string, unknown>).priceString);
+  if (directPriceString) return directPriceString;
+
+  const directLocalized = getStringValue(
+    (product as Record<string, unknown>).localizedPriceString
+  );
+  if (directLocalized) return directLocalized;
+
+  const price = (product as Record<string, unknown>).price;
+  if (price && typeof price === "object") {
+    const formatted =
+      getStringValue((price as Record<string, unknown>).formatted) ??
+      getStringValue((price as Record<string, unknown>).formattedPrice);
+    if (formatted) return formatted;
+  }
+
+  return null;
+}
+
+function formatSubscriptionPeriodLabel(unit: string, count: number): string | null {
+  const normalizedUnit = unit.trim().toLowerCase().replace(/s$/, "");
+  if (count === 1) {
+    switch (normalizedUnit) {
+      case "day":
+        return "Daily";
+      case "week":
+        return "Weekly";
+      case "month":
+        return "Monthly";
+      case "year":
+        return "Yearly";
+      default:
+        return null;
+    }
+  }
+
+  switch (normalizedUnit) {
+    case "day":
+      return `Every ${count} days`;
+    case "week":
+      return `Every ${count} weeks`;
+    case "month":
+      return `Every ${count} months`;
+    case "year":
+      return `Every ${count} years`;
+    default:
+      return null;
+  }
+}
+
+function getSubscriptionPeriodLabel(product: unknown, pkg?: unknown): string | null {
+  const period =
+    product && typeof product === "object"
+      ? (product as Record<string, unknown>).subscriptionPeriod
+      : null;
+
+  if (period && typeof period === "object") {
+    const periodRecord = period as Record<string, unknown>;
+    const unit =
+      getStringValue(periodRecord.unit) ??
+      getStringValue(periodRecord.periodUnit) ??
+      getStringValue(periodRecord.subscriptionPeriodUnit);
+    const count =
+      getNumberValue(periodRecord.numberOfUnits) ??
+      getNumberValue(periodRecord.value) ??
+      getNumberValue(periodRecord.unitCount) ??
+      1;
+
+    if (unit) {
+      const label = formatSubscriptionPeriodLabel(unit, count);
+      if (label) return label;
+    }
+  }
+
+  if (typeof period === "string") {
+    const label = formatSubscriptionPeriodLabel(period, 1);
+    if (label) return label;
+  }
+
+  if (pkg && typeof pkg === "object") {
+    const packageRecord = pkg as Record<string, unknown>;
+    const packageIdentifier = (
+      getStringValue(packageRecord.identifier) ??
+      getStringValue(packageRecord.packageType)
+    )?.toLowerCase();
+
+    if (packageIdentifier?.includes("month")) return "Monthly";
+    if (packageIdentifier?.includes("year")) return "Yearly";
+    if (packageIdentifier?.includes("week")) return "Weekly";
+    if (packageIdentifier?.includes("day")) return "Daily";
+  }
+
+  return null;
+}
+
+function formatPriceWithPeriod(price: string | null, periodLabel: string | null): string | null {
+  if (!price) return null;
+
+  switch (periodLabel) {
+    case "Daily":
+      return `${price}/day`;
+    case "Weekly":
+      return `${price}/week`;
+    case "Monthly":
+      return `${price}/month`;
+    case "Yearly":
+      return `${price}/year`;
+    default:
+      return price;
+  }
+}
+
+export function buildBillingMerchandise(
+  premiumPackage?: unknown,
+  hostCreditProduct?: unknown
+): BillingMerchandise {
+  const premiumProduct =
+    premiumPackage && typeof premiumPackage === "object"
+      ? (premiumPackage as Record<string, unknown>).product
+      : null;
+  const premiumPeriodLabel = getSubscriptionPeriodLabel(premiumProduct, premiumPackage);
+  const premiumDisplayName =
+    getStringValue(
+      premiumProduct && typeof premiumProduct === "object"
+        ? (premiumProduct as Record<string, unknown>).title
+        : null
+    ) ?? (premiumPeriodLabel === "Monthly" ? "Premium Monthly" : "Premium");
+  const premiumDisplayPrice = getProductPriceString(premiumProduct);
+
+  return {
+    premiumDisplayName,
+    premiumDisplayPrice,
+    premiumPeriodLabel,
+    premiumDisplayPriceWithPeriod: formatPriceWithPeriod(
+      premiumDisplayPrice,
+      premiumPeriodLabel
+    ),
+    hostCreditDisplayPrice: getProductPriceString(hostCreditProduct),
+  };
+}
+
+export function getDefaultBillingMerchandise(): BillingMerchandise {
+  return {
+    premiumDisplayName: null,
+    premiumDisplayPrice: null,
+    premiumPeriodLabel: null,
+    premiumDisplayPriceWithPeriod: null,
+    hostCreditDisplayPrice: null,
+  };
+}
+
+export function getUserFacingNativeBillingGuidance(
+  unsupportedReason: string | null,
+  platform: string = Platform.OS
+): string | null {
+  if (!unsupportedReason) return null;
+
+  if (unsupportedReason.includes("Expo Go")) {
+    return "Open the native preview or development build instead of Expo Go to make purchases.";
+  }
+
+  if (platform === "android") {
+    return "Use a Play-installed internal, closed, or production build to make purchases.";
+  }
+
+  return "Purchases are unavailable in this build right now. Use a native preview, TestFlight, or App Store build with Apple billing enabled.";
 }
 
 function createBillingError(
@@ -272,6 +458,45 @@ export function getDefaultBillingStatus(): BillingStatus {
     premium_expires_at: null,
     host_credit_balance: 0,
   };
+}
+
+export async function fetchBillingMerchandise(
+  memberId: string,
+  email?: string | null
+): Promise<BillingMerchandise> {
+  if (!isNativePurchasesPlatform(Platform.OS)) {
+    return getDefaultBillingMerchandise();
+  }
+
+  if (!getNativePurchasesAvailability().nativePurchasesAvailable) {
+    return getDefaultBillingMerchandise();
+  }
+
+  const configured = await configureRevenueCatForMember(memberId, email);
+  if (!configured) {
+    return getDefaultBillingMerchandise();
+  }
+
+  const PurchasesModule = await getPurchasesModule();
+  if (!PurchasesModule) {
+    return getDefaultBillingMerchandise();
+  }
+
+  const Purchases = PurchasesModule.default;
+  const offerings = await Purchases.getOfferings().catch(() => null);
+  const premiumPackage = offerings ? getPremiumPackage(offerings) : null;
+
+  let hostCreditProduct: unknown = null;
+  const hostCreditProductId = getRevenueCatHostCreditProductId(Platform.OS);
+  if (hostCreditProductId) {
+    const products = await Purchases.getProducts(
+      [hostCreditProductId],
+      PurchasesModule.PURCHASE_TYPE.INAPP
+    ).catch(() => []);
+    hostCreditProduct = Array.isArray(products) ? (products[0] ?? null) : null;
+  }
+
+  return buildBillingMerchandise(premiumPackage, hostCreditProduct);
 }
 
 export function isPremiumActive(status: BillingStatus | null | undefined): boolean {

@@ -96,7 +96,7 @@ export default function TermsScreen() {
 
       <Text style={[styles.h2, { color: theme.text }]}>13. Contact</Text>
       <Text style={[styles.p, { color: theme.textSecondary }]}>
-        Questions about these Terms? Email us at {link("help@appsmithery.co", "mailto:help@appsmithery.co")}.
+            Questions about these Terms? Email us at {link("support@appsmithery.co", "mailto:support@appsmithery.co")}.
       </Text>
     </ScrollView>
   );

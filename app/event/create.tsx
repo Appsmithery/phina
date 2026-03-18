@@ -8,6 +8,7 @@ import { BillingCard } from "@/components/BillingCard";
 import { EventForm, type EventFormValues } from "@/components/EventForm";
 import { showAlert } from "@/lib/alert";
 import { isNativePurchasesPlatform } from "@/lib/billing-config";
+import { getUserFacingNativeBillingGuidance } from "@/lib/billing";
 import { generateEventImage } from "@/lib/event-image-generation";
 import {
   DEFAULT_RATING_WINDOW_MINUTES,
@@ -36,6 +37,7 @@ export default function CreateEventScreen() {
     billingAccessLabel,
     nativePurchasesAvailable,
     unsupportedReason,
+    hostCreditDisplayPrice,
     isLoading: billingLoading,
     isPurchasingHostCredit,
     isRestoringPurchases,
@@ -220,7 +222,7 @@ export default function CreateEventScreen() {
     const isNativeBilling = isNativePurchasesPlatform(Platform.OS);
     const hostCreditDetail =
       unsupportedReason && isNativeBilling && !nativePurchasesAvailable
-        ? `Your credit is consumed only when the event is successfully created. ${unsupportedReason}`
+        ? `Your credit is consumed only when the event is successfully created. ${getUserFacingNativeBillingGuidance(unsupportedReason)}`
         : "Your credit is consumed only when the event is successfully created.";
 
     return (
@@ -244,11 +246,17 @@ export default function CreateEventScreen() {
           primaryLabel={
             isNativeBilling && !nativePurchasesAvailable
               ? "Use Native Build"
-              : isPurchasingHostCredit
+                : isPurchasingHostCredit
                 ? "Opening purchase flow..."
                 : isNativeBilling
-                  ? "Buy for $10"
+                  ? `Buy for ${hostCreditDisplayPrice ?? "$10"}`
                   : "Checkout with Stripe"
+          }
+          primaryAccessibilityLabel="Buy one host credit"
+          primaryAccessibilityHint={
+            hostCreditDisplayPrice
+              ? `One event credit costs ${hostCreditDisplayPrice}.`
+              : undefined
           }
           onPrimaryPress={() => {
             void handlePurchaseHostCredit();
@@ -274,6 +282,11 @@ export default function CreateEventScreen() {
           secondaryDisabled={
             isNativeBilling && nativePurchasesAvailable
               ? isRestoringPurchases
+              : undefined
+          }
+          secondaryAccessibilityLabel={
+            isNativeBilling && nativePurchasesAvailable
+              ? "Restore host credit purchases"
               : undefined
           }
         />

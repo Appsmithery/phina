@@ -19,6 +19,7 @@ import { showAlert } from "@/lib/alert";
 import { getRedirectUrl } from "@/lib/auth-redirect";
 import { setLastUsedEmail } from "@/lib/last-email";
 import { signInWithGoogle } from "@/lib/oauth-google";
+import { isAppleAuthAvailable, signInWithApple } from "@/lib/oauth-apple";
 import { navigateAfterAuth } from "@/lib/post-auth-navigate";
 import { trackEvent } from "@/lib/observability";
 
@@ -31,6 +32,7 @@ export default function SignInScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
   const [errorHint, setErrorHint] = useState<string | null>(null);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [magicLinkSending, setMagicLinkSending] = useState(false);
@@ -147,7 +149,31 @@ export default function SignInScreen() {
     }
   };
 
+  const handleAppleSignIn = async () => {
+    setAppleLoading(true);
+    setErrorHint(null);
+    try {
+      const session = await signInWithApple();
+      if (session) {
+        setSessionFromAuth(session);
+        trackEvent("user_signed_in", {
+          method: "apple",
+          platform: Platform.OS,
+          source: "sign_in_screen",
+        });
+      } else {
+        setErrorHint("Apple sign-in was cancelled or failed");
+      }
+    } catch (error) {
+      console.error("[auth] Apple sign-in error:", error);
+      setErrorHint(error instanceof Error ? error.message : "Apple sign-in failed");
+    } finally {
+      setAppleLoading(false);
+    }
+  };
+
   const canSubmit = Boolean(password);
+  const socialLoading = googleLoading || appleLoading;
   const inputStyle = [
     styles.input,
     {
@@ -236,7 +262,7 @@ export default function SignInScreen() {
             },
           ]}
           onPress={handleGoogleSignIn}
-          disabled={googleLoading || loading}
+          disabled={socialLoading || loading}
           accessibilityRole="button"
           accessibilityLabel="Continue with Google"
         >
@@ -244,6 +270,19 @@ export default function SignInScreen() {
             {googleLoading ? "Signing in..." : "Continue with Google"}
           </Text>
         </TouchableOpacity>
+        {isAppleAuthAvailable() ? (
+          <TouchableOpacity
+            style={styles.appleButton}
+            onPress={handleAppleSignIn}
+            disabled={socialLoading || loading}
+            accessibilityRole="button"
+            accessibilityLabel="Sign in with Apple"
+          >
+            <Text style={styles.appleButtonText}>
+              {appleLoading ? "Signing in..." : "Sign in with Apple"}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
         <TouchableOpacity
           style={[styles.linkButton, { borderColor: theme.border }]}
           onPress={handleGetMagicLink}
@@ -376,5 +415,18 @@ const styles = StyleSheet.create({
   googleButtonText: {
     fontFamily: "Montserrat_600SemiBold",
     fontSize: 16,
+  },
+  appleButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    alignItems: "center",
+    backgroundColor: "#000000",
+    marginBottom: 12,
+  },
+  appleButtonText: {
+    fontFamily: "Montserrat_600SemiBold",
+    fontSize: 16,
+    color: "#FFFFFF",
   },
 });

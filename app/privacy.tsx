@@ -167,7 +167,7 @@ export default function PrivacyScreen() {
       <Text style={[styles.h2, { color: theme.text }]}>9. Contact</Text>
       <Text style={[styles.p, { color: theme.textSecondary }]}>
         Questions or requests? Email us at{" "}
-        {link("help@appsmithery.co", "mailto:help@appsmithery.co")}.
+              {link("support@appsmithery.co", "mailto:support@appsmithery.co")}.
       </Text>
     </ScrollView>
   );

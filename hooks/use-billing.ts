@@ -3,8 +3,10 @@ import { Platform } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  fetchBillingMerchandise,
   fetchBillingStatus,
   getBillingErrorMetadata,
+  getDefaultBillingMerchandise,
   getDefaultBillingStatus,
   getEffectiveBillingAccess,
   getNativePurchasesAvailability,
@@ -29,6 +31,15 @@ export function useBilling() {
     queryKey: ["billing", member?.id],
     queryFn: fetchBillingStatus,
     enabled: !!member?.id,
+  });
+  const billingMerchandiseQuery = useQuery({
+    queryKey: ["billing", "merchandise", member?.id, Platform.OS],
+    queryFn: () => fetchBillingMerchandise(member!.id, session?.user?.email ?? member?.email ?? null),
+    enabled:
+      !!member?.id &&
+      isNativePurchasesPlatform(Platform.OS) &&
+      nativePurchases.nativePurchasesAvailable,
+    staleTime: 5 * 60 * 1000,
   });
 
   const refreshBilling = useCallback(async (): Promise<BillingStatus> => {
@@ -177,11 +188,19 @@ export function useBilling() {
   });
 
   const status = billingQuery.data ?? getDefaultBillingStatus();
+  const merchandise = billingMerchandiseQuery.data ?? getDefaultBillingMerchandise();
   const effectiveAccess = getEffectiveBillingAccess(status, member?.is_admin);
 
   return {
     ...billingQuery,
+    merchandisingStatus: billingMerchandiseQuery,
     status,
+    premiumDisplayName: merchandise.premiumDisplayName,
+    premiumDisplayPrice: merchandise.premiumDisplayPrice,
+    premiumPeriodLabel: merchandise.premiumPeriodLabel,
+    premiumDisplayPriceWithPeriod: merchandise.premiumDisplayPriceWithPeriod,
+    hostCreditDisplayPrice: merchandise.hostCreditDisplayPrice,
+    isLoadingMerchandising: billingMerchandiseQuery.isLoading,
     premiumActive: isPremiumActive(status),
     hostCreditBalance: status.host_credit_balance ?? 0,
     ...effectiveAccess,
