@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Alert, Platform } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BillingCard } from "@/components/BillingCard";
 import { WineThumbnailImage } from "@/components/WineThumbnailImage";
@@ -29,7 +28,6 @@ type WineWithEvent = WineWithPricePrivacy & {
 
 export default function CellarScreen() {
   const theme = useTheme();
-  const bottomInset = useSafeAreaInsets().bottom;
   const tabBarHeight = useOptionalBottomTabBarHeight();
   const { session, sessionLoaded, member, memberLoaded } = useSupabase();
   const {

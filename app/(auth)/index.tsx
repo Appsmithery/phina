@@ -15,7 +15,7 @@ import { useLocalSearchParams } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
-import { getRedirectUrl } from "@/lib/auth-redirect";
+import { getEmailConfirmationRedirectUrl, getPasswordResetRedirectUrl } from "@/lib/auth-redirect";
 import { getLastUsedEmail, setLastUsedEmail } from "@/lib/last-email";
 import { useSupabase } from "@/lib/supabase-context";
 import { signInWithGoogle } from "@/lib/oauth-google";
@@ -37,6 +37,31 @@ type PendingNavigation = "sign-in" | "sign-up" | "google" | "apple" | null;
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+function getSignUpValidationMessage(email: string, password: string, confirmPassword: string): string | null {
+  const trimmedEmail = normalizeEmail(email);
+
+  if (!trimmedEmail && !password && !confirmPassword) {
+    return `Use at least ${MIN_PASSWORD_LENGTH} characters and confirm your password.`;
+  }
+  if (!trimmedEmail) {
+    return "Please enter your email.";
+  }
+  if (!password) {
+    return `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
+  }
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
+  }
+  if (!confirmPassword) {
+    return "Please confirm your password.";
+  }
+  if (password !== confirmPassword) {
+    return "Passwords do not match.";
+  }
+
+  return null;
 }
 
 function getInitialMode(mode?: string | string[]): AuthMode {
@@ -74,6 +99,9 @@ export default function AuthScreen() {
   const [appleLoading, setAppleLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [errorHint, setErrorHint] = useState<string | null>(null);
+  const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
+  const [confirmationStatus, setConfirmationStatus] = useState<string | null>(null);
+  const [resendLoading, setResendLoading] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<PendingNavigation>(null);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const theme = useTheme();
@@ -122,9 +150,34 @@ export default function AuthScreen() {
   const handleModeChange = (nextMode: AuthMode) => {
     setMode(nextMode);
     setErrorHint(null);
+    setConfirmationStatus(null);
+    if (nextMode === "sign-up") {
+      setConfirmationEmail(null);
+    }
     if (nextMode === "sign-in") {
       setConfirmPassword("");
     }
+  };
+
+  const handleEmailChange = (nextEmail: string) => {
+    setEmail(nextEmail);
+    setErrorHint(null);
+    setConfirmationStatus(null);
+    if (confirmationEmail && normalizeEmail(nextEmail) !== confirmationEmail) {
+      setConfirmationEmail(null);
+    }
+  };
+
+  const handlePasswordChange = (nextPassword: string) => {
+    setPassword(nextPassword);
+    setErrorHint(null);
+    setConfirmationStatus(null);
+  };
+
+  const handleConfirmPasswordChange = (nextPassword: string) => {
+    setConfirmPassword(nextPassword);
+    setErrorHint(null);
+    setConfirmationStatus(null);
   };
 
   const handleSignIn = async () => {
@@ -184,29 +237,31 @@ export default function AuthScreen() {
 
     setLoading(true);
     setErrorHint(null);
+    setConfirmationStatus(null);
 
     try {
       await setLastUsedEmail(trimmedEmail);
       const { data, error } = await supabase.auth.signUp({
         email: trimmedEmail,
         password,
+        options: {
+          emailRedirectTo: getEmailConfirmationRedirectUrl(),
+        },
       });
       if (error) throw error;
 
       if (data.session) {
+        setConfirmationEmail(null);
         setSessionFromAuth(data.session);
         setPendingNavigation("sign-up");
         return;
       }
 
+      setConfirmationEmail(trimmedEmail);
+      setConfirmationStatus("Check your email to confirm your account, then sign in with your password.");
       setMode("sign-in");
       setPassword("");
       setConfirmPassword("");
-      showAlert(
-        "Check your email",
-        "Your account was created. Check your email to confirm your address, then sign in with your password.",
-        [{ text: "OK" }]
-      );
     } catch (e: unknown) {
       setPendingNavigation(null);
       const message = e instanceof Error ? e.message : String(e);
@@ -236,7 +291,7 @@ export default function AuthScreen() {
 
     try {
       await setLastUsedEmail(trimmedEmail);
-      const redirectUrl = getRedirectUrl();
+      const redirectUrl = getPasswordResetRedirectUrl();
       const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
         redirectTo: redirectUrl,
       });
@@ -254,6 +309,41 @@ export default function AuthScreen() {
       showAlert("Reset password failed", userMessage);
     } finally {
       setResetLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    const trimmedEmail = normalizeEmail(confirmationEmail ?? email);
+    if (!trimmedEmail) {
+      setErrorHint("Enter your email first to resend confirmation.");
+      return;
+    }
+
+    setResendLoading(true);
+    setErrorHint(null);
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: trimmedEmail,
+        options: {
+          emailRedirectTo: getEmailConfirmationRedirectUrl(),
+        },
+      });
+      if (error) throw error;
+      setConfirmationEmail(trimmedEmail);
+      setConfirmationStatus("Confirmation email sent. Open the latest email to finish creating your account.");
+      showAlert(
+        "Confirmation sent",
+        "We sent another confirmation email. Open it to finish creating your account.",
+        [{ text: "OK" }]
+      );
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      setErrorHint(message);
+      showAlert("Resend failed", message);
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -298,8 +388,16 @@ export default function AuthScreen() {
   };
 
   const socialLoading = googleLoading || appleLoading;
-  const busy = loading || resetLoading;
-  const canSubmit = Boolean(normalizeEmail(email) && password);
+  const busy = loading || resetLoading || resendLoading;
+  const signUpValidationMessage = mode === "sign-up"
+    ? getSignUpValidationMessage(email, password, confirmPassword)
+    : null;
+  const formMessage = mode === "sign-up"
+    ? (errorHint ?? signUpValidationMessage ?? confirmationStatus)
+    : (errorHint ?? confirmationStatus);
+  const canSubmit = mode === "sign-in"
+    ? Boolean(normalizeEmail(email) && password)
+    : signUpValidationMessage == null;
   const inputStyle = [
     styles.input,
     {
@@ -383,7 +481,7 @@ export default function AuthScreen() {
             placeholder="you@example.com"
             placeholderTextColor={theme.textMuted}
             value={email}
-            onChangeText={setEmail}
+            onChangeText={handleEmailChange}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
@@ -396,7 +494,7 @@ export default function AuthScreen() {
             placeholder="Password"
             placeholderTextColor={theme.textMuted}
             value={password}
-            onChangeText={setPassword}
+            onChangeText={handlePasswordChange}
             secureTextEntry
             autoCapitalize="none"
             autoCorrect={false}
@@ -411,7 +509,7 @@ export default function AuthScreen() {
                 placeholder="Confirm password"
                 placeholderTextColor={theme.textMuted}
                 value={confirmPassword}
-                onChangeText={setConfirmPassword}
+                onChangeText={handleConfirmPasswordChange}
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -430,6 +528,38 @@ export default function AuthScreen() {
               </Text>
             </TouchableOpacity>
           )}
+
+          {formMessage ? (
+            <Text
+              style={[
+                styles.formMessage,
+                {
+                  color: errorHint
+                    ? theme.primary
+                    : mode === "sign-up" || confirmationStatus
+                      ? theme.textSecondary
+                      : theme.textSecondary,
+                },
+              ]}
+              accessibilityRole="text"
+              accessibilityLiveRegion="polite"
+            >
+              {formMessage}
+            </Text>
+          ) : null}
+
+          {confirmationEmail ? (
+            <TouchableOpacity
+              onPress={handleResendConfirmation}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel="Resend confirmation email"
+            >
+              <Text style={[styles.inlineLink, styles.resendLink, { color: theme.primary, opacity: busy ? 0.6 : 1 }]}>
+                {resendLoading ? "Sending confirmation..." : `Resend confirmation to ${confirmationEmail}`}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
 
           <TouchableOpacity
             style={[
@@ -499,16 +629,6 @@ export default function AuthScreen() {
                 {appleLoading ? "Signing in..." : "Sign in with Apple"}
               </Text>
             </TouchableOpacity>
-          ) : null}
-
-          {errorHint ? (
-            <Text
-              style={[styles.errorHint, { color: theme.textMuted }]}
-              accessibilityRole="text"
-              accessibilityLiveRegion="polite"
-            >
-              {errorHint}
-            </Text>
           ) : null}
         </View>
       </ScrollView>
@@ -610,12 +730,18 @@ const styles = StyleSheet.create({
     width: "100%",
     textAlign: "center",
   },
-  errorHint: {
+  formMessage: {
     fontFamily: "Montserrat_400Regular",
     fontSize: 12,
     textAlign: "center",
-    marginTop: 16,
+    marginTop: -4,
+    marginBottom: 12,
     paddingHorizontal: 8,
+  },
+  resendLink: {
+    textAlign: "center",
+    marginTop: 0,
+    marginBottom: 12,
   },
   divider: {
     flexDirection: "row",

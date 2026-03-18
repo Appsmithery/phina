@@ -28,10 +28,17 @@ jest.mock("@/lib/supabase", () => ({
   supabase: {
     auth: {
       signUp: jest.fn(),
+      resend: jest.fn(),
       signInWithPassword: jest.fn(),
       resetPasswordForEmail: jest.fn(),
     },
   },
+}));
+
+jest.mock("@/lib/auth-redirect", () => ({
+  getEmailConfirmationRedirectUrl: jest.fn(() => "https://phina.appsmithery.co/callback?nativeRedirect=phina%3A%2F%2Fauth%2Fcallback&next=%2F"),
+  getPasswordResetRedirectUrl: jest.fn(() => "https://phina.appsmithery.co/callback?nativeRedirect=phina%3A%2F%2Fauth%2Fcallback&next=%2F%28auth%29%2Fset-password"),
+  getRedirectUrl: jest.fn(() => "https://phina.appsmithery.co/callback?nativeRedirect=phina%3A%2F%2Fauth%2Fcallback&next=%2F%28auth%29%2Fset-password"),
 }));
 
 jest.mock("@/lib/oauth-google", () => ({
@@ -100,8 +107,34 @@ describe("AuthScreen", () => {
     fireEvent.press(screen.getByLabelText("Switch to create account"));
 
     expect(screen.getByText("Create your account")).toBeTruthy();
+    expect(screen.getByText("Use at least 8 characters and confirm your password.")).toBeTruthy();
+    expect(screen.getByLabelText("Create account").props.accessibilityState?.disabled).toBe(true);
     expect(screen.queryByText("Need an account? Create one")).toBeNull();
     expect(screen.queryByText("Already have an account? Sign in")).toBeNull();
+  });
+
+  it("shows visible sign-up validation for short passwords and keeps submit disabled", () => {
+    render(<AuthScreen />);
+
+    fireEvent.press(screen.getByLabelText("Switch to create account"));
+    fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "alex@example.com");
+    fireEvent.changeText(screen.getByPlaceholderText("Password"), "short");
+    fireEvent.changeText(screen.getByPlaceholderText("Confirm password"), "short");
+
+    expect(screen.getByText("Password must be at least 8 characters.")).toBeTruthy();
+    expect(screen.getByLabelText("Create account").props.accessibilityState?.disabled).toBe(true);
+  });
+
+  it("shows visible sign-up validation for mismatched passwords and keeps submit disabled", () => {
+    render(<AuthScreen />);
+
+    fireEvent.press(screen.getByLabelText("Switch to create account"));
+    fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "alex@example.com");
+    fireEvent.changeText(screen.getByPlaceholderText("Password"), "password123");
+    fireEvent.changeText(screen.getByPlaceholderText("Confirm password"), "password124");
+
+    expect(screen.getByText("Passwords do not match.")).toBeTruthy();
+    expect(screen.getByLabelText("Create account").props.accessibilityState?.disabled).toBe(true);
   });
 
   it("waits for committed session state before navigating after password sign-in", async () => {
@@ -149,12 +182,16 @@ describe("AuthScreen", () => {
     fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "alex@example.com");
     fireEvent.changeText(screen.getByPlaceholderText("Password"), "password123");
     fireEvent.changeText(screen.getByPlaceholderText("Confirm password"), "password123");
+    expect(screen.getByLabelText("Create account").props.accessibilityState?.disabled).not.toBe(true);
     fireEvent.press(screen.getByLabelText("Create account"));
 
     await waitFor(() => {
       expect(supabase.auth.signUp).toHaveBeenCalledWith({
         email: "alex@example.com",
         password: "password123",
+        options: {
+          emailRedirectTo: "https://phina.appsmithery.co/callback?nativeRedirect=phina%3A%2F%2Fauth%2Fcallback&next=%2F",
+        },
       });
     });
 
@@ -222,6 +259,70 @@ describe("AuthScreen", () => {
     ).toBeTruthy();
   });
 
+  it("shows confirmation-required UI after sign-up succeeds without an immediate session", async () => {
+    (supabase.auth.signUp as jest.Mock).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    });
+
+    render(<AuthScreen />);
+
+    fireEvent.press(screen.getByLabelText("Switch to create account"));
+    fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "alex@example.com");
+    fireEvent.changeText(screen.getByPlaceholderText("Password"), "password123");
+    fireEvent.changeText(screen.getByPlaceholderText("Confirm password"), "password123");
+    fireEvent.press(screen.getByLabelText("Create account"));
+
+    await waitFor(() => {
+      expect(supabase.auth.signUp).toHaveBeenCalledWith({
+        email: "alex@example.com",
+        password: "password123",
+        options: {
+          emailRedirectTo: "https://phina.appsmithery.co/callback?nativeRedirect=phina%3A%2F%2Fauth%2Fcallback&next=%2F",
+        },
+      });
+    });
+
+    expect(screen.getByText("Welcome back")).toBeTruthy();
+    expect(screen.getByText("Check your email to confirm your account, then sign in with your password.")).toBeTruthy();
+    expect(screen.getByText("Resend confirmation to alex@example.com")).toBeTruthy();
+  });
+
+  it("resends confirmation with the same email redirect target", async () => {
+    (supabase.auth.signUp as jest.Mock).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    });
+    (supabase.auth.resend as jest.Mock).mockResolvedValue({
+      data: {},
+      error: null,
+    });
+
+    render(<AuthScreen />);
+
+    fireEvent.press(screen.getByLabelText("Switch to create account"));
+    fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "alex@example.com");
+    fireEvent.changeText(screen.getByPlaceholderText("Password"), "password123");
+    fireEvent.changeText(screen.getByPlaceholderText("Confirm password"), "password123");
+    fireEvent.press(screen.getByLabelText("Create account"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Resend confirmation to alex@example.com")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByLabelText("Resend confirmation email"));
+
+    await waitFor(() => {
+      expect(supabase.auth.resend).toHaveBeenCalledWith({
+        type: "signup",
+        email: "alex@example.com",
+        options: {
+          emailRedirectTo: "https://phina.appsmithery.co/callback?nativeRedirect=phina%3A%2F%2Fauth%2Fcallback&next=%2F",
+        },
+      });
+    });
+  });
+
   it("sends a password reset email from the main auth screen", async () => {
     (supabase.auth.resetPasswordForEmail as jest.Mock).mockResolvedValue({
       error: null,
@@ -236,7 +337,7 @@ describe("AuthScreen", () => {
       expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith(
         "alex@example.com",
         expect.objectContaining({
-          redirectTo: expect.stringContaining("set-password"),
+          redirectTo: "https://phina.appsmithery.co/callback?nativeRedirect=phina%3A%2F%2Fauth%2Fcallback&next=%2F%28auth%29%2Fset-password",
         })
       );
     });

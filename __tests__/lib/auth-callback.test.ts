@@ -43,6 +43,17 @@ describe("auth callback helpers", () => {
     expect(handoffUrl.hash).toBe("#access_token=token&refresh_token=refresh");
   });
 
+  it("builds a native handoff URL for confirmation callbacks that return to the app root", () => {
+    const currentUrl = new URL(
+      `https://phina.appsmithery.co/callback?nativeRedirect=${encodeURIComponent(NATIVE_MAGIC_LINK_REDIRECT_URL)}&next=${encodeURIComponent("/")}&code=test-code`
+    );
+
+    const handoffUrl = new URL(buildNativeMagicLinkHandoffUrl(currentUrl, NATIVE_MAGIC_LINK_REDIRECT_URL)!);
+    expect(handoffUrl.toString()).toContain("phina://auth/callback");
+    expect(handoffUrl.searchParams.get("code")).toBe("test-code");
+    expect(handoffUrl.searchParams.get("next")).toBe("/");
+  });
+
   it("rejects invalid native redirect targets", () => {
     const currentUrl = new URL("https://phina.appsmithery.co/callback?code=test-code");
 
