@@ -2,6 +2,8 @@ import type { Session } from "@supabase/supabase-js";
 
 export const NATIVE_MAGIC_LINK_REDIRECT_URL = "phina://auth/callback";
 export const NATIVE_MAGIC_LINK_NEXT_ROUTE = "/(auth)/set-password";
+const EMAIL_OTP_TYPES = ["signup", "invite", "magiclink", "recovery", "email_change", "email"] as const;
+type EmailOtpType = (typeof EMAIL_OTP_TYPES)[number];
 
 type AuthCallbackSupabaseClient = {
   auth: {
@@ -13,17 +15,31 @@ type AuthCallbackSupabaseClient = {
       data: { session: Session | null };
       error: Error | null;
     }>;
+    verifyOtp: (params: { token_hash: string; type: EmailOtpType }) => Promise<{
+      data: { session: Session | null };
+      error: Error | null;
+    }>;
   };
 };
 
 let cachedSupabase: AuthCallbackSupabaseClient | null = null;
 
 function getUrlSearchParams(url: URL): URLSearchParams {
-  return new URLSearchParams(url.hash.replace(/^#/, "") || url.search.replace(/^\?/, ""));
+  const merged = new URLSearchParams(url.search.replace(/^\?/, ""));
+  const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
+  hashParams.forEach((value, key) => {
+    merged.set(key, value);
+  });
+  return merged;
 }
 
 function isSafeInternalRoute(route: string | null): route is string {
   return !!route && route.startsWith("/") && !route.startsWith("//");
+}
+
+function getEmailOtpType(params: URLSearchParams): EmailOtpType | null {
+  const type = params.get("type");
+  return type && EMAIL_OTP_TYPES.includes(type as EmailOtpType) ? (type as EmailOtpType) : null;
 }
 
 function getSupabaseClient(): AuthCallbackSupabaseClient {
@@ -35,7 +51,22 @@ function getSupabaseClient(): AuthCallbackSupabaseClient {
 }
 
 export function looksLikeAuthCallback(url: string): boolean {
-  return url.includes("access_token") || url.includes("refresh_token") || url.includes("code=");
+  try {
+    const params = getUrlSearchParams(new URL(url));
+    return Boolean(
+      params.get("access_token") ||
+        params.get("refresh_token") ||
+        params.get("code") ||
+        (params.get("token_hash") && getEmailOtpType(params))
+    );
+  } catch {
+    return (
+      url.includes("access_token") ||
+      url.includes("refresh_token") ||
+      url.includes("code=") ||
+      (url.includes("token_hash=") && url.includes("type="))
+    );
+  }
 }
 
 export function getPostAuthRouteFromUrl(url: string): string | null {
@@ -57,13 +88,18 @@ export function buildNativeMagicLinkHandoffUrl(currentUrl: URL, nativeRedirect: 
   const currentParams = getUrlSearchParams(currentUrl);
   const accessToken = currentParams.get("access_token");
   const refreshToken = currentParams.get("refresh_token");
-  const code = currentParams.get("code") ?? currentUrl.searchParams.get("code");
+  const code = currentParams.get("code");
+  const tokenHash = currentParams.get("token_hash");
+  const type = getEmailOtpType(currentParams);
   const next = currentUrl.searchParams.get("next");
 
   if (accessToken && refreshToken) {
     targetUrl.hash = currentUrl.hash;
   } else if (code) {
     targetUrl.searchParams.set("code", code);
+  } else if (tokenHash && type) {
+    targetUrl.searchParams.set("token_hash", tokenHash);
+    targetUrl.searchParams.set("type", type);
   }
 
   if (isSafeInternalRoute(next)) {
@@ -81,6 +117,8 @@ export async function createSessionFromUrl(url: string): Promise<Session | null>
     const accessToken = params.get("access_token");
     const refreshToken = params.get("refresh_token");
     const code = params.get("code");
+    const tokenHash = params.get("token_hash");
+    const type = getEmailOtpType(params);
 
     if (accessToken && refreshToken) {
       const { data, error } = await supabase.auth.setSession({
@@ -95,6 +133,17 @@ export async function createSessionFromUrl(url: string): Promise<Session | null>
 
     if (code) {
       const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) {
+        throw error;
+      }
+      return data.session;
+    }
+
+    if (tokenHash && type) {
+      const { data, error } = await supabase.auth.verifyOtp({
+        token_hash: tokenHash,
+        type,
+      });
       if (error) {
         throw error;
       }

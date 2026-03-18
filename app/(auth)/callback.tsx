@@ -20,6 +20,8 @@ export default function CallbackScreen() {
   const theme = useTheme();
   const { setSessionFromAuth } = useSupabase();
   const [error, setError] = useState<string | null>(null);
+  const [nativeAppUrl, setNativeAppUrl] = useState<string | null>(null);
+  const [showNativeFallback, setShowNativeFallback] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -28,25 +30,36 @@ export default function CallbackScreen() {
 
     const currentUrl = new URL(window.location.href);
     const nativeRedirect = currentUrl.searchParams.get("nativeRedirect");
+    let fallbackTimeout: number | null = null;
 
     if (nativeRedirect) {
-      forwardToNativeApp(currentUrl, nativeRedirect);
-      return;
+      fallbackTimeout = forwardToNativeApp(currentUrl, nativeRedirect);
+    } else {
+      handleWebCallback();
     }
 
-    handleWebCallback();
+    return () => {
+      if (fallbackTimeout !== null) {
+        window.clearTimeout(fallbackTimeout);
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function forwardToNativeApp(currentUrl: URL, nativeRedirect: string) {
+  function forwardToNativeApp(currentUrl: URL, nativeRedirect: string): number | null {
     const targetUrl = buildNativeMagicLinkHandoffUrl(currentUrl, nativeRedirect);
     if (!targetUrl) {
       setError("Invalid native redirect target");
-      return;
+      return null;
     }
 
+    setNativeAppUrl(targetUrl);
+    setShowNativeFallback(false);
     console.log("[callback] Forwarding to native app:", targetUrl);
     window.location.href = targetUrl;
+    return window.setTimeout(() => {
+      setShowNativeFallback(true);
+    }, 1200);
   }
 
   function safeNavigate(retries = 20, delay = 150) {
@@ -100,6 +113,30 @@ export default function CallbackScreen() {
     );
   }
 
+  if (nativeAppUrl) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={[styles.message, { color: theme.text }]}>Opening the Phina app...</Text>
+        {showNativeFallback ? (
+          <>
+            <Text style={[styles.secondaryMessage, { color: theme.textSecondary }]}>
+              If the app did not open automatically, tap below.
+            </Text>
+            <Text
+              style={[styles.link, { color: theme.primary }]}
+              onPress={() => {
+                window.location.href = nativeAppUrl;
+              }}
+            >
+              Open app
+            </Text>
+          </>
+        ) : null}
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ActivityIndicator size="large" color={theme.primary} />
@@ -124,6 +161,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
     marginTop: 16,
+  },
+  secondaryMessage: {
+    fontSize: 15,
+    textAlign: "center",
+    marginTop: 16,
+    maxWidth: 320,
   },
   link: {
     fontSize: 16,
