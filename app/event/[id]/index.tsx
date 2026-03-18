@@ -507,174 +507,188 @@ export default function EventDetailScreen() {
         </View>
       ) : null}
 
-      <TouchableOpacity
-        style={[
-          styles.primaryActionRow,
-          { backgroundColor: theme.primary, borderColor: theme.primary },
-        ]}
-        onPress={() => router.push(`/event/${id}/add-wine`)}
-      >
-        <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
-        <Text style={styles.primaryActionLabel}>Add wine</Text>
-        <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
-      </TouchableOpacity>
-
-      {isHost ? (
-        <>
-          <TouchableOpacity
-            style={[
-              styles.actionRow,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}
-            onPress={() => setQrExpanded((v) => !v)}
-          >
-            <Ionicons name="qr-code-outline" size={20} color={theme.text} />
-            <Text style={[styles.actionLabel, { color: theme.text }]}>
-              Show QR code
-            </Text>
-            <Ionicons
-              name={qrExpanded ? "chevron-up" : "chevron-down"}
-              size={18}
-              color={theme.textSecondary}
-            />
-          </TouchableOpacity>
-          {qrExpanded ? (
-            <View
+      {/* Tier 1: Primary icon button row */}
+      <View style={styles.iconButtonRow}>
+        <TouchableOpacity
+          style={[
+            styles.iconButton,
+            { backgroundColor: theme.primary, borderColor: theme.primary },
+          ]}
+          onPress={() => router.push(`/event/${id}/add-wine`)}
+        >
+          <Ionicons name="add-circle-outline" size={24} color="#FFFFFF" />
+          <Text style={[styles.iconButtonLabel, { color: "#FFFFFF" }]}>
+            Add wine
+          </Text>
+        </TouchableOpacity>
+        {isHost ? (
+          <>
+            <TouchableOpacity
               style={[
-                styles.qrContainer,
-                { backgroundColor: theme.surface, borderColor: theme.border },
+                styles.iconButton,
+                {
+                  backgroundColor: theme.surface,
+                  borderColor: theme.border,
+                },
               ]}
+              onPress={() => setQrExpanded((v) => !v)}
             >
-              <QRCode value={`${appBaseUrl}/join/${id}`} size={220} />
-              <Text style={[styles.qrHint, { color: theme.textMuted }]}>
-                Members scan this code at the venue to join.
+              <Ionicons
+                name="qr-code-outline"
+                size={24}
+                color={theme.text}
+              />
+              <Text
+                style={[styles.iconButtonLabel, { color: theme.text }]}
+              >
+                QR code
               </Text>
-            </View>
-          ) : null}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.iconButton,
+                {
+                  backgroundColor: theme.surface,
+                  borderColor: theme.border,
+                },
+              ]}
+              onPress={handleShareInvite}
+            >
+              <Ionicons name="share-outline" size={24} color={theme.text} />
+              <Text
+                style={[styles.iconButtonLabel, { color: theme.text }]}
+              >
+                Share
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.iconButton,
+                {
+                  backgroundColor: theme.surface,
+                  borderColor: theme.border,
+                },
+              ]}
+              onPress={() => router.push(`/event/${id}/edit`)}
+            >
+              <Ionicons
+                name="create-outline"
+                size={24}
+                color={theme.text}
+              />
+              <Text
+                style={[styles.iconButtonLabel, { color: theme.text }]}
+              >
+                Edit
+              </Text>
+            </TouchableOpacity>
+          </>
+        ) : null}
+      </View>
 
+      {/* QR code expandable (below icon row) */}
+      {isHost && qrExpanded ? (
+        <View
+          style={[
+            styles.qrContainer,
+            { backgroundColor: theme.surface, borderColor: theme.border },
+          ]}
+        >
+          <QRCode value={`${appBaseUrl}/join/${id}`} size={220} />
+          <Text style={[styles.qrHint, { color: theme.textMuted }]}>
+            Members scan this code at the venue to join.
+          </Text>
+        </View>
+      ) : null}
+
+      {/* Tier 2: Secondary two-column grid */}
+      <View style={styles.secondaryGrid}>
+        {isHost ? (
           <TouchableOpacity
             style={[
-              styles.actionRow,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}
-            onPress={handleShareInvite}
-          >
-            <Ionicons name="share-outline" size={20} color={theme.text} />
-            <Text style={[styles.actionLabel, { color: theme.text }]}>
-              Share invite link
-            </Text>
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color={theme.textSecondary}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.actionRow,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}
-            onPress={() => router.push(`/event/${id}/edit`)}
-          >
-            <Ionicons name="create-outline" size={20} color={theme.text} />
-            <Text style={[styles.actionLabel, { color: theme.text }]}>
-              Edit event details
-            </Text>
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color={theme.textSecondary}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.actionRow,
+              styles.secondaryGridItem,
               { backgroundColor: theme.surface, borderColor: theme.border },
             ]}
             onPress={handleRegenerateHeroImage}
             disabled={event.event_image_status === "pending"}
           >
-            <Ionicons name="image-outline" size={20} color={theme.text} />
-            <Text style={[styles.actionLabel, { color: theme.text }]}>
+            <Ionicons name="image-outline" size={18} color={theme.text} />
+            <Text
+              style={[styles.secondaryGridLabel, { color: theme.text }]}
+              numberOfLines={1}
+            >
               {event.event_image_status === "pending"
-                ? "Generating hero image..."
+                ? "Generating..."
                 : event.event_image_url
-                  ? "Regenerate hero image"
-                  : "Generate hero image"}
+                  ? "Regen hero"
+                  : "Gen hero"}
             </Text>
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color={theme.textSecondary}
-            />
           </TouchableOpacity>
+        ) : null}
 
-          {event.event_image_status === "pending" ? (
-            <Text style={[styles.statusMessage, { color: theme.textMuted }]}>
-              Hero image generation started.
+        {event.web_link ? (
+          <TouchableOpacity
+            style={[
+              styles.secondaryGridItem,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
+            onPress={handleOpenWebLink}
+          >
+            <Ionicons name="link-outline" size={18} color={theme.text} />
+            <Text
+              style={[styles.secondaryGridLabel, { color: theme.text }]}
+              numberOfLines={1}
+            >
+              Event link
             </Text>
-          ) : null}
+          </TouchableOpacity>
+        ) : null}
 
-          {event.event_image_status === "failed" ? (
-            <Text style={[styles.statusMessage, { color: "#B55A5A" }]}>
-              Hero image generation failed. Try again later.
-            </Text>
-          ) : null}
-        </>
-      ) : null}
-
-      {event.web_link ? (
         <TouchableOpacity
           style={[
-            styles.actionRow,
+            styles.secondaryGridItem,
             { backgroundColor: theme.surface, borderColor: theme.border },
           ]}
-          onPress={handleOpenWebLink}
+          onPress={() =>
+            router.push({
+              pathname: "/feedback",
+              params: {
+                source: "report_event_content",
+                screen: "/event/[id]",
+                eventId: event.id,
+                category: "report_user_content",
+                reportTarget: "event",
+                reportTargetId: event.id,
+                reportedMemberId: event.created_by,
+              },
+            })
+          }
         >
-          <Ionicons name="link-outline" size={20} color={theme.text} />
-          <Text style={[styles.actionLabel, { color: theme.text }]}>
-            Open event link
-          </Text>
           <Ionicons
-            name="chevron-forward"
+            name="alert-circle-outline"
             size={18}
-            color={theme.textSecondary}
+            color={theme.text}
           />
+          <Text
+            style={[styles.secondaryGridLabel, { color: theme.text }]}
+            numberOfLines={1}
+          >
+            Report
+          </Text>
         </TouchableOpacity>
+      </View>
+
+      {isHost && event.event_image_status === "pending" ? (
+        <Text style={[styles.statusMessage, { color: theme.textMuted }]}>
+          Hero image generation started.
+        </Text>
       ) : null}
 
-      <TouchableOpacity
-        style={[
-          styles.actionRow,
-          { backgroundColor: theme.surface, borderColor: theme.border },
-        ]}
-        onPress={() =>
-          router.push({
-            pathname: "/feedback",
-            params: {
-              source: "report_event_content",
-              screen: "/event/[id]",
-              eventId: event.id,
-              category: "report_user_content",
-              reportTarget: "event",
-              reportTargetId: event.id,
-              reportedMemberId: event.created_by,
-            },
-          })
-        }
-      >
-        <Ionicons name="alert-circle-outline" size={20} color={theme.text} />
-        <Text style={[styles.actionLabel, { color: theme.text }]}>
-          Report event content
+      {isHost && event.event_image_status === "failed" ? (
+        <Text style={[styles.statusMessage, { color: "#B55A5A" }]}>
+          Hero image generation failed. Try again later.
         </Text>
-        <Ionicons
-          name="chevron-forward"
-          size={18}
-          color={theme.textSecondary}
-        />
-      </TouchableOpacity>
+      ) : null}
 
       {(isHost && !eventClosed) || canDeleteEvent ? (
         <View style={styles.dangerRow}>
@@ -973,31 +987,49 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontFamily: "Montserrat_400Regular",
   },
-  actionRow: {
+  iconButtonRow: {
     flexDirection: "row",
+    gap: 10,
+    marginBottom: 10,
+  },
+  iconButton: {
+    flex: 1,
     alignItems: "center",
-    gap: 12,
+    justifyContent: "center",
+    gap: 6,
     borderWidth: 1,
     borderRadius: 14,
-    padding: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+  },
+  iconButtonLabel: {
+    fontFamily: "Montserrat_600SemiBold",
+    fontSize: 11,
+    textAlign: "center",
+  },
+  secondaryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
     marginBottom: 10,
+  },
+  secondaryGridItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    width: "48%",
+    flexGrow: 1,
+  },
+  secondaryGridLabel: {
+    fontFamily: "Montserrat_600SemiBold",
+    fontSize: 13,
+    flex: 1,
   },
   actionLabel: { flex: 1, fontFamily: "Montserrat_600SemiBold", fontSize: 15 },
-  primaryActionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-  },
-  primaryActionLabel: {
-    flex: 1,
-    color: "#FFFFFF",
-    fontFamily: "Montserrat_600SemiBold",
-    fontSize: 15,
-  },
   primaryButton: {
     borderRadius: 14,
     padding: 16,
