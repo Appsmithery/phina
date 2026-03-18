@@ -77,9 +77,11 @@ Phína turns any wine club night, themed tasting, or dinner party into a smooth,
 - Hosted Supabase Auth production settings are managed in the Supabase dashboard, not through `supabase/config.toml`.
 - Before launch, work through [docs/SUPABASE_PRODUCTION.md](D:/APPS/phina/docs/SUPABASE_PRODUCTION.md) for:
   - auth URL configuration and email templates
+  - Resend SMTP for Supabase Auth using `mail.phina.appsmithery.co`
   - custom SMTP with link tracking disabled
   - RLS / Security Advisor checks
   - owner MFA, availability, and recovery settings
+- For the exact Resend-to-Supabase SMTP values, use [docs/RESEND_SUPABASE_AUTH.md](D:/APPS/phina/docs/RESEND_SUPABASE_AUTH.md).
 
 ## Native release model
 

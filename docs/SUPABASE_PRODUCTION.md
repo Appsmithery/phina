@@ -29,21 +29,32 @@ Recommended verification:
 
 ## SMTP
 
-Supabase's default SMTP service is not production-ready. Move production email delivery to a managed SMTP provider.
+Supabase's default SMTP service is not production-ready. For the current lowest-maintenance setup, use Resend as the SMTP provider for Supabase Auth only.
+
+See [docs/RESEND_SUPABASE_AUTH.md](D:/APPS/phina/docs/RESEND_SUPABASE_AUTH.md) for the exact Resend domain, sender, and SMTP values.
 
 In `Authentication > SMTP Settings`:
 
 - Enable custom SMTP
 - Use a managed provider, not a self-hosted mail server
-- Keep a stable sender identity such as `no-reply@yourdomain`
+- Configure Resend SMTP with:
+  - Host: `smtp.resend.com`
+  - Port: `465`
+  - Username: `resend`
+  - Password: a Resend API key dedicated to Supabase Auth SMTP
+  - Sender email: `auth@mail.phina.appsmithery.co`
+  - Sender name: `Phina`
+- Verify the sending domain `mail.phina.appsmithery.co` in Resend and publish the required SPF / DKIM DNS records
 - Disable click tracking and link rewriting for auth emails
-- Configure SPF, DKIM, and DMARC for the sending domain
+- Configure DMARC for the sending domain when DNS is ready
 
 After enabling custom SMTP:
 
 - Review Auth email rate limits and raise them if needed
 - Send confirmation and password reset emails to a non-team address
 - Confirm links are not rewritten by the mail provider
+- Keep this phase scoped to Supabase Auth only. Do not add Resend to Expo client code or require `EXPO_PUBLIC_RESEND_*` variables.
+- If a `RESEND_API_KEY` exists locally, treat it as future server-side-only configuration for Edge Functions, not part of current app runtime.
 
 ## Auth Settings
 
@@ -74,6 +85,8 @@ In Supabase project and org settings:
 
 Re-run these after any auth, domain, SMTP, or email-template change:
 
+- Resend marks `mail.phina.appsmithery.co` as fully configured
+- Confirmation and password reset emails arrive from `auth@mail.phina.appsmithery.co`
 - New user email confirmation returns to the native app
 - Password reset returns to the set-password flow
 - Existing confirmed user can sign in with email and password
