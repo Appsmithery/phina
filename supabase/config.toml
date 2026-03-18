@@ -1,4 +1,15 @@
-# Supabase project config. Created for CLI (e.g. supabase functions serve).
+# Supabase project config for local CLI workflows (for example `supabase start`
+# and `supabase functions serve`).
+#
+# This file does NOT manage the hosted production project's Auth dashboard
+# settings. Keep localhost defaults here for local development, and configure
+# production values such as Site URL, redirect URLs, email templates, custom
+# SMTP, rate limits, and CAPTCHA directly in the Supabase dashboard.
+#
+# Production reference:
+# - Site URL: https://phina.appsmithery.co
+# - Allowed redirect URL: https://phina.appsmithery.co/callback
+# See also docs/SUPABASE_PRODUCTION.md.
 # See: https://supabase.com/docs/guides/cli/config
 
 project_id = "phina"

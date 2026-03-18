@@ -72,6 +72,15 @@ Phína turns any wine club night, themed tasting, or dinner party into a smooth,
      - `npm run functions:deploy:generate-wine-summary`
    - If you deploy from the Supabase Dashboard instead of the CLI, turn off **Verify JWT** / **Verify JWT with legacy secret** for those three functions.
 
+## Supabase Production
+
+- Hosted Supabase Auth production settings are managed in the Supabase dashboard, not through `supabase/config.toml`.
+- Before launch, work through [docs/SUPABASE_PRODUCTION.md](D:/APPS/phina/docs/SUPABASE_PRODUCTION.md) for:
+  - auth URL configuration and email templates
+  - custom SMTP with link tracking disabled
+  - RLS / Security Advisor checks
+  - owner MFA, availability, and recovery settings
+
 ## Native release model
 
 - The **droplet** hosts the web/PWA build only.
