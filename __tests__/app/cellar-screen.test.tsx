@@ -5,6 +5,8 @@ import CellarScreen from "@/app/(tabs)/cellar";
 
 const mockTrackEvent = jest.fn();
 const mockUseQuery = jest.fn();
+let mockBottomInset = 0;
+let mockTabBarHeight = 0;
 
 let mockBillingState = {
   effectivePremiumActive: false,
@@ -34,11 +36,11 @@ jest.mock("@expo/vector-icons", () => ({
 }));
 
 jest.mock("react-native-safe-area-context", () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+  useSafeAreaInsets: () => ({ top: 0, bottom: mockBottomInset, left: 0, right: 0 }),
 }));
 
 jest.mock("@react-navigation/bottom-tabs", () => ({
-  useBottomTabBarHeight: () => 0,
+  useBottomTabBarHeight: () => mockTabBarHeight,
 }));
 
 jest.mock("@/hooks/use-billing", () => ({
@@ -67,6 +69,8 @@ describe("CellarScreen", () => {
   beforeEach(() => {
     mockUseQuery.mockReset();
     mockTrackEvent.mockReset();
+    mockBottomInset = 0;
+    mockTabBarHeight = 0;
     mockBillingState = {
       effectivePremiumActive: false,
       nativePurchasesAvailable: false,
@@ -162,6 +166,28 @@ describe("CellarScreen", () => {
       expect.objectContaining({
         backgroundColor: "#B5827118",
         borderColor: "#B5827126",
+      })
+    );
+  });
+
+  it("anchors the premium add-wine button just above the footer tab bar", () => {
+    mockBottomInset = 34;
+    mockTabBarHeight = 88;
+    mockBillingState = {
+      ...mockBillingState,
+      effectivePremiumActive: true,
+      nativePurchasesAvailable: true,
+      unsupportedReason: null,
+    };
+
+    render(<CellarScreen />);
+
+    const addButtonWrapper = screen.getByTestId("cellar-add-wine-wrapper");
+    const flattenedStyle = StyleSheet.flatten(addButtonWrapper?.props.style);
+
+    expect(flattenedStyle).toEqual(
+      expect.objectContaining({
+        bottom: 100,
       })
     );
   });

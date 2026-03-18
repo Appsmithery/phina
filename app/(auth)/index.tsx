@@ -33,6 +33,7 @@ const LOGO_MIN_SIDE = 384;
 const LOGO_WIDTH_RATIO = 0.9;
 
 type AuthMode = "sign-in" | "sign-up";
+type PendingNavigation = "sign-in" | "sign-up" | "google" | "apple" | null;
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -73,9 +74,10 @@ export default function AuthScreen() {
   const [appleLoading, setAppleLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [errorHint, setErrorHint] = useState<string | null>(null);
+  const [pendingNavigation, setPendingNavigation] = useState<PendingNavigation>(null);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const theme = useTheme();
-  const { setSessionFromAuth } = useSupabase();
+  const { session, sessionLoaded, setSessionFromAuth } = useSupabase();
 
   const logoSize = Math.max(
     LOGO_MIN_SIDE,
@@ -105,6 +107,17 @@ export default function AuthScreen() {
       active = false;
     };
   }, [initialParamEmail]);
+
+  useEffect(() => {
+    if (!pendingNavigation || !sessionLoaded || !session) {
+      return;
+    }
+
+    setPendingNavigation(null);
+    queueMicrotask(() => {
+      navigateAfterAuth();
+    });
+  }, [pendingNavigation, session, sessionLoaded]);
 
   const handleModeChange = (nextMode: AuthMode) => {
     setMode(nextMode);
@@ -136,8 +149,9 @@ export default function AuthScreen() {
         return;
       }
       setSessionFromAuth(data.session);
-      await navigateAfterAuth();
+      setPendingNavigation("sign-in");
     } catch (e: unknown) {
+      setPendingNavigation(null);
       const message = e instanceof Error ? e.message : String(e);
       const code = e && typeof e === "object" && "code" in e ? String((e as { code: string }).code) : "";
       const is401 = message.includes("401") || message.toLowerCase().includes("unauthorized");
@@ -181,7 +195,7 @@ export default function AuthScreen() {
 
       if (data.session) {
         setSessionFromAuth(data.session);
-        await navigateAfterAuth();
+        setPendingNavigation("sign-up");
         return;
       }
 
@@ -194,6 +208,7 @@ export default function AuthScreen() {
         [{ text: "OK" }]
       );
     } catch (e: unknown) {
+      setPendingNavigation(null);
       const message = e instanceof Error ? e.message : String(e);
       const code = e && typeof e === "object" && "code" in e ? String((e as { code: string }).code) : "";
       const is401 = message.includes("401") || message.toLowerCase().includes("unauthorized");
@@ -249,11 +264,12 @@ export default function AuthScreen() {
       const session = await signInWithGoogle();
       if (session) {
         setSessionFromAuth(session);
-        await navigateAfterAuth();
+        setPendingNavigation("google");
       } else {
         setErrorHint("Google sign-in was cancelled or failed");
       }
     } catch (error) {
+      setPendingNavigation(null);
       console.error("[auth] Google sign-in error:", error);
       setErrorHint(error instanceof Error ? error.message : "Google sign-in failed");
     } finally {
@@ -268,11 +284,12 @@ export default function AuthScreen() {
       const session = await signInWithApple();
       if (session) {
         setSessionFromAuth(session);
-        await navigateAfterAuth();
+        setPendingNavigation("apple");
       } else {
         setErrorHint("Apple sign-in was cancelled or failed");
       }
     } catch (error) {
+      setPendingNavigation(null);
       console.error("[auth] Apple sign-in error:", error);
       setErrorHint(error instanceof Error ? error.message : "Apple sign-in failed");
     } finally {
@@ -437,18 +454,6 @@ export default function AuthScreen() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.linkButton, { borderColor: theme.border }]}
-            onPress={() => handleModeChange(mode === "sign-in" ? "sign-up" : "sign-in")}
-            disabled={busy}
-            accessibilityRole="button"
-            accessibilityLabel={mode === "sign-in" ? "Need an account? Create one" : "Already have an account? Sign in"}
-          >
-            <Text style={[styles.linkButtonText, { color: theme.textSecondary }]}>
-              {mode === "sign-in" ? "Need an account? Create one" : "Already have an account? Sign in"}
-            </Text>
-          </TouchableOpacity>
-
           <View style={styles.divider}>
             <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
             <Text style={[styles.dividerText, { color: theme.textSecondary }]}>or</Text>
@@ -473,13 +478,10 @@ export default function AuthScreen() {
               numberOfLines={1}
               adjustsFontSizeToFit
               minimumFontScale={0.8}
-            >
+          >
               {googleLoading ? "Signing in..." : "Continue with Google"}
             </Text>
           </TouchableOpacity>
-          <Text style={[styles.socialHint, { color: theme.textMuted }]}>
-            Google and Apple sign-in still work for members who prefer a provider account.
-          </Text>
           {isAppleAuthAvailable() ? (
             <TouchableOpacity
               style={styles.appleButton}
@@ -608,18 +610,6 @@ const styles = StyleSheet.create({
     width: "100%",
     textAlign: "center",
   },
-  linkButton: {
-    alignSelf: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderRadius: 14,
-  },
-  linkButtonText: {
-    fontFamily: "Montserrat_600SemiBold",
-    fontSize: 14,
-  },
   errorHint: {
     fontFamily: "Montserrat_400Regular",
     fontSize: 12,
@@ -640,14 +630,6 @@ const styles = StyleSheet.create({
     fontFamily: "Montserrat_400Regular",
     fontSize: 14,
     marginHorizontal: 12,
-  },
-  socialHint: {
-    fontFamily: "Montserrat_400Regular",
-    fontSize: 12,
-    textAlign: "center",
-    marginTop: -4,
-    marginBottom: 12,
-    paddingHorizontal: 8,
   },
   googleButton: {
     paddingVertical: 14,

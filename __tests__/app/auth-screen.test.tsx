@@ -8,6 +8,9 @@ import { navigateAfterAuth } from "@/lib/post-auth-navigate";
 
 const mockSetSessionFromAuth = jest.fn();
 
+let mockSession: { access_token: string } | null = null;
+let mockSessionLoaded = false;
+
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
   useLocalSearchParams: () => ({}),
@@ -15,6 +18,8 @@ jest.mock("expo-router", () => ({
 
 jest.mock("@/lib/supabase-context", () => ({
   useSupabase: () => ({
+    session: mockSession,
+    sessionLoaded: mockSessionLoaded,
     setSessionFromAuth: mockSetSessionFromAuth,
   }),
 }));
@@ -66,9 +71,11 @@ jest.mock("@/lib/post-auth-navigate", () => ({
 describe("AuthScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSession = null;
+    mockSessionLoaded = false;
   });
 
-  it("renders a password-first auth screen with sign-in default and social options", () => {
+  it("renders the password-first auth screen without the social disclaimer", () => {
     render(<AuthScreen />);
 
     expect(screen.getByLabelText("Phína logo")).toBeTruthy();
@@ -80,15 +87,31 @@ describe("AuthScreen", () => {
     expect(screen.getByText("Forgot password?")).toBeTruthy();
     expect(screen.getByText("Continue with Google")).toBeTruthy();
     expect(screen.getByText("Sign in with Apple")).toBeTruthy();
+    expect(screen.queryByText("Need an account? Create one")).toBeNull();
+    expect(screen.queryByText("Already have an account? Sign in")).toBeNull();
+    expect(
+      screen.queryByText("Google and Apple sign-in still work for members who prefer a provider account.")
+    ).toBeNull();
   });
 
-  it("signs in an existing user with password from the main auth screen", async () => {
+  it("keeps the create-account state free of the old mode-switch button", () => {
+    render(<AuthScreen />);
+
+    fireEvent.press(screen.getByLabelText("Switch to create account"));
+
+    expect(screen.getByText("Create your account")).toBeTruthy();
+    expect(screen.queryByText("Need an account? Create one")).toBeNull();
+    expect(screen.queryByText("Already have an account? Sign in")).toBeNull();
+  });
+
+  it("waits for committed session state before navigating after password sign-in", async () => {
+    const session = { access_token: "token" };
     (supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({
-      data: { session: { access_token: "token" } },
+      data: { session },
       error: null,
     });
 
-    render(<AuthScreen />);
+    const view = render(<AuthScreen />);
 
     fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "alex@example.com");
     fireEvent.changeText(screen.getByPlaceholderText("Password"), "password123");
@@ -101,17 +124,26 @@ describe("AuthScreen", () => {
       });
     });
 
-    expect(mockSetSessionFromAuth).toHaveBeenCalledWith({ access_token: "token" });
-    expect(navigateAfterAuth).toHaveBeenCalled();
+    expect(mockSetSessionFromAuth).toHaveBeenCalledWith(session);
+    expect(navigateAfterAuth).not.toHaveBeenCalled();
+
+    mockSession = session;
+    mockSessionLoaded = true;
+    view.rerender(<AuthScreen />);
+
+    await waitFor(() => {
+      expect(navigateAfterAuth).toHaveBeenCalled();
+    });
   });
 
-  it("creates a new account with password and confirm password", async () => {
+  it("waits for committed session state before navigating after sign-up with immediate session", async () => {
+    const session = { access_token: "token" };
     (supabase.auth.signUp as jest.Mock).mockResolvedValue({
-      data: { session: { access_token: "token" } },
+      data: { session },
       error: null,
     });
 
-    render(<AuthScreen />);
+    const view = render(<AuthScreen />);
 
     fireEvent.press(screen.getByLabelText("Switch to create account"));
     fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "alex@example.com");
@@ -126,8 +158,42 @@ describe("AuthScreen", () => {
       });
     });
 
-    expect(mockSetSessionFromAuth).toHaveBeenCalledWith({ access_token: "token" });
-    expect(navigateAfterAuth).toHaveBeenCalled();
+    expect(mockSetSessionFromAuth).toHaveBeenCalledWith(session);
+    expect(navigateAfterAuth).not.toHaveBeenCalled();
+
+    mockSession = session;
+    mockSessionLoaded = true;
+    view.rerender(<AuthScreen />);
+
+    await waitFor(() => {
+      expect(navigateAfterAuth).toHaveBeenCalled();
+    });
+  });
+
+  it("waits for committed session state before navigating after Google sign-in", async () => {
+    const session = { access_token: "token" };
+    const { signInWithGoogle } = require("@/lib/oauth-google") as {
+      signInWithGoogle: jest.Mock;
+    };
+    signInWithGoogle.mockResolvedValue(session);
+
+    const view = render(<AuthScreen />);
+
+    fireEvent.press(screen.getByLabelText("Continue with Google"));
+
+    await waitFor(() => {
+      expect(mockSetSessionFromAuth).toHaveBeenCalledWith(session);
+    });
+
+    expect(navigateAfterAuth).not.toHaveBeenCalled();
+
+    mockSession = session;
+    mockSessionLoaded = true;
+    view.rerender(<AuthScreen />);
+
+    await waitFor(() => {
+      expect(navigateAfterAuth).toHaveBeenCalled();
+    });
   });
 
   it("tells duplicate-email sign-up attempts to sign in instead", async () => {

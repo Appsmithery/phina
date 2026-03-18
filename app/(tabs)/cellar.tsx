@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Alert, Platform } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BillingCard } from "@/components/BillingCard";
 import { WineThumbnailImage } from "@/components/WineThumbnailImage";
@@ -19,6 +20,8 @@ import { useBilling } from "@/hooks/use-billing";
 import { showAlert } from "@/lib/alert";
 
 type CellarTab = "storage" | "history";
+const FLOATING_ADD_BUTTON_GAP = 12;
+const FLOATING_ADD_BUTTON_HEIGHT = 52;
 
 type WineWithEvent = WineWithPricePrivacy & {
   event: { title: string; date: string; status: string } | null;
@@ -26,6 +29,7 @@ type WineWithEvent = WineWithPricePrivacy & {
 
 export default function CellarScreen() {
   const theme = useTheme();
+  const bottomInset = useSafeAreaInsets().bottom;
   const tabBarHeight = useOptionalBottomTabBarHeight();
   const { session, sessionLoaded, member, memberLoaded } = useSupabase();
   const {
@@ -161,6 +165,10 @@ export default function CellarScreen() {
 
   const storageCt = useMemo(() => accessibleWines.filter((w) => w.status !== "consumed").length, [accessibleWines]);
   const historyCt = useMemo(() => accessibleWines.filter((w) => w.status === "consumed").length, [accessibleWines]);
+  const floatingAddButtonBottom = Math.max(tabBarHeight, bottomInset) + FLOATING_ADD_BUTTON_GAP;
+  const floatingAddButtonListPadding = getTabContentBottomPadding(tabBarHeight, 0) +
+    FLOATING_ADD_BUTTON_HEIGHT +
+    FLOATING_ADD_BUTTON_GAP;
 
   if (!sessionLoaded || (session && !memberLoaded)) {
     return (
@@ -382,8 +390,9 @@ export default function CellarScreen() {
           contentContainerStyle={[
             styles.list,
             {
-              paddingBottom:
-                getTabContentBottomPadding(tabBarHeight, 0) + (effectivePremiumActive ? 64 : 16),
+              paddingBottom: effectivePremiumActive
+                ? floatingAddButtonListPadding
+                : getTabContentBottomPadding(tabBarHeight, 0) + 16,
             },
           ]}
           ListFooterComponent={cellarUpsell ? <View style={styles.listFooter}>{cellarUpsell}</View> : null}
@@ -471,7 +480,10 @@ export default function CellarScreen() {
         />
       )}
       {effectivePremiumActive ? (
-        <View style={[styles.bottomButtonWrapper, { bottom: getTabContentBottomPadding(tabBarHeight, 0) - 8 }]}>
+        <View
+          testID="cellar-add-wine-wrapper"
+          style={[styles.bottomButtonWrapper, { bottom: floatingAddButtonBottom }]}
+        >
           <TouchableOpacity
             style={[styles.addButton, { backgroundColor: theme.primary }]}
             onPress={() => router.push("/add-wine")}
