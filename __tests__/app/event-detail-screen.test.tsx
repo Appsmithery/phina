@@ -5,7 +5,7 @@ import EventDetailScreen from "@/app/event/[id]/index";
 const mockBack = jest.fn();
 const mockReplace = jest.fn();
 const mockCanGoBack = jest.fn(() => false);
-const mockStackScreen = jest.fn(() => null);
+const mockStackScreen = jest.fn((_props?: unknown) => null);
 const mockInvalidateQueries = jest.fn();
 
 jest.mock("expo-router", () => ({
@@ -81,10 +81,12 @@ jest.mock("@/lib/supabase-context", () => ({
 }));
 
 jest.mock("@/lib/supabase", () => {
-  const channel = {
-    on: jest.fn(() => channel),
-    subscribe: jest.fn(() => channel),
+  const channel: { on: jest.Mock; subscribe: jest.Mock } = {
+    on: jest.fn(),
+    subscribe: jest.fn(),
   };
+  channel.on.mockImplementation(() => channel);
+  channel.subscribe.mockImplementation(() => channel);
 
   return {
     supabase: {
@@ -144,12 +146,12 @@ describe("EventDetailScreen", () => {
   it("falls back to the events tab when no back history exists", () => {
     render(<EventDetailScreen />);
 
-    const screenConfig = mockStackScreen.mock.calls.at(-1)?.[0] as {
+    const screenConfig = mockStackScreen.mock.calls.at(-1)?.[0] as unknown as {
       options: { headerLeft: () => React.ReactElement };
     };
 
     const headerButton = screenConfig.options.headerLeft();
-    headerButton.props.onPress();
+    (headerButton.props as { onPress: () => void }).onPress();
 
     expect(mockReplace).toHaveBeenCalledWith("/(tabs)");
     expect(mockBack).not.toHaveBeenCalled();

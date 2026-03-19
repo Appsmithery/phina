@@ -7,6 +7,9 @@ import { showAlert } from "@/lib/alert";
 import { navigateAfterAuth } from "@/lib/post-auth-navigate";
 
 const mockSetSessionFromAuth = jest.fn();
+const mockGetSession = jest.fn();
+let mockSession: unknown = null;
+let mockSessionLoaded = true;
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
@@ -15,6 +18,8 @@ jest.mock("expo-router", () => ({
 
 jest.mock("@/lib/supabase-context", () => ({
   useSupabase: () => ({
+    session: mockSession,
+    sessionLoaded: mockSessionLoaded,
     setSessionFromAuth: mockSetSessionFromAuth,
   }),
 }));
@@ -26,6 +31,7 @@ jest.mock("@/lib/supabase", () => ({
       resend: jest.fn(),
       signInWithPassword: jest.fn(),
       resetPasswordForEmail: jest.fn(),
+      getSession: (...args: unknown[]) => mockGetSession(...args),
     },
   },
 }));
@@ -73,6 +79,9 @@ jest.mock("@/lib/post-auth-navigate", () => ({
 describe("AuthScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSession = null;
+    mockSessionLoaded = true;
+    mockGetSession.mockResolvedValue({ data: { session: null } });
   });
 
   it("renders the password-first auth screen without the social disclaimer", () => {
@@ -272,9 +281,37 @@ describe("AuthScreen", () => {
       });
     });
 
-    expect(screen.getByText("Welcome back")).toBeTruthy();
-    expect(screen.getByText("Check your email to confirm your account, then sign in with your password.")).toBeTruthy();
-    expect(screen.getByText("Resend confirmation to alex@example.com")).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByText("Welcome back")).toBeTruthy();
+      expect(screen.getByText("Check your email to confirm your account, then sign in with your password.")).toBeTruthy();
+      expect(screen.getByText("Resend confirmation to alex@example.com")).toBeTruthy();
+    }, { timeout: 2500 });
+  });
+
+  it("recovers a delayed session after sign-up and navigates without requiring a cold restart", async () => {
+    const session = { access_token: "token", user: { id: "user-1" } };
+    (supabase.auth.signUp as jest.Mock).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    });
+    mockGetSession
+      .mockResolvedValueOnce({ data: { session: null } })
+      .mockResolvedValueOnce({ data: { session } });
+
+    render(<AuthScreen />);
+
+    fireEvent.press(screen.getByLabelText("Switch to create account"));
+    fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "alex@example.com");
+    fireEvent.changeText(screen.getByPlaceholderText("Password"), "password123");
+    fireEvent.changeText(screen.getByPlaceholderText("Confirm password"), "password123");
+    fireEvent.press(screen.getByLabelText("Create account"));
+
+    await waitFor(() => {
+      expect(mockSetSessionFromAuth).toHaveBeenCalledWith(session);
+      expect(navigateAfterAuth).toHaveBeenCalled();
+    });
+
+    expect(screen.queryByText("Check your email to confirm your account, then sign in with your password.")).toBeNull();
   });
 
   it("resends confirmation with the same email redirect target", async () => {
@@ -297,7 +334,7 @@ describe("AuthScreen", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Resend confirmation to alex@example.com")).toBeTruthy();
-    });
+    }, { timeout: 2500 });
 
     fireEvent.press(screen.getByLabelText("Resend confirmation email"));
 

@@ -14,7 +14,7 @@ type PostAuthGateProps = {
   source: "index" | "post-auth";
 };
 
-const POST_AUTH_SESSION_RECOVERY_DELAY_MS = 400;
+const POST_AUTH_SESSION_RECOVERY_DELAYS_MS = [0, 400, 1200, 2400] as const;
 
 export function PostAuthGate({ source }: PostAuthGateProps) {
   const { session, sessionLoaded, member, memberLoaded, setSessionFromAuth } = useSupabase();
@@ -63,7 +63,8 @@ export function PostAuthGate({ source }: PostAuthGateProps) {
       embedded_launch: diagnostics.isEmbeddedLaunch,
     });
 
-    const attemptRecovery = async (attempt: 1 | 2) => {
+    const attemptRecovery = async (attemptIndex: number) => {
+      const attempt = attemptIndex + 1;
       try {
         const {
           data: { session: recoveredSession },
@@ -99,10 +100,10 @@ export function PostAuthGate({ source }: PostAuthGateProps) {
         }
       }
 
-      if (attempt === 1) {
+      if (attemptIndex < POST_AUTH_SESSION_RECOVERY_DELAYS_MS.length - 1) {
         retryTimeout = setTimeout(() => {
-          void attemptRecovery(2);
-        }, POST_AUTH_SESSION_RECOVERY_DELAY_MS);
+          void attemptRecovery(attemptIndex + 1);
+        }, POST_AUTH_SESSION_RECOVERY_DELAYS_MS[attemptIndex + 1]);
         return;
       }
 
@@ -116,7 +117,7 @@ export function PostAuthGate({ source }: PostAuthGateProps) {
       setSessionRecoveryResolved(true);
     };
 
-    void attemptRecovery(1);
+    void attemptRecovery(0);
 
     return () => {
       cancelled = true;

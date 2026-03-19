@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   ScrollView,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
+import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
@@ -31,6 +32,7 @@ const MIN_PASSWORD_LENGTH = 8;
 const LOGO_MAX_SIDE = 672;
 const LOGO_MIN_SIDE = 384;
 const LOGO_WIDTH_RATIO = 0.9;
+const AUTH_SESSION_RECOVERY_DELAYS_MS = [0, 150, 400, 900] as const;
 
 type AuthMode = "sign-in" | "sign-up";
 
@@ -87,6 +89,12 @@ function isDuplicateEmailError(message: string, code?: string): boolean {
   );
 }
 
+function delay(ms: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 export default function AuthScreen() {
   const params = useLocalSearchParams<{ email?: string; mode?: string }>();
   const initialParamEmail = typeof params.email === "string" ? normalizeEmail(params.email) : "";
@@ -104,7 +112,8 @@ export default function AuthScreen() {
   const [resendLoading, setResendLoading] = useState(false);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const theme = useTheme();
-  const { setSessionFromAuth } = useSupabase();
+  const { session, sessionLoaded, setSessionFromAuth } = useSupabase();
+  const authNavigationTriggeredRef = useRef(false);
 
   const logoSize = Math.max(
     LOGO_MIN_SIDE,
@@ -134,6 +143,48 @@ export default function AuthScreen() {
       active = false;
     };
   }, [initialParamEmail]);
+
+  useEffect(() => {
+    if (!session) {
+      authNavigationTriggeredRef.current = false;
+      return;
+    }
+
+    if (!sessionLoaded || authNavigationTriggeredRef.current) {
+      return;
+    }
+
+    authNavigationTriggeredRef.current = true;
+    setConfirmationEmail(null);
+    setConfirmationStatus(null);
+    void navigateAfterAuth();
+  }, [session, sessionLoaded]);
+
+  const finalizeAuthSuccess = async (nextSession: Session) => {
+    authNavigationTriggeredRef.current = true;
+    setConfirmationEmail(null);
+    setConfirmationStatus(null);
+    setSessionFromAuth(nextSession);
+    await navigateAfterAuth();
+  };
+
+  const recoverAuthSession = async (): Promise<Session | null> => {
+    for (const waitMs of AUTH_SESSION_RECOVERY_DELAYS_MS) {
+      if (waitMs > 0) {
+        await delay(waitMs);
+      }
+
+      const {
+        data: { session: recoveredSession },
+      } = await supabase.auth.getSession();
+
+      if (recoveredSession) {
+        return recoveredSession;
+      }
+    }
+
+    return null;
+  };
 
   const handleModeChange = (nextMode: AuthMode) => {
     setMode(nextMode);
@@ -185,12 +236,12 @@ export default function AuthScreen() {
         password,
       });
       if (error) throw error;
-      if (!data.session) {
+      const recoveredSession = data.session ?? await recoverAuthSession();
+      if (!recoveredSession) {
         setErrorHint("Sign-in did not return a session. Please try again.");
         return;
       }
-      setSessionFromAuth(data.session);
-      navigateAfterAuth();
+      await finalizeAuthSuccess(recoveredSession);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
       const code = e && typeof e === "object" && "code" in e ? String((e as { code: string }).code) : "";
@@ -237,10 +288,9 @@ export default function AuthScreen() {
       });
       if (error) throw error;
 
-      if (data.session) {
-        setConfirmationEmail(null);
-        setSessionFromAuth(data.session);
-        navigateAfterAuth();
+      const recoveredSession = data.session ?? await recoverAuthSession();
+      if (recoveredSession) {
+        await finalizeAuthSuccess(recoveredSession);
         return;
       }
 
@@ -339,8 +389,7 @@ export default function AuthScreen() {
     try {
       const session = await signInWithGoogle();
       if (session) {
-        setSessionFromAuth(session);
-        navigateAfterAuth();
+        await finalizeAuthSuccess(session);
       } else {
         setErrorHint("Google sign-in was cancelled or failed");
       }
@@ -358,8 +407,7 @@ export default function AuthScreen() {
     try {
       const session = await signInWithApple();
       if (session) {
-        setSessionFromAuth(session);
-        navigateAfterAuth();
+        await finalizeAuthSuccess(session);
       } else {
         setErrorHint("Apple sign-in was cancelled or failed");
       }

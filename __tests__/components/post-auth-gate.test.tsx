@@ -144,8 +144,56 @@ describe("PostAuthGate", () => {
       expect(mockGetSession).toHaveBeenCalledTimes(2);
     });
 
+    await act(async () => {
+      jest.advanceTimersByTime(1300);
+    });
+
+    await waitFor(() => {
+      expect(mockGetSession).toHaveBeenCalledTimes(3);
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(2500);
+    });
+
+    await waitFor(() => {
+      expect(mockGetSession).toHaveBeenCalledTimes(4);
+    });
+
     await waitFor(() => {
       expect(screen.getByText("redirect:/(auth)")).toBeTruthy();
+    });
+  });
+
+  it("keeps trying long enough to recover delayed Android session persistence", async () => {
+    const recoveredSession = { user: { id: "user-1" } };
+    mockSessionLoaded = true;
+    mockMemberLoaded = true;
+    mockGetSession
+      .mockResolvedValueOnce({ data: { session: null } })
+      .mockResolvedValueOnce({ data: { session: null } })
+      .mockResolvedValueOnce({ data: { session: recoveredSession } });
+
+    render(<PostAuthGate source="post-auth" />);
+
+    await waitFor(() => {
+      expect(mockGetSession).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(500);
+    });
+
+    await waitFor(() => {
+      expect(mockGetSession).toHaveBeenCalledTimes(2);
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(1300);
+    });
+
+    await waitFor(() => {
+      expect(mockSetSessionFromAuth).toHaveBeenCalledWith(recoveredSession);
     });
   });
 
