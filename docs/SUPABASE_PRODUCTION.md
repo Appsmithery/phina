@@ -19,6 +19,8 @@ In `Authentication > Email Templates`:
 - Use `{{ .ConfirmationURL }}` for confirmation and recovery links, or a wrapper that preserves `token_hash`, `type`, and `redirect_to`
 - Do not hardcode `{{ .SiteURL }}` for flows that depend on `redirectTo`
 - If you use a wrapper page, make sure it forwards the full confirmation URL without stripping auth params
+- Supabase renders these templates before handing the email off to SMTP
+- Resend does not need matching templates for this setup because it is only the SMTP transport layer
 
 Recommended verification:
 
@@ -42,9 +44,9 @@ In `Authentication > SMTP Settings`:
   - Port: `465`
   - Username: `resend`
   - Password: a Resend API key dedicated to Supabase Auth SMTP
-  - Sender email: `auth@mail.phina.appsmithery.co`
+  - Sender email: `phina@mail.appsmithery.co`
   - Sender name: `Phina`
-- Verify the sending domain `mail.phina.appsmithery.co` in Resend and publish the required SPF / DKIM DNS records
+- Verify the sending domain `mail.appsmithery.co` in Resend and publish the required SPF / DKIM DNS records
 - Disable click tracking and link rewriting for auth emails
 - Configure DMARC for the sending domain when DNS is ready
 
@@ -85,8 +87,8 @@ In Supabase project and org settings:
 
 Re-run these after any auth, domain, SMTP, or email-template change:
 
-- Resend marks `mail.phina.appsmithery.co` as fully configured
-- Confirmation and password reset emails arrive from `auth@mail.phina.appsmithery.co`
+- Resend marks `mail.appsmithery.co` as fully configured
+- Confirmation and password reset emails arrive from `phina@mail.appsmithery.co`
 - New user email confirmation returns to the native app
 - Password reset returns to the set-password flow
 - Existing confirmed user can sign in with email and password

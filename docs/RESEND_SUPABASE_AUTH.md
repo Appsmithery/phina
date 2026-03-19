@@ -25,8 +25,8 @@ Out of scope for this phase:
 
 Recommended sender identity:
 
-- Sender email: `auth@mail.appsmithery.co`
-- Sender name: `phína`
+- Sender email: `phina@mail.appsmithery.co`
+- Sender name: `Phína`
 
 ## Supabase
 
@@ -36,7 +36,7 @@ In `Authentication > Email > SMTP Settings`:
 - Port: `465`
 - Username: `resend`
 - Password: the Resend API key created for Supabase Auth
-- Sender email: `auth@mail.phina.appsmithery.co`
+- Sender email: `phina@mail.appsmithery.co`
 - Sender name: `Phina`
 
 In `Authentication > URL Configuration`:
@@ -48,13 +48,15 @@ In `Authentication > Email Templates`:
 
 - Use `{{ .ConfirmationURL }}` for signup confirmation and password recovery flows
 - Do not hardcode `{{ .SiteURL }}` for flows that rely on `redirectTo`
+- Supabase continues to render and send the templates you configure here
+- Resend SMTP is transport only in this setup, so these templates do not need to be recreated in Resend
 
 ## Verification
 
 After setup:
 
 1. Create a new user with a non-team email address.
-2. Confirm the email arrives from `auth@mail.phina.appsmithery.co`.
+2. Confirm the email arrives from `phina@mail.appsmithery.co`.
 3. Confirm the link is not rewritten by click tracking.
 4. Tap the confirmation link on iPhone.
 5. Verify Safari may appear briefly, then the native app opens.
@@ -66,3 +68,4 @@ After setup:
 - Keep Resend free tier for pre-launch and low-volume auth traffic only.
 - Upgrade only when auth email volume approaches the free-tier quota or when broader transactional email is needed.
 - If `RESEND_API_KEY` exists in local secrets, treat it as future server-side-only configuration unless and until app product emails are added.
+- You can reuse the verified subdomain `mail.appsmithery.co` across multiple projects as long as each sender uses that exact domain.
