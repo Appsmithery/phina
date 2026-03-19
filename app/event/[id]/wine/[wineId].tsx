@@ -1,8 +1,9 @@
 import { useLocalSearchParams, router } from "expo-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { WineHeroImage } from "@/components/WineHeroImage";
+import { useRemoveWine } from "@/hooks/use-remove-wine";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
@@ -19,7 +20,6 @@ export default function WineDetailScreen() {
   const wineId = typeof params.wineId === "string" ? params.wineId : params.wineId?.[0];
   const theme = useTheme();
   const { session, member } = useSupabase();
-  const queryClient = useQueryClient();
   const userId = session?.user?.id ?? member?.id;
 
   const { data: wine, isLoading } = useQuery({
@@ -30,6 +30,12 @@ export default function WineDetailScreen() {
       return data as WineWithPricePrivacy;
     },
     enabled: !!wineId,
+  });
+
+  const removeWineMutation = useRemoveWine({
+    wineId: wineId ?? "",
+    memberId: wine?.brought_by,
+    eventId,
   });
 
   const { data: event } = useQuery({
@@ -138,14 +144,17 @@ export default function WineDetailScreen() {
           text: "Remove",
           style: "destructive",
           onPress: async () => {
-            const { error } = await supabase.from("wines").delete().eq("id", wine.id);
-            if (error) {
-              showAlert("Error", error.message ?? "Could not remove wine.");
+            try {
+              await removeWineMutation.mutateAsync();
+            } catch (error) {
+              showAlert("Error", error instanceof Error ? error.message : "Could not remove wine.");
               return;
             }
-            queryClient.invalidateQueries({ queryKey: ["wines", eventId] });
-            queryClient.invalidateQueries({ queryKey: ["wine", wineId] });
-            router.back();
+            if (router.canGoBack()) {
+              router.back();
+              return;
+            }
+            router.replace(`/event/${eventId}`);
           },
         },
       ]
@@ -371,10 +380,13 @@ export default function WineDetailScreen() {
           {canRemove ? (
             <TouchableOpacity
               style={[styles.removeButton, { borderColor: theme.textMuted }]}
-              onPress={handleRemove}
-            >
-              <Text style={[styles.removeButtonText, { color: theme.textMuted }]}>Remove from event</Text>
-            </TouchableOpacity>
+        onPress={handleRemove}
+        disabled={removeWineMutation.isPending}
+      >
+        <Text style={[styles.removeButtonText, { color: theme.textMuted }]}>
+          {removeWineMutation.isPending ? "Removing..." : "Remove from event"}
+        </Text>
+      </TouchableOpacity>
           ) : null}
         </>
       ) : null}

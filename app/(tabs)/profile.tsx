@@ -6,7 +6,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 
 import { TabScreenHeader } from "@/components/layout/TabScreenHeader";
-import { ProfileEmptyState } from "@/components/ProfileEmptyState";
 import { PAGE_HORIZONTAL_PADDING, getTabContentBottomPadding, useOptionalBottomTabBarHeight } from "@/lib/layout";
 import { trackEvent } from "@/lib/observability";
 import { supabase } from "@/lib/supabase";
@@ -274,9 +273,6 @@ export default function ProfileScreen() {
 
   const renderTopSection = () => {
     if (member?.id == null || isTopSectionLoading) return null;
-    if (shouldShowProfileEmptyState) {
-      return <ProfileEmptyState theme={theme} onCtaPress={handleProfileEmptyStatePress} />;
-    }
     return (
       <>
         <View style={styles.statsGrid}>
@@ -321,75 +317,105 @@ export default function ProfileScreen() {
             <Ionicons name="bar-chart-outline" size={18} color={theme.primary} />
             <Text style={[styles.cardTitle, { color: theme.text }]}>Your Taste Graph</Text>
           </View>
-
-          {[
-            ["Body", "Light", "Full", stats.prefBody],
-            ["Dryness", "Dry", "Sweet", stats.prefDryness],
-          ].map(([label, left, right, pref]) => (
-            <View key={String(label)} style={styles.scaleContainer}>
-              <Text style={[styles.scaleLabel, { color: theme.textSecondary }]}>{label}</Text>
-              <View style={styles.scaleTrackRow}>
-                <Text style={[styles.scaleExtreme, { color: theme.textMuted }]}>{left}</Text>
-                <View style={styles.scaleTrackWrapper}>
-                  <View style={[styles.scaleTrack, { backgroundColor: theme.border }]} />
-                  {pref != null && (
-                    <View style={[styles.scaleMarker, { backgroundColor: theme.primary, left: `${((Number(pref) - 1) / 2) * 100}%` }]} />
-                  )}
-                </View>
-                <Text style={[styles.scaleExtreme, { color: theme.textMuted }]}>{right}</Text>
+          {shouldShowProfileEmptyState ? (
+            <>
+              <View style={styles.emptyTasteState}>
+                <Ionicons name="wine-outline" size={42} color={theme.textMuted} />
+                <Text style={[styles.emptyTasteHeadline, { color: theme.text }]}>Your taste profile starts here.</Text>
+                <Text style={[styles.emptyTasteBody, { color: theme.textSecondary }]}>
+                  Rate your first wine. Once you start logging your impressions, your personal Taste Graph will appear here:
+                  body, dryness, palette, and your preferred notes, all built from your own data.
+                </Text>
               </View>
-              {pref == null && <Text style={[styles.noDataText, { color: theme.textMuted }]}>Not enough data</Text>}
-            </View>
-          ))}
 
-          <View style={styles.scaleContainer}>
-            <Text style={[styles.scaleLabel, { color: theme.textSecondary }]}>Palette</Text>
-            <View style={styles.scaleTrackRow}>
-              <Text style={[styles.scaleExtreme, { color: theme.textMuted }]}>Deep Red</Text>
-              <View style={styles.scaleTrackWrapper}>
-                <LinearGradient
-                  colors={["#8B2035", "#C4956A", "#F0EBE3"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.scaleTrack}
-                />
-                {stats.prefColor != null && (
-                  <View style={[styles.scaleMarker, { backgroundColor: theme.primary, left: `${((stats.prefColor - 1) / 2) * 100}%` }]} />
+              {(["Body", "Dryness", "Palette"] as const).map((label) => (
+                <View key={label} style={styles.scaleContainer}>
+                  <Text style={[styles.scaleLabel, { color: theme.textSecondary }]}>{label}</Text>
+                  <View style={[styles.emptyTrack, { backgroundColor: theme.border }]}>
+                    <View style={[styles.emptyTrackFill, { backgroundColor: `${theme.textMuted}35` }]} />
+                  </View>
+                </View>
+              ))}
+
+              <TouchableOpacity
+                style={[styles.emptyTasteButton, { backgroundColor: theme.primary }]}
+                onPress={handleProfileEmptyStatePress}
+              >
+                <Text style={styles.emptyTasteButtonText}>Browse Events</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              {[
+                ["Body", "Light", "Full", stats.prefBody],
+                ["Dryness", "Dry", "Sweet", stats.prefDryness],
+              ].map(([label, left, right, pref]) => (
+                <View key={String(label)} style={styles.scaleContainer}>
+                  <Text style={[styles.scaleLabel, { color: theme.textSecondary }]}>{label}</Text>
+                  <View style={styles.scaleTrackRow}>
+                    <Text style={[styles.scaleExtreme, { color: theme.textMuted }]}>{left}</Text>
+                    <View style={styles.scaleTrackWrapper}>
+                      <View style={[styles.scaleTrack, { backgroundColor: theme.border }]} />
+                      {pref != null && (
+                        <View style={[styles.scaleMarker, { backgroundColor: theme.primary, left: `${((Number(pref) - 1) / 2) * 100}%` }]} />
+                      )}
+                    </View>
+                    <Text style={[styles.scaleExtreme, { color: theme.textMuted }]}>{right}</Text>
+                  </View>
+                  {pref == null && <Text style={[styles.noDataText, { color: theme.textMuted }]}>Not enough data</Text>}
+                </View>
+              ))}
+
+              <View style={styles.scaleContainer}>
+                <Text style={[styles.scaleLabel, { color: theme.textSecondary }]}>Palette</Text>
+                <View style={styles.scaleTrackRow}>
+                  <Text style={[styles.scaleExtreme, { color: theme.textMuted }]}>Deep Red</Text>
+                  <View style={styles.scaleTrackWrapper}>
+                    <LinearGradient
+                      colors={["#8B2035", "#C4956A", "#F0EBE3"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.scaleTrack}
+                    />
+                    {stats.prefColor != null && (
+                      <View style={[styles.scaleMarker, { backgroundColor: theme.primary, left: `${((stats.prefColor - 1) / 2) * 100}%` }]} />
+                    )}
+                  </View>
+                  <Text style={[styles.scaleExtremeRight, { color: theme.textMuted }]}>Vibrant White</Text>
+                </View>
+                {stats.prefColor == null && <Text style={[styles.noDataText, { color: theme.textMuted }]}>Not enough data</Text>}
+              </View>
+
+              <View style={styles.scaleContainer}>
+                <Text style={[styles.scaleLabel, { color: theme.textSecondary }]}>Preferred notes</Text>
+                {stats.hasEnoughTagData ? (
+                  stats.preferredTags.length > 0 ? (
+                    <View style={styles.tagRow}>
+                      {stats.preferredTags.map((tag, idx) => (
+                        <View
+                          key={tag}
+                          style={[
+                            styles.tagChip,
+                            idx === 0
+                              ? { backgroundColor: theme.primary, borderColor: theme.primary }
+                              : { backgroundColor: `${theme.primary}20`, borderColor: theme.primary },
+                          ]}
+                        >
+                          <Text style={[styles.tagChipText, { color: idx === 0 ? "#fff" : theme.primary }]}>
+                            {tag.charAt(0).toUpperCase() + tag.slice(1)}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={[styles.noDataText, { color: theme.textMuted }]}>No tags on liked wines yet</Text>
+                  )
+                ) : (
+                  <Text style={[styles.noDataText, { color: theme.textMuted }]}>Not enough data</Text>
                 )}
               </View>
-              <Text style={[styles.scaleExtremeRight, { color: theme.textMuted }]}>Vibrant White</Text>
-            </View>
-            {stats.prefColor == null && <Text style={[styles.noDataText, { color: theme.textMuted }]}>Not enough data</Text>}
-          </View>
-
-          <View style={styles.scaleContainer}>
-            <Text style={[styles.scaleLabel, { color: theme.textSecondary }]}>Preferred notes</Text>
-            {stats.hasEnoughTagData ? (
-              stats.preferredTags.length > 0 ? (
-                <View style={styles.tagRow}>
-                  {stats.preferredTags.map((tag, idx) => (
-                    <View
-                      key={tag}
-                      style={[
-                        styles.tagChip,
-                        idx === 0
-                          ? { backgroundColor: theme.primary, borderColor: theme.primary }
-                          : { backgroundColor: `${theme.primary}20`, borderColor: theme.primary },
-                      ]}
-                    >
-                      <Text style={[styles.tagChipText, { color: idx === 0 ? "#fff" : theme.primary }]}>
-                        {tag.charAt(0).toUpperCase() + tag.slice(1)}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <Text style={[styles.noDataText, { color: theme.textMuted }]}>No tags on liked wines yet</Text>
-              )
-            ) : (
-              <Text style={[styles.noDataText, { color: theme.textMuted }]}>Not enough data</Text>
-            )}
-          </View>
+            </>
+          )}
         </View>
       </>
     );
@@ -560,6 +586,13 @@ const styles = StyleSheet.create({
   tileLabelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   tileLabel: { fontFamily: "Montserrat_400Regular", fontSize: 13, textAlign: "center" },
   preferencesCard: { marginBottom: 24 },
+  emptyTasteState: { alignItems: "center", marginBottom: 16 },
+  emptyTasteHeadline: { fontFamily: "PlayfairDisplay_700Bold", fontSize: 20, marginTop: 12, marginBottom: 12, textAlign: "center" },
+  emptyTasteBody: { fontFamily: "Montserrat_400Regular", fontSize: 14, lineHeight: 21, textAlign: "center", marginBottom: 8 },
+  emptyTrack: { borderRadius: 2, height: 4, overflow: "hidden" },
+  emptyTrackFill: { width: "50%", height: "100%" },
+  emptyTasteButton: { borderRadius: 12, padding: 14, marginTop: 8, alignItems: "center" },
+  emptyTasteButtonText: { color: "#fff", fontFamily: "Montserrat_600SemiBold", fontSize: 15 },
   scaleContainer: { marginBottom: 16 },
   scaleLabel: { fontFamily: "Montserrat_600SemiBold", fontSize: 13, marginBottom: 8 },
   scaleTrackRow: { flexDirection: "row", alignItems: "center", gap: 8 },

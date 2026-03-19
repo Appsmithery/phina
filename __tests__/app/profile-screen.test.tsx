@@ -190,10 +190,13 @@ describe("ProfileScreen", () => {
     expect(screen.queryByText("Your Taste Graph")).toBeNull();
   });
 
-  it("shows the empty state until a user has rated a wine", () => {
+  it("keeps the standard profile layout and shows inline empty graph content until a user has rated a wine", () => {
     render(<ProfileScreen />);
     expect(screen.getByText("Your taste profile starts here.")).toBeTruthy();
-    expect(screen.queryByText("Your Taste Graph")).toBeNull();
+    expect(screen.getByText("Your Taste Graph")).toBeTruthy();
+    expect(screen.getByText("Body")).toBeTruthy();
+    expect(screen.getByText("Dryness")).toBeTruthy();
+    expect(screen.getByText("Palette")).toBeTruthy();
     expect(mockTrackEvent).toHaveBeenCalledWith(
       "profile_empty_state_viewed",
       expect.objectContaining({ platform: "ios", source: "profile_tab" })

@@ -1,10 +1,11 @@
 import React from "react";
 import { Platform, StyleSheet } from "react-native";
-import { render, screen, waitFor } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import CellarScreen from "@/app/(tabs)/cellar";
 
 const mockTrackEvent = jest.fn();
 const mockUseQuery = jest.fn();
+const mockPush = jest.fn();
 let mockBottomInset = 0;
 let mockTabBarHeight = 0;
 
@@ -27,7 +28,7 @@ jest.mock("@tanstack/react-query", () => ({
 }));
 
 jest.mock("expo-router", () => ({
-  router: { push: jest.fn() },
+  router: { push: (...args: unknown[]) => mockPush(...args) },
   useLocalSearchParams: () => ({}),
 }));
 
@@ -69,6 +70,7 @@ describe("CellarScreen", () => {
   beforeEach(() => {
     mockUseQuery.mockReset();
     mockTrackEvent.mockReset();
+    mockPush.mockReset();
     mockBottomInset = 0;
     mockTabBarHeight = 0;
     mockBillingState = {
@@ -168,6 +170,37 @@ describe("CellarScreen", () => {
         borderColor: "#B5827126",
       })
     );
+  });
+
+  it("routes event-linked cellar wines through the unified wine detail screen", () => {
+    mockUseQuery.mockReturnValue({
+      data: [
+        {
+          id: "wine-1",
+          event_id: "event-1",
+          status: "storage",
+          quantity: 1,
+          producer: "Louis Latour",
+          varietal: "Pinot Noir",
+          vintage: 2022,
+          region: "Bourgogne, Burgundy",
+          drink_from: 2024,
+          drink_until: 2028,
+          display_photo_url: null,
+          label_photo_url: null,
+        },
+      ],
+      error: null,
+      isError: false,
+      isLoading: false,
+      refetch: jest.fn(),
+    });
+
+    render(<CellarScreen />);
+
+    fireEvent.press(screen.getByText("Manage"));
+
+    expect(mockPush).toHaveBeenCalledWith("/wine/wine-1");
   });
 
   it("anchors the premium add-wine button just above the footer tab bar", () => {

@@ -17,7 +17,7 @@ Out of scope for this phase:
 ## Resend
 
 1. Create or use a Resend account on the free tier.
-2. Add and verify the sending domain `mail.phina.appsmithery.co`.
+2. Add and verify the sending domain `mail.appsmithery.co`.
 3. Publish the DNS records Resend provides for SPF and DKIM.
 4. Add DMARC for the sending domain when DNS is ready.
 5. Create a dedicated API key for Supabase Auth SMTP.
@@ -25,8 +25,8 @@ Out of scope for this phase:
 
 Recommended sender identity:
 
-- Sender email: `auth@mail.phina.appsmithery.co`
-- Sender name: `Phina`
+- Sender email: `auth@mail.appsmithery.co`
+- Sender name: `phína`
 
 ## Supabase
 

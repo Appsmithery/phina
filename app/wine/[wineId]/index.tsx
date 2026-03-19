@@ -4,11 +4,14 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from "
 import { useEffect, useRef } from "react";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { WineHeroImage } from "@/components/WineHeroImage";
+import { useBilling } from "@/hooks/use-billing";
+import { useRemoveWine } from "@/hooks/use-remove-wine";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
 import { trackEvent } from "@/lib/observability";
+import type { Event } from "@/types/database";
 import type { WineWithPricePrivacy } from "@/types/database";
 import type { Rating } from "@/types/database";
 
@@ -18,6 +21,7 @@ export default function PersonalWineDetailScreen() {
   const wineId = typeof params.wineId === "string" ? params.wineId : params.wineId?.[0];
   const theme = useTheme();
   const { session, member } = useSupabase();
+  const { effectivePremiumActive } = useBilling();
   const userId = session?.user?.id ?? member?.id;
   const viewedWineIdRef = useRef<string | null>(null);
 
@@ -50,8 +54,27 @@ export default function PersonalWineDetailScreen() {
     enabled: !!wineId && !!userId,
   });
 
+  const { data: event } = useQuery({
+    queryKey: ["event", wine?.event_id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("events")
+        .select("id, title, status")
+        .eq("id", wine!.event_id!)
+        .single();
+      if (error) throw error;
+      return data as Pick<Event, "id" | "title" | "status">;
+    },
+    enabled: !!wine?.event_id,
+  });
+
   const queryClient = useQueryClient();
   const isOwner = wine && member?.id === wine.brought_by;
+  const removeWineMutation = useRemoveWine({
+    wineId: wineId ?? "",
+    memberId: wine?.brought_by,
+    eventId: wine?.event_id,
+  });
 
   useEffect(() => {
     if (!wine?.id || viewedWineIdRef.current === wine.id) return;
@@ -74,22 +97,25 @@ export default function PersonalWineDetailScreen() {
 
   const handleDelete = () => {
     if (!wine?.id) return;
+    const isEventOrigin = wine.event_id != null;
     showAlert(
-      "Delete from cellar",
-      "Permanently delete this wine from your cellar?",
+      isEventOrigin ? "Remove from event" : "Remove from cellar",
+      isEventOrigin
+        ? "Remove this wine from the event?"
+        : "Permanently delete this wine from your cellar?",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Delete",
+          text: "Remove",
           style: "destructive",
           onPress: async () => {
-            const { error } = await supabase.from("wines").delete().eq("id", wine.id);
-            if (error) {
-              showAlert("Error", error.message ?? "Could not delete wine.");
+            try {
+              await removeWineMutation.mutateAsync();
+              handleBackPress();
+            } catch (error) {
+              showAlert("Error", error instanceof Error ? error.message : "Could not remove wine.");
               return;
             }
-            queryClient.invalidateQueries({ queryKey: ["cellar", "my-wines", member?.id] });
-            router.back();
           },
         },
       ]
@@ -124,6 +150,18 @@ export default function PersonalWineDetailScreen() {
     );
   }
 
+  const isEventOrigin = wine.event_id != null;
+  const canManageWine = Boolean(isOwner && (isEventOrigin || effectivePremiumActive));
+  const originBadgeLabel = isEventOrigin ? "Added to event" : "Added to cellar";
+  const originDescription = isEventOrigin
+    ? event?.title
+      ? `This bottle came from ${event.title}. Removing it deletes it from that event and your cellar list.`
+      : "This bottle came from an event. Removing it deletes it from that event and your cellar list."
+    : effectivePremiumActive
+      ? "This bottle was added directly to your personal cellar."
+      : "This bottle was added directly to your personal cellar. Premium is required to manage cellar-only wines.";
+  const removeActionLabel = isEventOrigin ? "Remove from event" : "Remove from cellar";
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: theme.background }]}
@@ -154,6 +192,17 @@ export default function PersonalWineDetailScreen() {
       <Text style={[styles.meta, { color: theme.textSecondary }]}>
         {[wine.varietal, wine.vintage?.toString(), wine.region].filter(Boolean).join(" · ")}
       </Text>
+      <View style={[styles.originCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <View
+          style={[
+            styles.originBadge,
+            { backgroundColor: `${theme.primary}18`, borderColor: `${theme.primary}26` },
+          ]}
+        >
+          <Text style={[styles.originBadgeText, { color: theme.primary }]}>{originBadgeLabel}</Text>
+        </View>
+        <Text style={[styles.originDescription, { color: theme.textSecondary }]}>{originDescription}</Text>
+      </View>
       {(wine.color || wine.is_sparkling) && (
         <View style={styles.badgeRow}>
           {wine.color && (
@@ -360,7 +409,7 @@ export default function PersonalWineDetailScreen() {
         </>
       ) : null}
 
-      {isOwner && (
+      {canManageWine && (
         <>
           <TouchableOpacity
             style={[styles.editButton, { backgroundColor: theme.primary }]}
@@ -392,13 +441,27 @@ export default function PersonalWineDetailScreen() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.deleteButton, { borderColor: "#B55A5A" }]}
+            style={[
+              styles.deleteButton,
+              { borderColor: "#B55A5A", opacity: removeWineMutation.isPending ? 0.7 : 1 },
+            ]}
             onPress={handleDelete}
+            disabled={removeWineMutation.isPending}
           >
-            <Text style={styles.deleteButtonText}>Delete from cellar</Text>
+            <Text style={styles.deleteButtonText}>
+              {removeWineMutation.isPending ? "Removing..." : removeActionLabel}
+            </Text>
           </TouchableOpacity>
         </>
       )}
+      {isOwner && !canManageWine ? (
+        <View style={[styles.lockedStateCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.lockedStateTitle, { color: theme.text }]}>Premium required</Text>
+          <Text style={[styles.lockedStateBody, { color: theme.textSecondary }]}>
+            Start Premium to edit or remove wines that were added directly to your cellar.
+          </Text>
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
@@ -407,6 +470,31 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 16, paddingBottom: 32 },
   headerBackButton: { paddingHorizontal: 8, paddingVertical: 4 },
+  originCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    gap: 8,
+  },
+  originBadge: {
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  originBadgeText: {
+    fontSize: 11,
+    fontFamily: "Montserrat_600SemiBold",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+  },
+  originDescription: {
+    fontSize: 13,
+    lineHeight: 20,
+    fontFamily: "Montserrat_400Regular",
+  },
   characteristicsCard: {
     borderWidth: 1,
     borderRadius: 12,
@@ -456,4 +544,7 @@ const styles = StyleSheet.create({
   consumedButtonText: { fontSize: 16, fontWeight: "500", fontFamily: "Montserrat_400Regular" },
   deleteButton: { borderWidth: 1, borderRadius: 12, padding: 12, alignItems: "center", marginTop: 12 },
   deleteButtonText: { color: "#B55A5A", fontSize: 16, fontWeight: "500", fontFamily: "Montserrat_400Regular" },
+  lockedStateCard: { borderWidth: 1, borderRadius: 12, padding: 14, marginTop: 24 },
+  lockedStateTitle: { fontSize: 16, fontFamily: "Montserrat_600SemiBold", marginBottom: 6 },
+  lockedStateBody: { fontSize: 14, lineHeight: 21, fontFamily: "Montserrat_400Regular" },
 });

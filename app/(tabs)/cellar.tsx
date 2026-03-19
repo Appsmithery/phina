@@ -395,7 +395,6 @@ export default function CellarScreen() {
           ]}
           ListFooterComponent={cellarUpsell ? <View style={styles.listFooter}>{cellarUpsell}</View> : null}
           renderItem={({ item }) => {
-            const isEventWine = item.event_id != null;
             const wineLine = [
               item.quantity != null && item.quantity > 1 ? `${item.quantity}×` : "",
               item.producer ?? "Unknown",
@@ -414,9 +413,7 @@ export default function CellarScreen() {
                 : null;
             const isPastWindow = item.drink_until != null && item.drink_until < new Date().getFullYear();
             const photoUrl = item.display_photo_url ?? item.label_photo_url ?? null;
-            const destination = isEventWine
-              ? `/event/${item.event_id}/wine/${item.id}`
-              : `/wine/${item.id}`;
+            const destination = `/wine/${item.id}`;
 
             return (
               <TouchableOpacity

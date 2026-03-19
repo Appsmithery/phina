@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocalSearchParams, router } from "expo-router";
+import { Stack, useLocalSearchParams, router } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   View,
@@ -228,6 +228,14 @@ export default function EventDetailScreen() {
   const endEventMutation = useEndEvent(id!);
   const appBaseUrl =
     process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co";
+
+  const handleBackPress = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace("/(tabs)");
+  };
 
   const handleShareInvite = async () => {
     const joinUrl = `${appBaseUrl}/join/${id}`;
@@ -762,6 +770,20 @@ export default function EventDetailScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <Stack.Screen
+        options={{
+          title: "",
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={handleBackPress}
+              style={styles.headerBackButton}
+              hitSlop={10}
+            >
+              <Ionicons name="arrow-back" size={24} color={theme.primary} />
+            </TouchableOpacity>
+          ),
+        }}
+      />
       <FlatList
         data={wines}
         keyExtractor={(item) => item.id}
@@ -931,6 +953,7 @@ export default function EventDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16 },
   listContent: { paddingTop: 16, paddingBottom: getScreenBottomPadding(0) },
+  headerBackButton: { paddingHorizontal: 8, paddingVertical: 4 },
   heroCard: {
     marginBottom: 16,
     aspectRatio: 4 / 3,
