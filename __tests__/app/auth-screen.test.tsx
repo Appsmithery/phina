@@ -10,6 +10,9 @@ const mockSetSessionFromAuth = jest.fn();
 
 let mockSession: { access_token: string } | null = null;
 let mockSessionLoaded = false;
+let mockMemberLoaded = false;
+const originalRequestAnimationFrame = global.requestAnimationFrame;
+const originalCancelAnimationFrame = global.cancelAnimationFrame;
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
@@ -20,6 +23,7 @@ jest.mock("@/lib/supabase-context", () => ({
   useSupabase: () => ({
     session: mockSession,
     sessionLoaded: mockSessionLoaded,
+    memberLoaded: mockMemberLoaded,
     setSessionFromAuth: mockSetSessionFromAuth,
   }),
 }));
@@ -76,10 +80,24 @@ jest.mock("@/lib/post-auth-navigate", () => ({
 }));
 
 describe("AuthScreen", () => {
+  beforeAll(() => {
+    global.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    }) as typeof requestAnimationFrame;
+    global.cancelAnimationFrame = jest.fn();
+  });
+
+  afterAll(() => {
+    global.requestAnimationFrame = originalRequestAnimationFrame;
+    global.cancelAnimationFrame = originalCancelAnimationFrame;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockSession = null;
     mockSessionLoaded = false;
+    mockMemberLoaded = false;
   });
 
   it("renders the password-first auth screen without the social disclaimer", () => {
@@ -137,7 +155,7 @@ describe("AuthScreen", () => {
     expect(screen.getByLabelText("Create account").props.accessibilityState?.disabled).toBe(true);
   });
 
-  it("waits for committed session state before navigating after password sign-in", async () => {
+  it("waits for committed session and member state before navigating after password sign-in", async () => {
     const session = { access_token: "token" };
     (supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({
       data: { session },
@@ -164,12 +182,17 @@ describe("AuthScreen", () => {
     mockSessionLoaded = true;
     view.rerender(<AuthScreen />);
 
+    expect(navigateAfterAuth).not.toHaveBeenCalled();
+
+    mockMemberLoaded = true;
+    view.rerender(<AuthScreen />);
+
     await waitFor(() => {
       expect(navigateAfterAuth).toHaveBeenCalled();
     });
   });
 
-  it("waits for committed session state before navigating after sign-up with immediate session", async () => {
+  it("waits for committed session and member state before navigating after sign-up with immediate session", async () => {
     const session = { access_token: "token" };
     (supabase.auth.signUp as jest.Mock).mockResolvedValue({
       data: { session },
@@ -202,12 +225,17 @@ describe("AuthScreen", () => {
     mockSessionLoaded = true;
     view.rerender(<AuthScreen />);
 
+    expect(navigateAfterAuth).not.toHaveBeenCalled();
+
+    mockMemberLoaded = true;
+    view.rerender(<AuthScreen />);
+
     await waitFor(() => {
       expect(navigateAfterAuth).toHaveBeenCalled();
     });
   });
 
-  it("waits for committed session state before navigating after Google sign-in", async () => {
+  it("waits for committed session and member state before navigating after Google sign-in", async () => {
     const session = { access_token: "token" };
     const { signInWithGoogle } = require("@/lib/oauth-google") as {
       signInWithGoogle: jest.Mock;
@@ -226,6 +254,11 @@ describe("AuthScreen", () => {
 
     mockSession = session;
     mockSessionLoaded = true;
+    view.rerender(<AuthScreen />);
+
+    expect(navigateAfterAuth).not.toHaveBeenCalled();
+
+    mockMemberLoaded = true;
     view.rerender(<AuthScreen />);
 
     await waitFor(() => {
