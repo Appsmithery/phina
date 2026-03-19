@@ -8,17 +8,123 @@ import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { trackEvent } from "@/lib/observability";
 import { getUpdateDiagnostics } from "@/lib/update-diagnostics";
+import { supabase } from "@/lib/supabase";
 
 type PostAuthGateProps = {
   source: "index" | "post-auth";
 };
 
+const POST_AUTH_SESSION_RECOVERY_DELAY_MS = 400;
+
 export function PostAuthGate({ source }: PostAuthGateProps) {
-  const { session, sessionLoaded, member, memberLoaded } = useSupabase();
+  const { session, sessionLoaded, member, memberLoaded, setSessionFromAuth } = useSupabase();
   const theme = useTheme();
   const [pendingJoinId, setPendingJoinId] = useState<string | null>(null);
   const [pendingJoinCheckDone, setPendingJoinCheckDone] = useState(false);
+  const [sessionRecoveryResolved, setSessionRecoveryResolved] = useState(source !== "post-auth");
   const lastTrackedDestinationRef = useRef<string | null>(null);
+  const recoveryStartedRef = useRef(false);
+
+  useEffect(() => {
+    const canRecoverSession = source === "post-auth";
+
+    if (!canRecoverSession) {
+      setSessionRecoveryResolved(true);
+      return;
+    }
+
+    if (!sessionLoaded) {
+      recoveryStartedRef.current = false;
+      setSessionRecoveryResolved(false);
+      return;
+    }
+
+    if (session) {
+      setSessionRecoveryResolved(true);
+      return;
+    }
+
+    if (recoveryStartedRef.current) {
+      return;
+    }
+
+    recoveryStartedRef.current = true;
+    setSessionRecoveryResolved(false);
+
+    const diagnostics = getUpdateDiagnostics();
+    let cancelled = false;
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    trackEvent("post_auth_session_recovery_started", {
+      source,
+      update_channel: diagnostics.channel,
+      update_id: diagnostics.updateId,
+      runtime_version: diagnostics.runtimeVersion,
+      embedded_launch: diagnostics.isEmbeddedLaunch,
+    });
+
+    const attemptRecovery = async (attempt: 1 | 2) => {
+      try {
+        const {
+          data: { session: recoveredSession },
+        } = await supabase.auth.getSession();
+
+        if (cancelled) {
+          return;
+        }
+
+        if (recoveredSession) {
+          trackEvent("post_auth_session_recovery_succeeded", {
+            source,
+            attempt,
+            update_channel: diagnostics.channel,
+            update_id: diagnostics.updateId,
+            runtime_version: diagnostics.runtimeVersion,
+            embedded_launch: diagnostics.isEmbeddedLaunch,
+          });
+          setSessionFromAuth(recoveredSession);
+          setSessionRecoveryResolved(true);
+          return;
+        }
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        if (__DEV__) {
+          console.warn("[post-auth] session recovery attempt failed", {
+            attempt,
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      if (attempt === 1) {
+        retryTimeout = setTimeout(() => {
+          void attemptRecovery(2);
+        }, POST_AUTH_SESSION_RECOVERY_DELAY_MS);
+        return;
+      }
+
+      trackEvent("post_auth_session_recovery_failed", {
+        source,
+        update_channel: diagnostics.channel,
+        update_id: diagnostics.updateId,
+        runtime_version: diagnostics.runtimeVersion,
+        embedded_launch: diagnostics.isEmbeddedLaunch,
+      });
+      setSessionRecoveryResolved(true);
+    };
+
+    void attemptRecovery(1);
+
+    return () => {
+      cancelled = true;
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
+      }
+    };
+  }, [session, sessionLoaded, setSessionFromAuth, source]);
 
   useEffect(() => {
     if (!sessionLoaded || !session || !memberLoaded) {
@@ -41,7 +147,15 @@ export function PostAuthGate({ source }: PostAuthGateProps) {
   }, [memberLoaded, session, sessionLoaded]);
 
   const destination = useMemo(() => {
-    if (!sessionLoaded || (session && !memberLoaded) || (session && !pendingJoinCheckDone)) {
+    if (!sessionLoaded) {
+      return null;
+    }
+
+    if (source === "post-auth" && !session && !sessionRecoveryResolved) {
+      return null;
+    }
+
+    if ((session && !memberLoaded) || (session && !pendingJoinCheckDone)) {
       return null;
     }
 
@@ -50,7 +164,7 @@ export function PostAuthGate({ source }: PostAuthGateProps) {
       member,
       pendingJoinId,
     });
-  }, [member, memberLoaded, pendingJoinCheckDone, pendingJoinId, session, sessionLoaded]);
+  }, [member, memberLoaded, pendingJoinCheckDone, pendingJoinId, session, sessionLoaded, sessionRecoveryResolved, source]);
 
   useEffect(() => {
     if (!pendingJoinId || destination !== "/onboarding") {
