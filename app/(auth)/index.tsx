@@ -33,7 +33,7 @@ const LOGO_MIN_SIDE = 384;
 const LOGO_WIDTH_RATIO = 0.9;
 
 type AuthMode = "sign-in" | "sign-up";
-type PendingNavigation = "sign-in" | "sign-up" | "google" | "apple" | null;
+
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -102,10 +102,9 @@ export default function AuthScreen() {
   const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
   const [confirmationStatus, setConfirmationStatus] = useState<string | null>(null);
   const [resendLoading, setResendLoading] = useState(false);
-  const [pendingNavigation, setPendingNavigation] = useState<PendingNavigation>(null);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const theme = useTheme();
-  const { session, sessionLoaded, setSessionFromAuth } = useSupabase();
+  const { setSessionFromAuth } = useSupabase();
 
   const logoSize = Math.max(
     LOGO_MIN_SIDE,
@@ -135,21 +134,6 @@ export default function AuthScreen() {
       active = false;
     };
   }, [initialParamEmail]);
-
-  useEffect(() => {
-    if (!pendingNavigation || !sessionLoaded || !session) {
-      return;
-    }
-
-    setPendingNavigation(null);
-    const frame = requestAnimationFrame(() => {
-      navigateAfterAuth();
-    });
-
-    return () => {
-      cancelAnimationFrame(frame);
-    };
-  }, [pendingNavigation, session, sessionLoaded]);
 
   const handleModeChange = (nextMode: AuthMode) => {
     setMode(nextMode);
@@ -206,9 +190,8 @@ export default function AuthScreen() {
         return;
       }
       setSessionFromAuth(data.session);
-      setPendingNavigation("sign-in");
+      navigateAfterAuth();
     } catch (e: unknown) {
-      setPendingNavigation(null);
       const message = e instanceof Error ? e.message : String(e);
       const code = e && typeof e === "object" && "code" in e ? String((e as { code: string }).code) : "";
       const is401 = message.includes("401") || message.toLowerCase().includes("unauthorized");
@@ -257,7 +240,7 @@ export default function AuthScreen() {
       if (data.session) {
         setConfirmationEmail(null);
         setSessionFromAuth(data.session);
-        setPendingNavigation("sign-up");
+        navigateAfterAuth();
         return;
       }
 
@@ -267,7 +250,6 @@ export default function AuthScreen() {
       setPassword("");
       setConfirmPassword("");
     } catch (e: unknown) {
-      setPendingNavigation(null);
       const message = e instanceof Error ? e.message : String(e);
       const code = e && typeof e === "object" && "code" in e ? String((e as { code: string }).code) : "";
       const is401 = message.includes("401") || message.toLowerCase().includes("unauthorized");
@@ -358,12 +340,11 @@ export default function AuthScreen() {
       const session = await signInWithGoogle();
       if (session) {
         setSessionFromAuth(session);
-        setPendingNavigation("google");
+        navigateAfterAuth();
       } else {
         setErrorHint("Google sign-in was cancelled or failed");
       }
     } catch (error) {
-      setPendingNavigation(null);
       console.error("[auth] Google sign-in error:", error);
       setErrorHint(error instanceof Error ? error.message : "Google sign-in failed");
     } finally {
@@ -378,12 +359,11 @@ export default function AuthScreen() {
       const session = await signInWithApple();
       if (session) {
         setSessionFromAuth(session);
-        setPendingNavigation("apple");
+        navigateAfterAuth();
       } else {
         setErrorHint("Apple sign-in was cancelled or failed");
       }
     } catch (error) {
-      setPendingNavigation(null);
       console.error("[auth] Apple sign-in error:", error);
       setErrorHint(error instanceof Error ? error.message : "Apple sign-in failed");
     } finally {

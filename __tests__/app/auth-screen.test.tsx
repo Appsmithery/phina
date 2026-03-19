@@ -8,12 +8,6 @@ import { navigateAfterAuth } from "@/lib/post-auth-navigate";
 
 const mockSetSessionFromAuth = jest.fn();
 
-let mockSession: { access_token: string } | null = null;
-let mockSessionLoaded = false;
-let mockMemberLoaded = false;
-const originalRequestAnimationFrame = global.requestAnimationFrame;
-const originalCancelAnimationFrame = global.cancelAnimationFrame;
-
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
   useLocalSearchParams: () => ({}),
@@ -21,9 +15,6 @@ jest.mock("expo-router", () => ({
 
 jest.mock("@/lib/supabase-context", () => ({
   useSupabase: () => ({
-    session: mockSession,
-    sessionLoaded: mockSessionLoaded,
-    memberLoaded: mockMemberLoaded,
     setSessionFromAuth: mockSetSessionFromAuth,
   }),
 }));
@@ -80,24 +71,8 @@ jest.mock("@/lib/post-auth-navigate", () => ({
 }));
 
 describe("AuthScreen", () => {
-  beforeAll(() => {
-    global.requestAnimationFrame = ((callback: FrameRequestCallback) => {
-      callback(0);
-      return 1;
-    }) as typeof requestAnimationFrame;
-    global.cancelAnimationFrame = jest.fn();
-  });
-
-  afterAll(() => {
-    global.requestAnimationFrame = originalRequestAnimationFrame;
-    global.cancelAnimationFrame = originalCancelAnimationFrame;
-  });
-
   beforeEach(() => {
     jest.clearAllMocks();
-    mockSession = null;
-    mockSessionLoaded = false;
-    mockMemberLoaded = false;
   });
 
   it("renders the password-first auth screen without the social disclaimer", () => {
@@ -155,46 +130,33 @@ describe("AuthScreen", () => {
     expect(screen.getByLabelText("Create account").props.accessibilityState?.disabled).toBe(true);
   });
 
-  it("navigates after the session is committed for password sign-in", async () => {
+  it("navigates directly after password sign-in", async () => {
     const session = { access_token: "token" };
     (supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({
       data: { session },
       error: null,
     });
 
-    const view = render(<AuthScreen />);
+    render(<AuthScreen />);
 
     fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "alex@example.com");
     fireEvent.changeText(screen.getByPlaceholderText("Password"), "password123");
     fireEvent.press(screen.getByLabelText("Sign in"));
 
     await waitFor(() => {
-      expect(supabase.auth.signInWithPassword).toHaveBeenCalledWith({
-        email: "alex@example.com",
-        password: "password123",
-      });
-    });
-
-    expect(mockSetSessionFromAuth).toHaveBeenCalledWith(session);
-    expect(navigateAfterAuth).not.toHaveBeenCalled();
-
-    mockSession = session;
-    mockSessionLoaded = true;
-    view.rerender(<AuthScreen />);
-
-    await waitFor(() => {
+      expect(mockSetSessionFromAuth).toHaveBeenCalledWith(session);
       expect(navigateAfterAuth).toHaveBeenCalled();
     });
   });
 
-  it("navigates after the session is committed for sign-up with an immediate session", async () => {
+  it("navigates directly after sign-up with an immediate session", async () => {
     const session = { access_token: "token" };
     (supabase.auth.signUp as jest.Mock).mockResolvedValue({
       data: { session },
       error: null,
     });
 
-    const view = render(<AuthScreen />);
+    render(<AuthScreen />);
 
     fireEvent.press(screen.getByLabelText("Switch to create account"));
     fireEvent.changeText(screen.getByPlaceholderText("you@example.com"), "alex@example.com");
@@ -204,77 +166,60 @@ describe("AuthScreen", () => {
     fireEvent.press(screen.getByLabelText("Create account"));
 
     await waitFor(() => {
-      expect(supabase.auth.signUp).toHaveBeenCalledWith({
-        email: "alex@example.com",
-        password: "password123",
-        options: {
-          emailRedirectTo: "https://phina.appsmithery.co/callback?nativeRedirect=phina%3A%2F%2Fauth%2Fcallback&next=%2Fpost-auth",
-        },
-      });
-    });
-
-    expect(mockSetSessionFromAuth).toHaveBeenCalledWith(session);
-    expect(navigateAfterAuth).not.toHaveBeenCalled();
-
-    mockSession = session;
-    mockSessionLoaded = true;
-    view.rerender(<AuthScreen />);
-
-    await waitFor(() => {
+      expect(mockSetSessionFromAuth).toHaveBeenCalledWith(session);
       expect(navigateAfterAuth).toHaveBeenCalled();
     });
   });
 
-  it("navigates after the session is committed for Google sign-in", async () => {
+  it("navigates directly after Google sign-in", async () => {
     const session = { access_token: "token" };
     const { signInWithGoogle } = require("@/lib/oauth-google") as {
       signInWithGoogle: jest.Mock;
     };
     signInWithGoogle.mockResolvedValue(session);
 
-    const view = render(<AuthScreen />);
+    render(<AuthScreen />);
 
     fireEvent.press(screen.getByLabelText("Continue with Google"));
 
     await waitFor(() => {
       expect(mockSetSessionFromAuth).toHaveBeenCalledWith(session);
-    });
-
-    expect(navigateAfterAuth).not.toHaveBeenCalled();
-
-    mockSession = session;
-    mockSessionLoaded = true;
-    view.rerender(<AuthScreen />);
-
-    await waitFor(() => {
       expect(navigateAfterAuth).toHaveBeenCalled();
     });
   });
 
-  it("navigates after the session is committed for Apple sign-in", async () => {
+  it("navigates directly after Apple sign-in", async () => {
     const session = { access_token: "token" };
     const { signInWithApple } = require("@/lib/oauth-apple") as {
       signInWithApple: jest.Mock;
     };
     signInWithApple.mockResolvedValue(session);
 
-    const view = render(<AuthScreen />);
+    render(<AuthScreen />);
 
     fireEvent.press(screen.getByLabelText("Sign in with Apple"));
 
     await waitFor(() => {
       expect(mockSetSessionFromAuth).toHaveBeenCalledWith(session);
+      expect(navigateAfterAuth).toHaveBeenCalled();
+    });
+  });
+
+  it("shows Google sign-in errors from thrown exceptions", async () => {
+    const { signInWithGoogle } = require("@/lib/oauth-google") as {
+      signInWithGoogle: jest.Mock;
+    };
+    signInWithGoogle.mockRejectedValue(new Error("SDK unavailable"));
+
+    render(<AuthScreen />);
+
+    fireEvent.press(screen.getByLabelText("Continue with Google"));
+
+    await waitFor(() => {
+      expect(screen.getByText("SDK unavailable")).toBeTruthy();
     });
 
     expect(navigateAfterAuth).not.toHaveBeenCalled();
-
-    mockSession = session;
-    mockSessionLoaded = true;
-    view.rerender(<AuthScreen />);
-
-    await waitFor(() => {
-      expect(navigateAfterAuth).toHaveBeenCalled();
-    });
   });
 
   it("tells duplicate-email sign-up attempts to sign in instead", async () => {

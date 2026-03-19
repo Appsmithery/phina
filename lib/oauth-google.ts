@@ -166,26 +166,21 @@ async function signInWithGoogleBrowser(): Promise<Session | null> {
  * - Expo Go and web use the browser fallback flow.
  */
 export async function signInWithGoogle(): Promise<Session | null> {
-  try {
-    if (Platform.OS !== "web" && !isRunningInExpoGo()) {
-      if (!isNativeGoogleAvailable()) {
-        throw new Error(
-          "Native Google Sign-In SDK is unavailable in this build. Rebuild the iOS dev client after confirming EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME is set for the Google Sign-In plugin."
-        );
-      }
-
-      if (__DEV__) console.log("[oauth-google] Using native Google Sign-In (dev/prod build)");
-      return await signInWithGoogleNative();
+  if (Platform.OS !== "web" && !isRunningInExpoGo()) {
+    if (!isNativeGoogleAvailable()) {
+      throw new Error(
+        "Native Google Sign-In SDK is unavailable in this build. Rebuild the iOS dev client after confirming EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME is set for the Google Sign-In plugin."
+      );
     }
 
-    if (!canUseBrowserFallback()) {
-      throw new Error("Google sign-in browser fallback is not available in this environment");
-    }
-
-    if (__DEV__) console.log("[oauth-google] Using browser fallback (Expo Go or web)");
-    return await signInWithGoogleBrowser();
-  } catch (error) {
-    if (__DEV__) console.error("[oauth-google] signInWithGoogle error:", error);
-    return null;
+    if (__DEV__) console.log("[oauth-google] Using native Google Sign-In (dev/prod build)");
+    return await signInWithGoogleNative();
   }
+
+  if (!canUseBrowserFallback()) {
+    throw new Error("Google sign-in browser fallback is not available in this environment");
+  }
+
+  if (__DEV__) console.log("[oauth-google] Using browser fallback (Expo Go or web)");
+  return await signInWithGoogleBrowser();
 }

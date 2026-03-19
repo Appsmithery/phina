@@ -35,8 +35,15 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const [memberLoaded, setMemberLoaded] = useState(false);
   const sessionRef = useRef<Session | null>(null);
   const resumeRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fetchInFlightRef = useRef<string | null>(null);
 
   const fetchMember = async (user: User) => {
+    const userId = user.id;
+    if (fetchInFlightRef.current === userId) {
+      logAuthTransition("fetchMember skipped (already in flight)", { userId });
+      return;
+    }
+    fetchInFlightRef.current = userId;
     setMemberLoaded(false);
     try {
       const { data, error } = await supabase
@@ -90,6 +97,9 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
         setMember(null);
       }
     } finally {
+      if (fetchInFlightRef.current === userId) {
+        fetchInFlightRef.current = null;
+      }
       setMemberLoaded(true);
     }
   };
