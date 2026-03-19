@@ -1,4 +1,4 @@
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from "react-native";
 import { useEffect, useState } from "react";
 import { Stack, router } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -15,7 +15,6 @@ import { useTheme } from "@/lib/theme";
 import { useBilling } from "@/hooks/use-billing";
 import { US_STATES, getStateLabel } from "@/lib/us-states";
 import { stripPhone, isValidPhone, formatPhone, isValidEmail } from "@/lib/validation";
-import { getUpdateDiagnostics, shouldShowPreviewUpdateDiagnostics } from "@/lib/update-diagnostics";
 import type { Database } from "@/types/database";
 
 function isMissingMembersColumnError(error: unknown, column: string): boolean {
@@ -65,8 +64,6 @@ export default function SettingsScreen() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
-  const updateDiagnostics = getUpdateDiagnostics();
-  const showUpdateDiagnostics = shouldShowPreviewUpdateDiagnostics();
 
   useEffect(() => {
     setFirstName(member?.first_name ?? "");
@@ -497,70 +494,20 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {showUpdateDiagnostics ? (
-          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Text style={[styles.cardTitle, { color: theme.text }]}>Preview Build Diagnostics</Text>
-            <Text style={[styles.supportBody, { color: theme.textSecondary }]}>
-              Use these values to confirm which OTA bundle this preview build is currently running.
-            </Text>
-            <View style={styles.diagnosticsList}>
-              <View style={styles.diagnosticsRow}>
-                <Text style={[styles.diagnosticsLabel, { color: theme.textSecondary }]}>Channel</Text>
-                <Text style={[styles.diagnosticsValue, { color: theme.text }]}>
-                  {updateDiagnostics.channel ?? "unknown"}
-                </Text>
-              </View>
-              <View style={styles.diagnosticsRow}>
-                <Text style={[styles.diagnosticsLabel, { color: theme.textSecondary }]}>Runtime</Text>
-                <Text style={[styles.diagnosticsValue, { color: theme.text }]}>
-                  {updateDiagnostics.runtimeVersion ?? "unknown"}
-                </Text>
-              </View>
-              <View style={styles.diagnosticsRow}>
-                <Text style={[styles.diagnosticsLabel, { color: theme.textSecondary }]}>Update ID</Text>
-                <Text
-                  style={[styles.diagnosticsValue, styles.diagnosticsMono, { color: theme.text }]}
-                  numberOfLines={2}
-                >
-                  {updateDiagnostics.updateId ?? "embedded"}
-                </Text>
-              </View>
-              <View style={styles.diagnosticsRow}>
-                <Text style={[styles.diagnosticsLabel, { color: theme.textSecondary }]}>Source</Text>
-                <Text style={[styles.diagnosticsValue, { color: theme.text }]}>
-                  {updateDiagnostics.isEmbeddedLaunch ? "Embedded bundle" : "OTA update"}
-                </Text>
-              </View>
-              <View style={styles.diagnosticsRow}>
-                <Text style={[styles.diagnosticsLabel, { color: theme.textSecondary }]}>Created</Text>
-                <Text
-                  style={[styles.diagnosticsValue, styles.diagnosticsMono, { color: theme.text }]}
-                  numberOfLines={2}
-                >
-                  {updateDiagnostics.createdAt ?? "unknown"}
-                </Text>
-              </View>
-            </View>
-          </View>
-        ) : null}
-
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.cardTitle, { color: theme.text }]}>Account</Text>
-          <Text style={[styles.supportBody, { color: theme.textSecondary }]}>
-            You can permanently delete your account and associated personal data from the app.
-          </Text>
           <TouchableOpacity
-            style={[styles.supportAction, { borderColor: "#B55A5A30", backgroundColor: theme.background }]}
+            style={[styles.accountAction, { borderColor: "#B55A5A26", backgroundColor: theme.background }]}
             onPress={() => router.push("/account/delete")}
           >
             <Ionicons name="trash-outline" size={18} color="#B55A5A" />
-            <Text style={[styles.supportActionText, { color: "#B55A5A" }]}>Delete account</Text>
+            <Text style={[styles.accountActionText, { color: "#B55A5A" }]}>Delete account</Text>
             <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={[styles.signOut, { borderColor: theme.border }]} onPress={signOut}>
-          <Text style={[styles.signOutText, { color: theme.textSecondary }]}>Sign out</Text>
+        <TouchableOpacity style={[styles.signOut, { backgroundColor: theme.primary }]} onPress={signOut}>
+          <Text style={styles.signOutText}>Sign out</Text>
         </TouchableOpacity>
         <View style={styles.legalRow}>
           <TouchableOpacity onPress={() => router.push("/privacy")}>
@@ -586,8 +533,8 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderRadius: 12, padding: 12, fontSize: 16, marginBottom: 16, fontFamily: "Montserrat_400Regular" },
   button: { borderRadius: 12, padding: 14, alignItems: "center" },
   buttonText: { color: "#fff", fontWeight: "600", fontFamily: "Montserrat_600SemiBold" },
-  signOut: { borderWidth: 1, borderRadius: 12, padding: 14, alignItems: "center" },
-  signOutText: { fontSize: 16, fontFamily: "Montserrat_400Regular" },
+  signOut: { borderRadius: 12, padding: 15, alignItems: "center", marginTop: 2 },
+  signOutText: { color: "#fff", fontSize: 16, fontFamily: "Montserrat_600SemiBold" },
   legalRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 16, gap: 8 },
   legalLink: { fontSize: 13, fontFamily: "Montserrat_400Regular" },
   legalDot: { fontSize: 13 },
@@ -616,9 +563,13 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   supportActionText: { flex: 1, fontSize: 15, fontFamily: "Montserrat_600SemiBold" },
-  diagnosticsList: { gap: 12 },
-  diagnosticsRow: { gap: 4 },
-  diagnosticsLabel: { fontSize: 12, fontFamily: "Montserrat_600SemiBold", textTransform: "uppercase" },
-  diagnosticsValue: { fontSize: 14, lineHeight: 20, fontFamily: "Montserrat_400Regular" },
-  diagnosticsMono: { fontFamily: Platform.select({ ios: "Courier", android: "monospace", default: "monospace" }) },
+  accountAction: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  accountActionText: { flex: 1, fontSize: 15, fontFamily: "Montserrat_600SemiBold" },
 });
