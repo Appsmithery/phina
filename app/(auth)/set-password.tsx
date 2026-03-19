@@ -17,6 +17,7 @@ import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
 import { navigateAfterAuth } from "@/lib/post-auth-navigate";
+import { POST_AUTH_ROUTE } from "@/lib/post-auth-route";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -197,7 +198,7 @@ export default function SetPasswordScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.linkButtonSecondary, { borderColor: theme.border }]}
-          onPress={() => router.replace("/")}
+          onPress={() => router.replace(POST_AUTH_ROUTE)}
           disabled={loading}
           accessibilityRole="button"
           accessibilityLabel="Go to app without changing password"

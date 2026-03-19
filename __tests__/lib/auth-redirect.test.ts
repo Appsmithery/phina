@@ -51,7 +51,7 @@ describe("auth redirect helpers", () => {
 
       const { getEmailConfirmationRedirectUrl } = require("@/lib/auth-redirect");
       expect(getEmailConfirmationRedirectUrl()).toBe(
-        "https://phina.appsmithery.co/callback?nativeRedirect=phina%3A%2F%2Fauth%2Fcallback&next=%2F"
+        "https://phina.appsmithery.co/callback?nativeRedirect=phina%3A%2F%2Fauth%2Fcallback&next=%2Fpost-auth"
       );
     });
   });

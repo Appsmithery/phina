@@ -40,7 +40,7 @@ jest.mock("@/lib/supabase", () => ({
 }));
 
 jest.mock("@/lib/auth-redirect", () => ({
-  getEmailConfirmationRedirectUrl: jest.fn(() => "https://phina.appsmithery.co/callback?nativeRedirect=phina%3A%2F%2Fauth%2Fcallback&next=%2F"),
+  getEmailConfirmationRedirectUrl: jest.fn(() => "https://phina.appsmithery.co/callback?nativeRedirect=phina%3A%2F%2Fauth%2Fcallback&next=%2Fpost-auth"),
   getPasswordResetRedirectUrl: jest.fn(() => "https://phina.appsmithery.co/callback?nativeRedirect=phina%3A%2F%2Fauth%2Fcallback&next=%2F%28auth%29%2Fset-password"),
   getRedirectUrl: jest.fn(() => "https://phina.appsmithery.co/callback?nativeRedirect=phina%3A%2F%2Fauth%2Fcallback&next=%2F%28auth%29%2Fset-password"),
 }));
@@ -155,7 +155,7 @@ describe("AuthScreen", () => {
     expect(screen.getByLabelText("Create account").props.accessibilityState?.disabled).toBe(true);
   });
 
-  it("waits for committed session and member state before navigating after password sign-in", async () => {
+  it("navigates after the session is committed for password sign-in", async () => {
     const session = { access_token: "token" };
     (supabase.auth.signInWithPassword as jest.Mock).mockResolvedValue({
       data: { session },
@@ -182,17 +182,12 @@ describe("AuthScreen", () => {
     mockSessionLoaded = true;
     view.rerender(<AuthScreen />);
 
-    expect(navigateAfterAuth).not.toHaveBeenCalled();
-
-    mockMemberLoaded = true;
-    view.rerender(<AuthScreen />);
-
     await waitFor(() => {
       expect(navigateAfterAuth).toHaveBeenCalled();
     });
   });
 
-  it("waits for committed session and member state before navigating after sign-up with immediate session", async () => {
+  it("navigates after the session is committed for sign-up with an immediate session", async () => {
     const session = { access_token: "token" };
     (supabase.auth.signUp as jest.Mock).mockResolvedValue({
       data: { session },
@@ -213,7 +208,7 @@ describe("AuthScreen", () => {
         email: "alex@example.com",
         password: "password123",
         options: {
-          emailRedirectTo: "https://phina.appsmithery.co/callback?nativeRedirect=phina%3A%2F%2Fauth%2Fcallback&next=%2F",
+          emailRedirectTo: "https://phina.appsmithery.co/callback?nativeRedirect=phina%3A%2F%2Fauth%2Fcallback&next=%2Fpost-auth",
         },
       });
     });
@@ -225,17 +220,12 @@ describe("AuthScreen", () => {
     mockSessionLoaded = true;
     view.rerender(<AuthScreen />);
 
-    expect(navigateAfterAuth).not.toHaveBeenCalled();
-
-    mockMemberLoaded = true;
-    view.rerender(<AuthScreen />);
-
     await waitFor(() => {
       expect(navigateAfterAuth).toHaveBeenCalled();
     });
   });
 
-  it("waits for committed session and member state before navigating after Google sign-in", async () => {
+  it("navigates after the session is committed for Google sign-in", async () => {
     const session = { access_token: "token" };
     const { signInWithGoogle } = require("@/lib/oauth-google") as {
       signInWithGoogle: jest.Mock;
@@ -256,9 +246,30 @@ describe("AuthScreen", () => {
     mockSessionLoaded = true;
     view.rerender(<AuthScreen />);
 
+    await waitFor(() => {
+      expect(navigateAfterAuth).toHaveBeenCalled();
+    });
+  });
+
+  it("navigates after the session is committed for Apple sign-in", async () => {
+    const session = { access_token: "token" };
+    const { signInWithApple } = require("@/lib/oauth-apple") as {
+      signInWithApple: jest.Mock;
+    };
+    signInWithApple.mockResolvedValue(session);
+
+    const view = render(<AuthScreen />);
+
+    fireEvent.press(screen.getByLabelText("Sign in with Apple"));
+
+    await waitFor(() => {
+      expect(mockSetSessionFromAuth).toHaveBeenCalledWith(session);
+    });
+
     expect(navigateAfterAuth).not.toHaveBeenCalled();
 
-    mockMemberLoaded = true;
+    mockSession = session;
+    mockSessionLoaded = true;
     view.rerender(<AuthScreen />);
 
     await waitFor(() => {
@@ -311,7 +322,7 @@ describe("AuthScreen", () => {
         email: "alex@example.com",
         password: "password123",
         options: {
-          emailRedirectTo: "https://phina.appsmithery.co/callback?nativeRedirect=phina%3A%2F%2Fauth%2Fcallback&next=%2F",
+          emailRedirectTo: "https://phina.appsmithery.co/callback?nativeRedirect=phina%3A%2F%2Fauth%2Fcallback&next=%2Fpost-auth",
         },
       });
     });
@@ -350,7 +361,7 @@ describe("AuthScreen", () => {
         type: "signup",
         email: "alex@example.com",
         options: {
-          emailRedirectTo: "https://phina.appsmithery.co/callback?nativeRedirect=phina%3A%2F%2Fauth%2Fcallback&next=%2F",
+          emailRedirectTo: "https://phina.appsmithery.co/callback?nativeRedirect=phina%3A%2F%2Fauth%2Fcallback&next=%2Fpost-auth",
         },
       });
     });

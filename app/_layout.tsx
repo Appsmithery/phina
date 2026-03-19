@@ -9,6 +9,7 @@ import { useFonts } from "expo-font";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SupabaseProvider, useSupabase } from "@/lib/supabase-context";
 import { createSessionFromUrl, getPostAuthRouteFromUrl, looksLikeAuthCallback } from "@/lib/auth-callback";
+import { POST_AUTH_ROUTE } from "@/lib/post-auth-route";
 import {
   PlayfairDisplay_600SemiBold,
   PlayfairDisplay_700Bold,
@@ -230,7 +231,7 @@ function SupabaseLayout() {
           const nextRoute = getPostAuthRouteFromUrl(url);
           console.log("[deep-link] ✅ Session created, navigating to root guard");
           setSessionFromAuth(session);
-          router.replace(nextRoute ?? "/");
+          router.replace(nextRoute ?? POST_AUTH_ROUTE);
         } else {
           console.error("[deep-link] ❌ createSessionFromUrl returned null");
         }
@@ -286,6 +287,7 @@ function SupabaseLayout() {
   return (
     <Stack screenOptions={headerOptions}>
       <Stack.Screen name="index" />
+      <Stack.Screen name="post-auth" options={{ headerShown: false }} />
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="join/[eventId]" />

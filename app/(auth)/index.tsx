@@ -105,7 +105,7 @@ export default function AuthScreen() {
   const [pendingNavigation, setPendingNavigation] = useState<PendingNavigation>(null);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const theme = useTheme();
-  const { session, sessionLoaded, memberLoaded, setSessionFromAuth } = useSupabase();
+  const { session, sessionLoaded, setSessionFromAuth } = useSupabase();
 
   const logoSize = Math.max(
     LOGO_MIN_SIDE,
@@ -137,7 +137,7 @@ export default function AuthScreen() {
   }, [initialParamEmail]);
 
   useEffect(() => {
-    if (!pendingNavigation || !sessionLoaded || !session || !memberLoaded) {
+    if (!pendingNavigation || !sessionLoaded || !session) {
       return;
     }
 
@@ -149,7 +149,7 @@ export default function AuthScreen() {
     return () => {
       cancelAnimationFrame(frame);
     };
-  }, [memberLoaded, pendingNavigation, session, sessionLoaded]);
+  }, [pendingNavigation, session, sessionLoaded]);
 
   const handleModeChange = (nextMode: AuthMode) => {
     setMode(nextMode);

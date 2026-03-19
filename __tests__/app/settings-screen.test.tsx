@@ -47,6 +47,18 @@ jest.mock("@/hooks/use-billing", () => ({
   useBilling: () => mockBillingState,
 }));
 
+jest.mock("@/lib/update-diagnostics", () => ({
+  getUpdateDiagnostics: () => ({
+    channel: "preview",
+    runtimeVersion: "1.0.0",
+    updateId: "update-123",
+    createdAt: "2026-03-18T17:00:00.000Z",
+    isEmbeddedLaunch: false,
+    isEnabled: true,
+  }),
+  shouldShowPreviewUpdateDiagnostics: () => true,
+}));
+
 jest.mock("@/lib/theme", () => ({
   useTheme: () => ({
     background: "#F2EFE9",
@@ -123,5 +135,8 @@ describe("SettingsScreen", () => {
       )
     ).toBeTruthy();
     expect(screen.queryByText("RevenueCat is not configured for this iOS build.")).toBeNull();
+    expect(screen.getByText("Preview Build Diagnostics")).toBeTruthy();
+    expect(screen.getByText("update-123")).toBeTruthy();
+    expect(screen.getByText("OTA update")).toBeTruthy();
   });
 });

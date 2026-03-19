@@ -5,6 +5,7 @@ import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { buildNativeMagicLinkHandoffUrl, createSessionFromUrl } from "@/lib/auth-callback";
 import { captureError } from "@/lib/observability";
+import { POST_AUTH_ROUTE } from "@/lib/post-auth-route";
 
 /**
  * Auth callback route for web.
@@ -64,7 +65,7 @@ export default function CallbackScreen() {
 
   function safeNavigate(retries = 20, delay = 150) {
     try {
-      router.replace("/");
+      router.replace(POST_AUTH_ROUTE);
     } catch (e) {
       if (retries > 0) {
         setTimeout(() => safeNavigate(retries - 1, delay), delay);

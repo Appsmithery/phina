@@ -15,6 +15,7 @@ import { useTheme } from "@/lib/theme";
 import { useBilling } from "@/hooks/use-billing";
 import { US_STATES, getStateLabel } from "@/lib/us-states";
 import { stripPhone, isValidPhone, formatPhone, isValidEmail } from "@/lib/validation";
+import { getUpdateDiagnostics, shouldShowPreviewUpdateDiagnostics } from "@/lib/update-diagnostics";
 import type { Database } from "@/types/database";
 
 function isMissingMembersColumnError(error: unknown, column: string): boolean {
@@ -64,6 +65,8 @@ export default function SettingsScreen() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
+  const updateDiagnostics = getUpdateDiagnostics();
+  const showUpdateDiagnostics = shouldShowPreviewUpdateDiagnostics();
 
   useEffect(() => {
     setFirstName(member?.first_name ?? "");
@@ -494,6 +497,53 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {showUpdateDiagnostics ? (
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Text style={[styles.cardTitle, { color: theme.text }]}>Preview Build Diagnostics</Text>
+            <Text style={[styles.supportBody, { color: theme.textSecondary }]}>
+              Use these values to confirm which OTA bundle this preview build is currently running.
+            </Text>
+            <View style={styles.diagnosticsList}>
+              <View style={styles.diagnosticsRow}>
+                <Text style={[styles.diagnosticsLabel, { color: theme.textSecondary }]}>Channel</Text>
+                <Text style={[styles.diagnosticsValue, { color: theme.text }]}>
+                  {updateDiagnostics.channel ?? "unknown"}
+                </Text>
+              </View>
+              <View style={styles.diagnosticsRow}>
+                <Text style={[styles.diagnosticsLabel, { color: theme.textSecondary }]}>Runtime</Text>
+                <Text style={[styles.diagnosticsValue, { color: theme.text }]}>
+                  {updateDiagnostics.runtimeVersion ?? "unknown"}
+                </Text>
+              </View>
+              <View style={styles.diagnosticsRow}>
+                <Text style={[styles.diagnosticsLabel, { color: theme.textSecondary }]}>Update ID</Text>
+                <Text
+                  style={[styles.diagnosticsValue, styles.diagnosticsMono, { color: theme.text }]}
+                  numberOfLines={2}
+                >
+                  {updateDiagnostics.updateId ?? "embedded"}
+                </Text>
+              </View>
+              <View style={styles.diagnosticsRow}>
+                <Text style={[styles.diagnosticsLabel, { color: theme.textSecondary }]}>Source</Text>
+                <Text style={[styles.diagnosticsValue, { color: theme.text }]}>
+                  {updateDiagnostics.isEmbeddedLaunch ? "Embedded bundle" : "OTA update"}
+                </Text>
+              </View>
+              <View style={styles.diagnosticsRow}>
+                <Text style={[styles.diagnosticsLabel, { color: theme.textSecondary }]}>Created</Text>
+                <Text
+                  style={[styles.diagnosticsValue, styles.diagnosticsMono, { color: theme.text }]}
+                  numberOfLines={2}
+                >
+                  {updateDiagnostics.createdAt ?? "unknown"}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
+
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.cardTitle, { color: theme.text }]}>Account</Text>
           <Text style={[styles.supportBody, { color: theme.textSecondary }]}>
@@ -566,4 +616,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   supportActionText: { flex: 1, fontSize: 15, fontFamily: "Montserrat_600SemiBold" },
+  diagnosticsList: { gap: 12 },
+  diagnosticsRow: { gap: 4 },
+  diagnosticsLabel: { fontSize: 12, fontFamily: "Montserrat_600SemiBold", textTransform: "uppercase" },
+  diagnosticsValue: { fontSize: 14, lineHeight: 20, fontFamily: "Montserrat_400Regular" },
+  diagnosticsMono: { fontFamily: Platform.select({ ios: "Courier", android: "monospace", default: "monospace" }) },
 });

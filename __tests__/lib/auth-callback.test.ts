@@ -16,6 +16,7 @@ import {
   getPostAuthRouteFromUrl,
   looksLikeAuthCallback,
 } from "@/lib/auth-callback";
+import { POST_AUTH_ROUTE } from "@/lib/post-auth-route";
 import { supabase } from "@/lib/supabase";
 
 describe("auth callback helpers", () => {
@@ -45,7 +46,7 @@ describe("auth callback helpers", () => {
     expect(handoffUrl.hash).toBe("#access_token=token&refresh_token=refresh");
   });
 
-  it("builds a native handoff URL for confirmation callbacks that return to the app root", () => {
+  it("builds a native handoff URL for confirmation callbacks that normalize the root route", () => {
     const currentUrl = new URL(
       `https://phina.appsmithery.co/callback?nativeRedirect=${encodeURIComponent(NATIVE_MAGIC_LINK_REDIRECT_URL)}&next=${encodeURIComponent("/")}&token_hash=token-hash&type=email`
     );
@@ -54,7 +55,7 @@ describe("auth callback helpers", () => {
     expect(handoffUrl.toString()).toContain("phina://auth/callback");
     expect(handoffUrl.searchParams.get("token_hash")).toBe("token-hash");
     expect(handoffUrl.searchParams.get("type")).toBe("email");
-    expect(handoffUrl.searchParams.get("next")).toBe("/");
+    expect(handoffUrl.searchParams.get("next")).toBe(POST_AUTH_ROUTE);
   });
 
   it("rejects invalid native redirect targets", () => {
@@ -69,6 +70,7 @@ describe("auth callback helpers", () => {
         `phina://auth/callback?code=test-code&next=${encodeURIComponent(NATIVE_MAGIC_LINK_NEXT_ROUTE)}`
       )
     ).toBe(NATIVE_MAGIC_LINK_NEXT_ROUTE);
+    expect(getPostAuthRouteFromUrl("phina://auth/callback?code=test-code&next=%2F")).toBe(POST_AUTH_ROUTE);
     expect(getPostAuthRouteFromUrl("phina://auth/callback?code=test-code&next=https://example.com")).toBeNull();
   });
 

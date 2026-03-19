@@ -1,4 +1,5 @@
 import type { Session } from "@supabase/supabase-js";
+import { normalizeSafePostAuthRoute } from "./post-auth-route";
 
 export const NATIVE_MAGIC_LINK_REDIRECT_URL = "phina://auth/callback";
 export const NATIVE_MAGIC_LINK_NEXT_ROUTE = "/(auth)/set-password";
@@ -31,10 +32,6 @@ function getUrlSearchParams(url: URL): URLSearchParams {
     merged.set(key, value);
   });
   return merged;
-}
-
-function isSafeInternalRoute(route: string | null): route is string {
-  return !!route && route.startsWith("/") && !route.startsWith("//");
 }
 
 function getEmailOtpType(params: URLSearchParams): EmailOtpType | null {
@@ -72,8 +69,7 @@ export function looksLikeAuthCallback(url: string): boolean {
 export function getPostAuthRouteFromUrl(url: string): string | null {
   try {
     const urlObj = new URL(url);
-    const next = urlObj.searchParams.get("next");
-    return isSafeInternalRoute(next) ? next : null;
+    return normalizeSafePostAuthRoute(urlObj.searchParams.get("next"));
   } catch {
     return null;
   }
@@ -91,7 +87,7 @@ export function buildNativeMagicLinkHandoffUrl(currentUrl: URL, nativeRedirect: 
   const code = currentParams.get("code");
   const tokenHash = currentParams.get("token_hash");
   const type = getEmailOtpType(currentParams);
-  const next = currentUrl.searchParams.get("next");
+  const next = normalizeSafePostAuthRoute(currentUrl.searchParams.get("next"));
 
   if (accessToken && refreshToken) {
     targetUrl.hash = currentUrl.hash;
@@ -102,7 +98,7 @@ export function buildNativeMagicLinkHandoffUrl(currentUrl: URL, nativeRedirect: 
     targetUrl.searchParams.set("type", type);
   }
 
-  if (isSafeInternalRoute(next)) {
+  if (next) {
     targetUrl.searchParams.set("next", next);
   }
 

@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import { NATIVE_MAGIC_LINK_NEXT_ROUTE, NATIVE_MAGIC_LINK_REDIRECT_URL } from "./auth-callback";
+import { POST_AUTH_ROUTE } from "./post-auth-route";
 
 function getAppUrl(): string {
   return (process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co").replace(/\/+$/, "");
@@ -31,7 +32,7 @@ export function getEmailConfirmationRedirectUrl(): string {
 
   const params = new URLSearchParams({
     nativeRedirect: NATIVE_MAGIC_LINK_REDIRECT_URL,
-    next: "/",
+    next: POST_AUTH_ROUTE,
   });
   return `${appUrl}/callback?${params.toString()}`;
 }
