@@ -15,15 +15,13 @@ import {
   formatEventDateLong,
   formatEventTimeRange,
 } from "@/lib/event-scheduling";
+import { getEventInviteDetails } from "@/lib/event-invite";
 import { useBilling } from "@/hooks/use-billing";
 import { PAGE_HORIZONTAL_PADDING } from "@/lib/layout";
 import { trackEvent } from "@/lib/observability";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
-
-const APP_BASE_URL =
-  process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co";
 
 export default function CreateEventScreen() {
   const { session } = useSupabase();
@@ -64,12 +62,17 @@ export default function CreateEventScreen() {
       | "defaultRatingWindowMinutes"
     >,
   ) => {
-    const joinUrl = `${APP_BASE_URL}/join/${eventId}`;
-    const shareMessage = `I'm using Phina for our wine tasting on ${formatEventDateLong(values.startsAt, values.timezone)} from ${formatEventTimeRange(values.startsAt, values.endsAt, values.timezone)}. Rating rounds close automatically after ${values.defaultRatingWindowMinutes} minutes. Set up your account before the event so you're ready to rate: ${joinUrl}`;
+    const inviteDetails = getEventInviteDetails(eventId);
+    const joinUrl = inviteDetails.url;
+    const shareMessage = inviteDetails.isPreviewNativeInvite
+      ? `I'm using Phina for our wine tasting on ${formatEventDateLong(values.startsAt, values.timezone)} from ${formatEventTimeRange(values.startsAt, values.endsAt, values.timezone)}. Rating rounds close automatically after ${values.defaultRatingWindowMinutes} minutes. Open this in the installed Phina preview app to join: ${joinUrl}`
+      : `I'm using Phina for our wine tasting on ${formatEventDateLong(values.startsAt, values.timezone)} from ${formatEventTimeRange(values.startsAt, values.endsAt, values.timezone)}. Rating rounds close automatically after ${values.defaultRatingWindowMinutes} minutes. Set up your account before the event so you're ready to rate: ${joinUrl}`;
 
     showAlert(
       "Share event link",
-      `Post this in your event page or ticketing site so guests can set up before the tasting. This event will end automatically at ${formatEventTimeRange(values.startsAt, values.endsAt, values.timezone).split("-")[1]}.`,
+      inviteDetails.isPreviewNativeInvite
+        ? `Share this with preview testers who already have the Phina preview app installed. This event will end automatically at ${formatEventTimeRange(values.startsAt, values.endsAt, values.timezone).split("-")[1]}.`
+        : `Post this in your event page or ticketing site so guests can set up before the tasting. This event will end automatically at ${formatEventTimeRange(values.startsAt, values.endsAt, values.timezone).split("-")[1]}.`,
       [
         {
           text: "Copy Message",
@@ -91,7 +94,9 @@ export default function CreateEventScreen() {
             showAlert(
               copied ? "Copied" : "Copy failed",
               copied
-                ? "Message copied to clipboard. Paste it into your event page or ticketing site."
+                ? inviteDetails.isPreviewNativeInvite
+                  ? "Preview invite copied. Share it with testers who have the Phina preview app installed."
+                  : "Message copied to clipboard. Paste it into your event page or ticketing site."
                 : "We could not copy the message automatically. You can still share your join link from the event page.",
             );
             router.replace(`/event/${eventId}`);

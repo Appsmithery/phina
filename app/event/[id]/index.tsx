@@ -29,6 +29,7 @@ import {
   useStartRatingRound,
 } from "@/hooks/use-event-actions";
 import { getScreenBottomPadding } from "@/lib/layout";
+import { getEventInviteDetails } from "@/lib/event-invite";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
@@ -226,8 +227,7 @@ export default function EventDetailScreen() {
   const canSeeMetrics = isHost || member?.is_admin;
   const canDeleteEvent = isHost || member?.is_admin;
   const endEventMutation = useEndEvent(id!);
-  const appBaseUrl =
-    process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co";
+  const inviteDetails = getEventInviteDetails(id);
 
   const handleBackPress = () => {
     if (router.canGoBack()) {
@@ -238,8 +238,10 @@ export default function EventDetailScreen() {
   };
 
   const handleShareInvite = async () => {
-    const joinUrl = `${appBaseUrl}/join/${id}`;
-    const message = `Join my wine tasting event: ${joinUrl}`;
+    const joinUrl = inviteDetails.url;
+    const message = inviteDetails.isPreviewNativeInvite
+      ? `Join my wine tasting event in the installed Phina preview app: ${joinUrl}`
+      : `Join my wine tasting event: ${joinUrl}`;
 
     try {
       if (Platform.OS === "web") {
@@ -252,7 +254,9 @@ export default function EventDetailScreen() {
           await navigator.clipboard.writeText(joinUrl);
           showAlert(
             "Link copied",
-            "The invite link has been copied to your clipboard.",
+            inviteDetails.isPreviewNativeInvite
+              ? "The preview invite link has been copied. It works with the installed Phina preview app."
+              : "The invite link has been copied to your clipboard.",
           );
         } else {
           window.prompt("Copy the invite link:", joinUrl);
@@ -260,7 +264,7 @@ export default function EventDetailScreen() {
       } else {
         await Share.share(
           Platform.OS === "ios"
-            ? { url: joinUrl, message: "Join my wine tasting event" }
+            ? { url: joinUrl, message }
             : { message },
         );
       }
@@ -602,9 +606,11 @@ export default function EventDetailScreen() {
             { backgroundColor: theme.surface, borderColor: theme.border },
           ]}
         >
-          <QRCode value={`${appBaseUrl}/join/${id}`} size={220} />
+          <QRCode value={inviteDetails.url} size={220} />
           <Text style={[styles.qrHint, { color: theme.textMuted }]}>
-            Members scan this code at the venue to join.
+            {inviteDetails.isPreviewNativeInvite
+              ? "Works with the installed Phina preview app."
+              : "Members scan this code at the venue to join."}
           </Text>
         </View>
       ) : null}

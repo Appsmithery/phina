@@ -1,5 +1,7 @@
 import React from "react";
-import { render } from "@testing-library/react-native";
+import { fireEvent, render } from "@testing-library/react-native";
+import { Share } from "react-native";
+import * as Updates from "expo-updates";
 import EventDetailScreen from "@/app/event/[id]/index";
 
 const mockBack = jest.fn();
@@ -7,6 +9,7 @@ const mockReplace = jest.fn();
 const mockCanGoBack = jest.fn(() => false);
 const mockStackScreen = jest.fn((_props?: unknown) => null);
 const mockInvalidateQueries = jest.fn();
+const mockQrCode = jest.fn((_props?: unknown) => null);
 
 jest.mock("expo-router", () => ({
   Stack: {
@@ -31,7 +34,17 @@ jest.mock("@expo/vector-icons", () => {
   return { Ionicons: Icon };
 });
 
-jest.mock("react-native-qrcode-svg", () => "QRCode");
+jest.mock("expo-updates", () => ({
+  channel: "preview",
+}));
+
+jest.mock("react-native-qrcode-svg", () => ({
+  __esModule: true,
+  default: (props: unknown) => {
+    mockQrCode(props);
+    return null;
+  },
+}));
 
 jest.mock("@/components/EventHeroImage", () => ({
   EventHeroImage: () => null,
@@ -135,12 +148,19 @@ jest.mock("@tanstack/react-query", () => ({
 
 describe("EventDetailScreen", () => {
   beforeEach(() => {
+    (Updates as { channel: string | null }).channel = "preview";
     mockBack.mockReset();
     mockReplace.mockReset();
     mockCanGoBack.mockReset();
     mockCanGoBack.mockReturnValue(false);
     mockStackScreen.mockClear();
     mockInvalidateQueries.mockReset();
+    mockQrCode.mockReset();
+    jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it("falls back to the events tab when no back history exists", () => {
@@ -155,5 +175,46 @@ describe("EventDetailScreen", () => {
 
     expect(mockReplace).toHaveBeenCalledWith("/(tabs)");
     expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  it("uses the preview native invite URL for QR and sharing", () => {
+    const { getByText } = render(<EventDetailScreen />);
+
+    fireEvent.press(getByText("QR code"));
+
+    expect(mockQrCode).toHaveBeenCalledWith(
+      expect.objectContaining({ value: "phina://join/event-1" }),
+    );
+    expect(getByText("Works with the installed Phina preview app.")).toBeTruthy();
+
+    fireEvent.press(getByText("Share"));
+
+    expect(Share.share).toHaveBeenCalledWith({
+      url: "phina://join/event-1",
+      message:
+        "Join my wine tasting event in the installed Phina preview app: phina://join/event-1",
+    });
+  });
+
+  it("uses the public https invite URL on production", () => {
+    (Updates as { channel: string | null }).channel = "production";
+
+    const { getByText } = render(<EventDetailScreen />);
+
+    fireEvent.press(getByText("QR code"));
+
+    expect(mockQrCode).toHaveBeenCalledWith(
+      expect.objectContaining({
+        value: "https://phina.appsmithery.co/join/event-1",
+      }),
+    );
+
+    fireEvent.press(getByText("Share"));
+
+    expect(Share.share).toHaveBeenCalledWith({
+      url: "https://phina.appsmithery.co/join/event-1",
+      message:
+        "Join my wine tasting event: https://phina.appsmithery.co/join/event-1",
+    });
   });
 });

@@ -1,15 +1,17 @@
 import { useLocalSearchParams } from "expo-router";
 import { View, Text, StyleSheet } from "react-native";
 import QRCode from "react-native-qrcode-svg";
+import { getEventInviteDetails } from "@/lib/event-invite";
 import { useTheme } from "@/lib/theme";
-
-const APP_BASE_URL = process.env.EXPO_PUBLIC_APP_URL ?? "https://phina.appsmithery.co";
 
 export default function EventQRScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
 
-  const joinUrl = id ? `${APP_BASE_URL}/join/${id}` : "";
+  const inviteDetails = id
+    ? getEventInviteDetails(id)
+    : { url: "", isPreviewNativeInvite: false };
+  const joinUrl = inviteDetails.url;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -22,7 +24,9 @@ export default function EventQRScreen() {
           </View>
         ) : null}
         <Text style={[styles.hint, { color: theme.textMuted }]}>
-          Members scan this QR code at the venue to join the event.
+          {inviteDetails.isPreviewNativeInvite
+            ? "Works with the installed Phina preview app."
+            : "Members scan this QR code at the venue to join the event."}
         </Text>
       </View>
     </View>
