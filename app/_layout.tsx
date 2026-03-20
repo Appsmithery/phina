@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SupabaseProvider, useSupabase } from "@/lib/supabase-context";
 import { createSessionFromUrl, getPostAuthRouteFromUrl, looksLikeAuthCallback } from "@/lib/auth-callback";
 import { POST_AUTH_ROUTE } from "@/lib/post-auth-route";
+import { runBlockingStartupUpdate, shouldBlockOnStartupUpdate, STARTUP_UPDATE_TIMEOUT_MS } from "@/lib/startup-update";
 import {
   PlayfairDisplay_600SemiBold,
   PlayfairDisplay_700Bold,
@@ -136,7 +137,7 @@ function useRouteScreenTracking() {
   }, [lastTrackedScreen, params, pathname]);
 }
 
-function RootLayout() {
+export function RootLayout() {
   const posthogClient = getPostHogClient();
 
   const content = (
@@ -164,9 +165,12 @@ function RootLayout() {
   );
 }
 
-function SupabaseLayout() {
+export function SupabaseLayout() {
   const { sessionLoaded, setSessionFromAuth } = useSupabase();
   const [splashTimedOut, setSplashTimedOut] = useState(false);
+  const [startupUpdateResolved, setStartupUpdateResolved] = useState(
+    !shouldBlockOnStartupUpdate(),
+  );
   const [fontsLoaded, fontError] = useFonts({
     PlayfairDisplay_600SemiBold,
     PlayfairDisplay_700Bold,
@@ -175,8 +179,32 @@ function SupabaseLayout() {
     Montserrat_400Regular,
     Montserrat_600SemiBold,
   });
+  const shouldBlockStartupUpdate = shouldBlockOnStartupUpdate();
 
   useRouteScreenTracking();
+
+  useEffect(() => {
+    let active = true;
+
+    if (!shouldBlockStartupUpdate) {
+      setStartupUpdateResolved(true);
+      return () => {
+        active = false;
+      };
+    }
+
+    setStartupUpdateResolved(false);
+
+    void runBlockingStartupUpdate(STARTUP_UPDATE_TIMEOUT_MS).finally(() => {
+      if (active) {
+        setStartupUpdateResolved(true);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [shouldBlockStartupUpdate]);
 
   useEffect(() => {
     if (Platform.OS !== "android") return;
@@ -263,16 +291,22 @@ function SupabaseLayout() {
   }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => setSplashTimedOut(true), SPLASH_TIMEOUT_MS);
+    const timeoutMs = shouldBlockStartupUpdate
+      ? STARTUP_UPDATE_TIMEOUT_MS
+      : SPLASH_TIMEOUT_MS;
+    const t = setTimeout(() => setSplashTimedOut(true), timeoutMs);
     return () => clearTimeout(t);
-  }, []);
+  }, [shouldBlockStartupUpdate]);
 
   useEffect(() => {
-    const ready = sessionLoaded && (fontsLoaded || fontError);
+    const ready =
+      sessionLoaded &&
+      (fontsLoaded || fontError) &&
+      startupUpdateResolved;
     if (ready || splashTimedOut) {
       SplashScreen.hideAsync();
     }
-  }, [sessionLoaded, fontsLoaded, fontError, splashTimedOut]);
+  }, [sessionLoaded, fontsLoaded, fontError, splashTimedOut, startupUpdateResolved]);
 
   // Blank headers matching page body so content isn't cut off; indistinguishable from body.
   const headerOptions = {
