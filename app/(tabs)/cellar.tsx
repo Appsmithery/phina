@@ -208,7 +208,7 @@ export default function CellarScreen() {
   const handleRestorePurchases = async () => {
     try {
       await restorePurchases();
-      showAlert("Purchases restored", "Your Apple purchases have been refreshed.");
+      showAlert("Purchases restored", "Your store purchases have been refreshed.");
     } catch (error) {
       showAlert("Restore failed", error instanceof Error ? error.message : "Could not restore purchases.");
     }

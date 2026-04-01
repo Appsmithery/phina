@@ -190,7 +190,7 @@ export default function CreateEventScreen() {
       await restorePurchases();
       showAlert(
         "Purchases restored",
-        "Your Apple purchases have been refreshed.",
+        "Your store purchases have been refreshed.",
       );
     } catch (error) {
       showAlert(

@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { BillingCard } from "@/components/BillingCard";
 import { showAlert } from "@/lib/alert";
 import { getUserFacingNativeBillingGuidance } from "@/lib/billing";
+import { isNativePurchasesPlatform } from "@/lib/billing-config";
 import { formatBirthday, formatBirthdayForStorage, getAge, parseDateOnly } from "@/lib/birthday";
 import { BirthdayPickerField } from "@/components/BirthdayPickerField";
 import { PAGE_HORIZONTAL_PADDING, getScreenBottomPadding } from "@/lib/layout";
@@ -219,20 +220,21 @@ export default function SettingsScreen() {
   const handleRestorePurchases = async () => {
     try {
       await restorePurchases();
-      showAlert("Purchases restored", "Your Apple purchases have been refreshed.");
+      showAlert("Purchases restored", "Your store purchases have been refreshed.");
     } catch (error) {
       showAlert("Restore failed", error instanceof Error ? error.message : "Could not restore purchases.");
     }
   };
 
+  const isNativeBilling = isNativePurchasesPlatform(Platform.OS);
   const premiumDetail =
     hasAdminBillingBypass
       ? "This admin account can access premium cellar features and host flows without paid entitlements."
-      : `Event participation stays free. Premium only gates the personal cellar experience.${unsupportedReason && Platform.OS === "ios" && !nativePurchasesAvailable ? ` ${getUserFacingNativeBillingGuidance(unsupportedReason)}` : ""}`;
+      : `Event participation stays free. Premium only gates the personal cellar experience.${unsupportedReason && isNativeBilling && !nativePurchasesAvailable ? ` ${getUserFacingNativeBillingGuidance(unsupportedReason)}` : ""}`;
   const hostCreditDetail =
     hasAdminBillingBypass
       ? "Admin-hosted events do not consume host credits on this account."
-      : `Hosts do not need the monthly premium plan in v1.${unsupportedReason && Platform.OS === "ios" && !nativePurchasesAvailable ? ` ${getUserFacingNativeBillingGuidance(unsupportedReason)}` : ""}`;
+      : `Hosts do not need the monthly premium plan in v1.${unsupportedReason && isNativeBilling && !nativePurchasesAvailable ? ` ${getUserFacingNativeBillingGuidance(unsupportedReason)}` : ""}`;
   const premiumMarketingTitle =
     premiumDisplayPriceWithPeriod
       ? `${premiumDisplayName ?? "Premium Monthly"} · ${premiumDisplayPriceWithPeriod}`
@@ -263,11 +265,11 @@ export default function SettingsScreen() {
             primaryLabel={
               hasAdminBillingBypass || effectivePremiumActive
                 ? "Open Cellar"
-                : Platform.OS === "ios" && !nativePurchasesAvailable
-                ? "Use iOS Dev Build"
+                : isNativeBilling && !nativePurchasesAvailable
+                ? "Use Native Build"
                 : isPurchasingPremium
                 ? "Opening checkout..."
-                : Platform.OS === "ios"
+                : isNativeBilling
                 ? "Start Premium"
                 : "Subscribe with Stripe"
             }
@@ -288,13 +290,13 @@ export default function SettingsScreen() {
                     void handlePurchasePremium();
                   }
             }
-            primaryDisabled={!(hasAdminBillingBypass || effectivePremiumActive) && (isPurchasingPremium || billingLoading || (Platform.OS === "ios" && !nativePurchasesAvailable))}
-            secondaryLabel={!hasAdminBillingBypass && Platform.OS === "ios" && nativePurchasesAvailable ? (isRestoringPurchases ? "Restoring..." : "Restore") : undefined}
-            onSecondaryPress={!hasAdminBillingBypass && Platform.OS === "ios" && nativePurchasesAvailable ? () => {
+            primaryDisabled={!(hasAdminBillingBypass || effectivePremiumActive) && (isPurchasingPremium || billingLoading || (isNativeBilling && !nativePurchasesAvailable))}
+            secondaryLabel={!hasAdminBillingBypass && isNativeBilling && nativePurchasesAvailable ? (isRestoringPurchases ? "Restoring..." : "Restore") : undefined}
+            onSecondaryPress={!hasAdminBillingBypass && isNativeBilling && nativePurchasesAvailable ? () => {
               void handleRestorePurchases();
             } : undefined}
-            secondaryDisabled={!hasAdminBillingBypass && Platform.OS === "ios" && nativePurchasesAvailable ? isRestoringPurchases : undefined}
-            secondaryAccessibilityLabel={!hasAdminBillingBypass && Platform.OS === "ios" && nativePurchasesAvailable ? "Restore premium purchases" : undefined}
+            secondaryDisabled={!hasAdminBillingBypass && isNativeBilling && nativePurchasesAvailable ? isRestoringPurchases : undefined}
+            secondaryAccessibilityLabel={!hasAdminBillingBypass && isNativeBilling && nativePurchasesAvailable ? "Restore premium purchases" : undefined}
           />
 
           <BillingCard
@@ -310,11 +312,11 @@ export default function SettingsScreen() {
             primaryLabel={
               hasAdminBillingBypass || effectiveHostingAccess
                 ? "Host an event"
-                : Platform.OS === "ios" && !nativePurchasesAvailable
-                ? "Use iOS Dev Build"
+                : isNativeBilling && !nativePurchasesAvailable
+                ? "Use Native Build"
                 : isPurchasingHostCredit
                 ? "Opening checkout..."
-                : Platform.OS === "ios"
+                : isNativeBilling
                 ? `Buy credit for ${hostCreditDisplayPrice ?? "$10"}`
                 : "Checkout with Stripe"
             }
@@ -335,7 +337,7 @@ export default function SettingsScreen() {
               }
               void handlePurchaseHostCredit();
             }}
-            primaryDisabled={!(hasAdminBillingBypass || effectiveHostingAccess) && (isPurchasingHostCredit || billingLoading || (Platform.OS === "ios" && !nativePurchasesAvailable))}
+            primaryDisabled={!(hasAdminBillingBypass || effectiveHostingAccess) && (isPurchasingHostCredit || billingLoading || (isNativeBilling && !nativePurchasesAvailable))}
             secondaryLabel={!hasAdminBillingBypass && hostCreditBalance > 0 ? "Host an event" : undefined}
             onSecondaryPress={!hasAdminBillingBypass && hostCreditBalance > 0 ? () => router.push("/event/create") : undefined}
             secondaryAccessibilityLabel={!hasAdminBillingBypass && hostCreditBalance > 0 ? "Host an event with your available credit" : undefined}

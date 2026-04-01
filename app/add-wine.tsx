@@ -8,6 +8,7 @@ import { BillingCard } from "@/components/BillingCard";
 import { useBilling } from "@/hooks/use-billing";
 import { showAlert } from "@/lib/alert";
 import { getUserFacingNativeBillingGuidance } from "@/lib/billing";
+import { isNativePurchasesPlatform } from "@/lib/billing-config";
 import { PAGE_HORIZONTAL_PADDING } from "@/lib/layout";
 import { trackEvent } from "@/lib/observability";
 import { useSupabase } from "@/lib/supabase-context";
@@ -59,7 +60,7 @@ export default function AddWineScreen() {
   const handleRestorePurchases = async () => {
     try {
       await restorePurchases();
-      showAlert("Purchases restored", "Your Apple purchases have been refreshed.");
+      showAlert("Purchases restored", "Your store purchases have been refreshed.");
     } catch (error) {
       showAlert("Restore failed", error instanceof Error ? error.message : "Could not restore purchases.");
     }
@@ -102,8 +103,9 @@ export default function AddWineScreen() {
   }
 
   if (!effectivePremiumActive) {
+    const isNativeBilling = isNativePurchasesPlatform(Platform.OS);
     const premiumDetail =
-      unsupportedReason && Platform.OS === "ios" && !nativePurchasesAvailable
+      unsupportedReason && isNativeBilling && !nativePurchasesAvailable
         ? `Join and rate events for free, then upgrade when you want long-term collection tracking. ${getUserFacingNativeBillingGuidance(unsupportedReason)}`
         : "Join and rate events for free, then upgrade when you want long-term collection tracking.";
     const premiumMarketingTitle =
@@ -121,11 +123,11 @@ export default function AddWineScreen() {
           badge={hasAdminBillingBypass ? (billingAccessLabel ?? "Admin override") : "Cellar premium"}
           detail={premiumDetail}
           primaryLabel={
-            Platform.OS === "ios" && !nativePurchasesAvailable
-              ? "Use iOS Dev Build"
+            isNativeBilling && !nativePurchasesAvailable
+              ? "Use Native Build"
               : isPurchasingPremium
                 ? "Opening checkout..."
-                : Platform.OS === "ios"
+                : isNativeBilling
                   ? "Start Premium"
                   : "Subscribe with Stripe"
           }
@@ -138,21 +140,21 @@ export default function AddWineScreen() {
           onPrimaryPress={() => {
             void handlePurchasePremium();
           }}
-          primaryDisabled={isPurchasingPremium || (Platform.OS === "ios" && !nativePurchasesAvailable)}
+          primaryDisabled={isPurchasingPremium || (isNativeBilling && !nativePurchasesAvailable)}
           secondaryLabel={
-            Platform.OS === "ios" && nativePurchasesAvailable
+            isNativeBilling && nativePurchasesAvailable
               ? (isRestoringPurchases ? "Restoring..." : "Restore")
               : undefined
           }
           onSecondaryPress={
-            Platform.OS === "ios" && nativePurchasesAvailable
+            isNativeBilling && nativePurchasesAvailable
               ? () => {
                   void handleRestorePurchases();
                 }
                 : undefined
           }
-          secondaryDisabled={Platform.OS === "ios" && nativePurchasesAvailable ? isRestoringPurchases : undefined}
-          secondaryAccessibilityLabel={Platform.OS === "ios" && nativePurchasesAvailable ? "Restore premium purchases" : undefined}
+          secondaryDisabled={isNativeBilling && nativePurchasesAvailable ? isRestoringPurchases : undefined}
+          secondaryAccessibilityLabel={isNativeBilling && nativePurchasesAvailable ? "Restore premium purchases" : undefined}
         />
       </View>
     );
