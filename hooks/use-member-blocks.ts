@@ -33,6 +33,8 @@ export function useMemberBlocks() {
     queryKey: ["member-blocks", blockerId],
     enabled: !!blockerId,
     queryFn: () => fetchMemberBlocks(blockerId!),
+    placeholderData: [],
+    staleTime: 60_000,
   });
 
   return {
@@ -50,6 +52,8 @@ export function useBlockedMembersList() {
     queryKey: ["blocked-members", blockerId],
     enabled: !!blockerId,
     queryFn: () => fetchBlockedMemberSummaries(blockerId!),
+    placeholderData: [],
+    staleTime: 60_000,
   });
 }
 

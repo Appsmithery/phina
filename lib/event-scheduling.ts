@@ -57,7 +57,7 @@ export function formatEventTime(dateTime: string, timeZone: string): string {
     timeZone,
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
+    hour12: true,
   }).format(new Date(dateTime));
 }
 
@@ -66,5 +66,5 @@ export function formatEventTimeRange(
   endsAt: string,
   timeZone: string,
 ): string {
-  return `${formatEventTime(startsAt, timeZone)}-${formatEventTime(endsAt, timeZone)}`;
+  return `${formatEventTime(startsAt, timeZone)} - ${formatEventTime(endsAt, timeZone)}`;
 }

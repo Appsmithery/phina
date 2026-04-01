@@ -13,6 +13,7 @@ import { generateEventImage } from "@/lib/event-image-generation";
 import {
   DEFAULT_RATING_WINDOW_MINUTES,
   formatEventDateLong,
+  formatEventTime,
   formatEventTimeRange,
 } from "@/lib/event-scheduling";
 import { getEventInviteDetails } from "@/lib/event-invite";
@@ -64,6 +65,7 @@ export default function CreateEventScreen() {
   ) => {
     const inviteDetails = getEventInviteDetails(eventId);
     const joinUrl = inviteDetails.url;
+    const eventEndTime = formatEventTime(values.endsAt, values.timezone);
     const shareMessage = inviteDetails.isPreviewNativeInvite
       ? `I'm using Phina for our wine tasting on ${formatEventDateLong(values.startsAt, values.timezone)} from ${formatEventTimeRange(values.startsAt, values.endsAt, values.timezone)}. Rating rounds close automatically after ${values.defaultRatingWindowMinutes} minutes. Open this in the installed Phina preview app to join: ${joinUrl}`
       : `I'm using Phina for our wine tasting on ${formatEventDateLong(values.startsAt, values.timezone)} from ${formatEventTimeRange(values.startsAt, values.endsAt, values.timezone)}. Rating rounds close automatically after ${values.defaultRatingWindowMinutes} minutes. Set up your account before the event so you're ready to rate: ${joinUrl}`;
@@ -71,8 +73,8 @@ export default function CreateEventScreen() {
     showAlert(
       "Share event link",
       inviteDetails.isPreviewNativeInvite
-        ? `Share this with preview testers who already have the Phina preview app installed. This event will end automatically at ${formatEventTimeRange(values.startsAt, values.endsAt, values.timezone).split("-")[1]}.`
-        : `Post this in your event page or ticketing site so guests can set up before the tasting. This event will end automatically at ${formatEventTimeRange(values.startsAt, values.endsAt, values.timezone).split("-")[1]}.`,
+        ? `Share this with preview testers who already have the Phina preview app installed. This event will end automatically at ${eventEndTime}.`
+        : `Post this in your event page or ticketing site so guests can set up before the tasting. This event will end automatically at ${eventEndTime}.`,
       [
         {
           text: "Copy Message",

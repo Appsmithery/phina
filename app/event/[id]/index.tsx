@@ -20,6 +20,7 @@ import { showAlert } from "@/lib/alert";
 import { generateEventImage } from "@/lib/event-image-generation";
 import {
   formatEventDateLong,
+  formatEventTime,
   formatEventTimeRange,
   isEventEnded,
 } from "@/lib/event-scheduling";
@@ -475,6 +476,7 @@ export default function EventDetailScreen() {
     event.ends_at,
     event.timezone,
   );
+  const eventEndTimeLabel = formatEventTime(event.ends_at, event.timezone);
 
   const listHeader = (
     <>
@@ -533,7 +535,7 @@ export default function EventDetailScreen() {
       </View>
 
       <Text style={[styles.scheduleHint, { color: theme.textMuted }]}>
-        Event ends automatically at {eventTimeLabel.split("-")[1]}. Rating rounds close after{" "}
+        Event ends automatically at {eventEndTimeLabel}. Rating rounds close after{" "}
         {event.default_rating_window_minutes} minutes.
       </Text>
 

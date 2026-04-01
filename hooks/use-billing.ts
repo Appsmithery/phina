@@ -31,6 +31,8 @@ export function useBilling() {
     queryKey: ["billing", member?.id],
     queryFn: fetchBillingStatus,
     enabled: !!member?.id,
+    placeholderData: getDefaultBillingStatus(),
+    staleTime: 60_000,
   });
   const billingMerchandiseQuery = useQuery({
     queryKey: ["billing", "merchandise", member?.id, Platform.OS],
@@ -39,6 +41,7 @@ export function useBilling() {
       !!member?.id &&
       isNativePurchasesPlatform(Platform.OS) &&
       nativePurchases.nativePurchasesAvailable,
+    placeholderData: getDefaultBillingMerchandise(),
     staleTime: 5 * 60 * 1000,
   });
 
