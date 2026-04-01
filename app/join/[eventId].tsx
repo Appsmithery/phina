@@ -1,5 +1,5 @@
 import { useLocalSearchParams, router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -7,9 +7,7 @@ import {
   ActivityIndicator,
   Platform,
   TouchableOpacity,
-  Linking,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSupabase } from "@/lib/supabase-context";
 import { supabase } from "@/lib/supabase";
@@ -17,7 +15,7 @@ import { useTheme } from "@/lib/theme";
 import { setPendingJoinEventId } from "@/lib/pending-join";
 import { showAlert } from "@/lib/alert";
 import { trackEvent } from "@/lib/observability";
-import { getJoinStoreTarget, isMobileWebUserAgent } from "@/lib/join-store-links";
+import { isMobileWebUserAgent } from "@/lib/join-store-links";
 
 export default function JoinEventScreen() {
   const { eventId } = useLocalSearchParams<{ eventId: string }>();
@@ -25,26 +23,45 @@ export default function JoinEventScreen() {
   const theme = useTheme();
   const [joining, setJoining] = useState(false);
   const [done, setDone] = useState(false);
-  const [storeRedirectReturned, setStoreRedirectReturned] = useState(false);
+  const [authRedirecting, setAuthRedirecting] = useState(false);
+  const [authRedirectError, setAuthRedirectError] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const authRedirectStartedRef = useRef(false);
   const webUserAgent =
     Platform.OS === "web" && typeof navigator !== "undefined" ? navigator.userAgent : "";
   const isMobileWeb = Platform.OS === "web" && isMobileWebUserAgent(webUserAgent);
-  const storeTarget = isMobileWeb ? getJoinStoreTarget(webUserAgent) : null;
 
   useEffect(() => {
     if (!sessionLoaded || !eventId) return;
 
     if (!session) {
-      if (isMobileWeb) {
+      if (authRedirectStartedRef.current) {
         return;
       }
 
-      setPendingJoinEventId(eventId).then(() => {
-        router.replace("/(auth)");
-      });
+      authRedirectStartedRef.current = true;
+      setAuthRedirecting(true);
+      setAuthRedirectError(null);
+
+      setPendingJoinEventId(eventId)
+        .then(() => {
+          router.replace("/(auth)");
+        })
+        .catch(() => {
+          authRedirectStartedRef.current = false;
+          setAuthRedirecting(false);
+          setAuthRedirectError(
+            isMobileWeb
+              ? "Could not continue to sign in from this invite. Please try again."
+              : "Could not join this event right now. Please try again.",
+          );
+        });
       return;
     }
+
+    authRedirectStartedRef.current = false;
+    setAuthRedirecting(false);
+    setAuthRedirectError(null);
 
     if (!memberLoaded) {
       return;
@@ -82,60 +99,32 @@ export default function JoinEventScreen() {
     })();
   }, [sessionLoaded, session, member, memberLoaded, eventId, queryClient, isMobileWeb]);
 
-  useEffect(() => {
-    if (!eventId || session || !isMobileWeb || !storeTarget) return;
-    if (Platform.OS !== "web" || typeof window === "undefined") return;
-
-    setStoreRedirectReturned(false);
-    const redirectTimer = window.setTimeout(() => {
-      window.location.assign(storeTarget.url);
-    }, 250);
-    const fallbackTimer = window.setTimeout(() => {
-      setStoreRedirectReturned(true);
-    }, 1500);
-
-    return () => {
-      window.clearTimeout(redirectTimer);
-      window.clearTimeout(fallbackTimer);
-    };
-  }, [eventId, isMobileWeb, session, storeTarget]);
-
-  const handleOpenStore = async () => {
-    if (!storeTarget) return;
-
-    try {
-      if (Platform.OS === "web" && typeof window !== "undefined") {
-        window.location.assign(storeTarget.url);
-        return;
-      }
-
-      await Linking.openURL(storeTarget.url);
-    } catch {
-      showAlert("Store link", "Could not open the store placeholder right now.");
-    }
-  };
-
-  const handleContinueOnWeb = async () => {
+  const handleContinueToAuth = async () => {
     if (!eventId) return;
 
     try {
+      setAuthRedirecting(true);
+      setAuthRedirectError(null);
       await setPendingJoinEventId(eventId);
       router.replace("/(auth)");
     } catch {
-      showAlert("Join event", "Could not continue on web right now. Please try again.");
+      setAuthRedirecting(false);
+      setAuthRedirectError("Could not continue to sign in from this invite. Please try again.");
     }
   };
 
-  if (!sessionLoaded || (session && !memberLoaded) || joining) {
+  if (!sessionLoaded || (session && !memberLoaded) || joining || (!session && authRedirecting)) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={[styles.text, { color: theme.textSecondary }]}>Joining event...</Text>
+        <Text style={[styles.text, { color: theme.textSecondary }]}>
+          {session ? "Joining event..." : isMobileWeb ? "Preparing your invite..." : "Joining event..."}
+        </Text>
       </View>
     );
   }
 
-  if (!session && isMobileWeb && storeTarget) {
+  if (!session && isMobileWeb && authRedirectError) {
     return (
       <View style={[styles.container, styles.storeLanding, { backgroundColor: theme.background }]}>
         <View
@@ -146,38 +135,26 @@ export default function JoinEventScreen() {
         >
           <Text style={[styles.storeEyebrow, { color: theme.primary }]}>Event Invite</Text>
           <Text style={[styles.storeTitle, { color: theme.text }]}>
-            Redirecting to {storeTarget.storeName}
+            Continue to sign in
           </Text>
           <Text style={[styles.storeBody, { color: theme.textSecondary }]}>
-            New mobile visitors are sent to the app download automatically before joining this event.
+            Sign in or create your account to join this event. We will bring you back here after auth.
           </Text>
           <Text style={[styles.storeHint, { color: theme.textMuted }]}>
-            {storeTarget.placeholderMessage}
+            {authRedirectError}
           </Text>
 
-          {storeRedirectReturned ? (
-            <TouchableOpacity
-              style={[styles.primaryStoreButton, { backgroundColor: theme.primary }]}
-              onPress={handleOpenStore}
-            >
-              <Ionicons name="download-outline" size={18} color="#FFFFFF" />
-              <Text style={styles.primaryStoreButtonText}>
-                Open {storeTarget.storeName}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
-
           <TouchableOpacity
-            style={[styles.secondaryStoreButton, { borderColor: theme.border }]}
-            onPress={handleContinueOnWeb}
+            style={[styles.primaryStoreButton, { backgroundColor: theme.primary }]}
+            onPress={handleContinueToAuth}
           >
-            <Text style={[styles.secondaryStoreButtonText, { color: theme.text }]}>
-              {storeRedirectReturned ? "Continue on web" : "Skip store and continue on web"}
+            <Text style={styles.primaryStoreButtonText}>
+              Continue to sign in
             </Text>
           </TouchableOpacity>
 
           <Text style={[styles.secondaryHint, { color: theme.textMuted }]}>
-            Continuing on web will ask you to sign in, then bring you back to this event.
+            Your invite will stay attached while you finish auth in this browser.
           </Text>
         </View>
       </View>

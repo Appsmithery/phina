@@ -8,6 +8,7 @@ import JoinEventScreen from "@/app/join/[eventId]";
 jest.useFakeTimers();
 
 const mockReplace = jest.fn();
+const mockSetPendingJoinEventId = jest.fn((eventId: string) => Promise.resolve(eventId));
 
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => ({ eventId: "event-123" }),
@@ -30,7 +31,7 @@ jest.mock("@/lib/supabase", () => ({
 }));
 
 jest.mock("@/lib/pending-join", () => ({
-  setPendingJoinEventId: jest.fn(() => Promise.resolve()),
+  setPendingJoinEventId: (eventId: string) => mockSetPendingJoinEventId(eventId),
 }));
 
 describe("JoinEventScreen", () => {
@@ -65,7 +66,7 @@ describe("JoinEventScreen", () => {
     Object.defineProperty(global, "window", { configurable: true, value: originalWindow });
   });
 
-  it("auto-redirects mobile web invite traffic to the placeholder store", async () => {
+  it("persists the pending join and routes mobile web invite traffic into auth", async () => {
     const queryClient = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
@@ -79,12 +80,11 @@ describe("JoinEventScreen", () => {
       </QueryClientProvider>,
     );
 
-    jest.advanceTimersByTime(300);
-
     await waitFor(() => {
-      expect(window.location.assign).toHaveBeenCalledWith(
-        "https://apps.apple.com/us/charts/iphone",
-      );
+      expect(mockSetPendingJoinEventId).toHaveBeenCalledWith("event-123");
+      expect(mockReplace).toHaveBeenCalledWith("/(auth)");
     });
+
+    expect(window.location.assign).not.toHaveBeenCalled();
   });
 });
