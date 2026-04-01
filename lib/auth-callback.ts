@@ -3,6 +3,13 @@ import { normalizeSafePostAuthRoute } from "./post-auth-route";
 
 export const NATIVE_MAGIC_LINK_REDIRECT_URL = "phina://auth/callback";
 export const NATIVE_MAGIC_LINK_NEXT_ROUTE = "/(auth)/set-password";
+export type AuthCallbackResolutionOutcome = "created" | "existing" | "missing" | "unresolved";
+
+export type AuthCallbackResolution = {
+  session: Session | null;
+  outcome: AuthCallbackResolutionOutcome;
+};
+
 const EMAIL_OTP_TYPES = ["signup", "invite", "magiclink", "recovery", "email_change", "email"] as const;
 type EmailOtpType = (typeof EMAIL_OTP_TYPES)[number];
 
@@ -17,6 +24,10 @@ type AuthCallbackSupabaseClient = {
       error: Error | null;
     }>;
     verifyOtp: (params: { token_hash: string; type: EmailOtpType }) => Promise<{
+      data: { session: Session | null };
+      error: Error | null;
+    }>;
+    getSession: () => Promise<{
       data: { session: Session | null };
       error: Error | null;
     }>;
@@ -45,6 +56,16 @@ function getSupabaseClient(): AuthCallbackSupabaseClient {
     cachedSupabase = require("./supabase").supabase as AuthCallbackSupabaseClient;
   }
   return cachedSupabase;
+}
+
+export function isAuthCallbackRoute(url: string): boolean {
+  try {
+    const urlObj = new URL(url);
+    const normalizedPath = urlObj.pathname.replace(/\/+$/, "") || "/";
+    return normalizedPath === "/callback";
+  } catch {
+    return url.includes("/callback") || url.includes("://auth/callback");
+  }
 }
 
 export function looksLikeAuthCallback(url: string): boolean {
@@ -153,4 +174,32 @@ export async function createSessionFromUrl(url: string): Promise<Session | null>
     }
     return null;
   }
+}
+
+export async function resolveSessionFromUrl(url: string): Promise<AuthCallbackResolution> {
+  const createdSession = await createSessionFromUrl(url);
+  if (createdSession) {
+    return { session: createdSession, outcome: "created" };
+  }
+
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      throw error;
+    }
+
+    if (data.session) {
+      return { session: data.session, outcome: "existing" };
+    }
+  } catch (error) {
+    if (__DEV__) {
+      console.error("[auth-callback] resolveSessionFromUrl getSession error:", error);
+    }
+  }
+
+  return {
+    session: null,
+    outcome: looksLikeAuthCallback(url) ? "unresolved" : "missing",
+  };
 }

@@ -9,6 +9,10 @@ const mockShouldBlockOnStartupUpdate = jest.fn(() => false);
 const mockRunBlockingStartupUpdate = jest.fn((_timeoutMs?: number) =>
   Promise.resolve({ status: "no_update" }),
 );
+const mockRouterReplace = jest.fn();
+const mockResolveSessionFromUrl = jest.fn<Promise<{ session: unknown; outcome: string }>, [string]>();
+const mockGetPostAuthRouteFromUrl = jest.fn<string | null, [string]>();
+const mockIsAuthCallbackRoute = jest.fn<boolean, [string]>(() => false);
 
 jest.mock("posthog-react-native", () => ({
   PostHogProvider: ({ children }: { children: React.ReactNode }) => children,
@@ -56,7 +60,7 @@ jest.mock("expo-router", () => {
     Stack,
     router: {
       push: jest.fn(),
-      replace: jest.fn(),
+      replace: (...args: unknown[]) => mockRouterReplace(...args),
     },
     useGlobalSearchParams: () => ({}),
     usePathname: () => "/",
@@ -84,9 +88,9 @@ jest.mock("@/lib/supabase-context", () => ({
 }));
 
 jest.mock("@/lib/auth-callback", () => ({
-  createSessionFromUrl: jest.fn(),
-  getPostAuthRouteFromUrl: jest.fn(),
-  looksLikeAuthCallback: jest.fn(() => false),
+  getPostAuthRouteFromUrl: (url: string) => mockGetPostAuthRouteFromUrl(url),
+  isAuthCallbackRoute: (url: string) => mockIsAuthCallbackRoute(url),
+  resolveSessionFromUrl: (url: string) => mockResolveSessionFromUrl(url),
 }));
 
 jest.mock("@/lib/post-auth-route", () => ({
@@ -151,6 +155,13 @@ describe("SupabaseLayout startup update gating", () => {
     mockShouldBlockOnStartupUpdate.mockReturnValue(false);
     mockRunBlockingStartupUpdate.mockReset();
     mockRunBlockingStartupUpdate.mockResolvedValue({ status: "no_update" });
+    mockRouterReplace.mockReset();
+    mockResolveSessionFromUrl.mockReset();
+    mockResolveSessionFromUrl.mockResolvedValue({ session: null, outcome: "missing" });
+    mockGetPostAuthRouteFromUrl.mockReset();
+    mockGetPostAuthRouteFromUrl.mockReturnValue(null);
+    mockIsAuthCallbackRoute.mockReset();
+    mockIsAuthCallbackRoute.mockReturnValue(false);
     mockHideAsync.mockReset();
     mockPreventAutoHideAsync.mockClear();
     notificationMocks.setNotificationChannelAsync.mockReset();
@@ -221,6 +232,25 @@ describe("SupabaseLayout startup update gating", () => {
 
     await waitFor(() => {
       expect(mockHideAsync).toHaveBeenCalled();
+    });
+  });
+
+  it("restores navigation from an auth callback route when a session already exists", async () => {
+    const session = { access_token: "token" };
+    mockIsAuthCallbackRoute.mockReturnValue(true);
+    mockResolveSessionFromUrl.mockResolvedValue({
+      session,
+      outcome: "existing",
+    });
+    mockGetPostAuthRouteFromUrl.mockReturnValue("/onboarding");
+    jest.spyOn(Linking, "getInitialURL").mockResolvedValue("phina://auth/callback?next=%2Fonboarding");
+
+    render(<SupabaseLayout />);
+
+    await waitFor(() => {
+      expect(mockResolveSessionFromUrl).toHaveBeenCalledWith("phina://auth/callback?next=%2Fonboarding");
+      expect(mockSetSessionFromAuth).toHaveBeenCalledWith(session);
+      expect(mockRouterReplace).toHaveBeenCalledWith("/onboarding");
     });
   });
 });

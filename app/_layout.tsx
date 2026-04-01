@@ -8,7 +8,7 @@ import * as Notifications from "expo-notifications";
 import { useFonts } from "expo-font";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SupabaseProvider, useSupabase } from "@/lib/supabase-context";
-import { createSessionFromUrl, getPostAuthRouteFromUrl, looksLikeAuthCallback } from "@/lib/auth-callback";
+import { getPostAuthRouteFromUrl, isAuthCallbackRoute, resolveSessionFromUrl } from "@/lib/auth-callback";
 import { POST_AUTH_ROUTE } from "@/lib/post-auth-route";
 import { runBlockingStartupUpdate, shouldBlockOnStartupUpdate, STARTUP_UPDATE_TIMEOUT_MS } from "@/lib/startup-update";
 import {
@@ -245,23 +245,25 @@ export function SupabaseLayout() {
 
       if (!url || url === processedUrl) return;
 
-      const isOAuthCallback = looksLikeAuthCallback(url);
+      const isKnownCallbackRoute = isAuthCallbackRoute(url);
 
       if (__DEV__) {
-        console.log("[deep-link] OAuth callback check", { isOAuthCallback });
+        console.log("[deep-link] Auth callback route check", { isKnownCallbackRoute });
       }
 
-      if (isOAuthCallback) {
-        console.log("[deep-link] ✅ Detected OAuth callback, creating session from URL");
+      if (isKnownCallbackRoute) {
+        console.log("[deep-link] Detected auth callback route, resolving session");
         processedUrl = url;
-        const session = await createSessionFromUrl(url);
-        if (session) {
+        const resolution = await resolveSessionFromUrl(url);
+        if (resolution.session) {
           const nextRoute = getPostAuthRouteFromUrl(url);
-          console.log("[deep-link] ✅ Session created, navigating to root guard");
-          setSessionFromAuth(session);
+          console.log("[deep-link] Resolved callback session, navigating to root guard");
+          setSessionFromAuth(resolution.session);
           router.replace(nextRoute ?? POST_AUTH_ROUTE);
         } else {
-          console.error("[deep-link] ❌ createSessionFromUrl returned null");
+          console.log("[deep-link] Auth callback did not yield a session", {
+            outcome: resolution.outcome,
+          });
         }
       }
     };

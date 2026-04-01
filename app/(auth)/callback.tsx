@@ -3,9 +3,16 @@ import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { router } from "expo-router";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
-import { buildNativeMagicLinkHandoffUrl, createSessionFromUrl } from "@/lib/auth-callback";
+import {
+  buildNativeMagicLinkHandoffUrl,
+  getPostAuthRouteFromUrl,
+  looksLikeAuthCallback,
+  resolveSessionFromUrl,
+} from "@/lib/auth-callback";
 import { captureError } from "@/lib/observability";
 import { POST_AUTH_ROUTE } from "@/lib/post-auth-route";
+
+type NativeFallbackMode = "auto" | "manual";
 
 /**
  * Auth callback route for web.
@@ -23,6 +30,7 @@ export default function CallbackScreen() {
   const [error, setError] = useState<string | null>(null);
   const [nativeAppUrl, setNativeAppUrl] = useState<string | null>(null);
   const [showNativeFallback, setShowNativeFallback] = useState(false);
+  const [nativeFallbackMode, setNativeFallbackMode] = useState<NativeFallbackMode>("auto");
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -34,9 +42,11 @@ export default function CallbackScreen() {
     let fallbackTimeout: number | null = null;
 
     if (nativeRedirect) {
-      fallbackTimeout = forwardToNativeApp(currentUrl, nativeRedirect);
+      void handleNativeCallback(currentUrl).then((timeoutId) => {
+        fallbackTimeout = timeoutId;
+      });
     } else {
-      handleWebCallback();
+      void handleWebCallback();
     }
 
     return () => {
@@ -47,33 +57,75 @@ export default function CallbackScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function forwardToNativeApp(currentUrl: URL, nativeRedirect: string): number | null {
+  function safeNavigate(targetRoute = POST_AUTH_ROUTE, retries = 20, delay = 150) {
+    try {
+      router.replace(targetRoute);
+    } catch (e) {
+      if (retries > 0) {
+        setTimeout(() => safeNavigate(targetRoute, retries - 1, delay), delay);
+      } else {
+        captureError(e instanceof Error ? e : new Error(String(e)));
+        setError("Navigation failed. Please refresh the page.");
+      }
+    }
+  }
+
+  async function completeCallback(url: string, targetRoute = POST_AUTH_ROUTE): Promise<boolean> {
+    const resolution = await resolveSessionFromUrl(url);
+
+    if (resolution.session) {
+      console.log("[callback] Resolved callback session", {
+        outcome: resolution.outcome,
+        targetRoute,
+      });
+      setSessionFromAuth(resolution.session);
+      safeNavigate(targetRoute);
+      return true;
+    }
+
+    console.log("[callback] Callback session not resolved", {
+      outcome: resolution.outcome,
+      targetRoute,
+    });
+    return false;
+  }
+
+  async function handleNativeCallback(currentUrl: URL): Promise<number | null> {
+    const nativeRedirect = currentUrl.searchParams.get("nativeRedirect");
+    if (!nativeRedirect) {
+      return null;
+    }
+
     const targetUrl = buildNativeMagicLinkHandoffUrl(currentUrl, nativeRedirect);
     if (!targetUrl) {
       setError("Invalid native redirect target");
       return null;
     }
 
+    const targetRoute = getPostAuthRouteFromUrl(currentUrl.toString()) ?? POST_AUTH_ROUTE;
+    const hasCallbackPayload = looksLikeAuthCallback(currentUrl.toString());
+
+    if (!hasCallbackPayload) {
+      const didResolveExistingSession = await completeCallback(currentUrl.toString(), targetRoute);
+      if (didResolveExistingSession) {
+        return null;
+      }
+    }
+
     setNativeAppUrl(targetUrl);
-    setShowNativeFallback(false);
+    setNativeFallbackMode(hasCallbackPayload ? "auto" : "manual");
+    setShowNativeFallback(!hasCallbackPayload);
+
+    if (!hasCallbackPayload) {
+      console.log("[callback] Native callback already handled elsewhere, waiting for manual return");
+      return null;
+    }
+
     console.log("[callback] Forwarding to native app:", targetUrl);
     window.location.href = targetUrl;
     return window.setTimeout(() => {
       setShowNativeFallback(true);
     }, 1200);
-  }
-
-  function safeNavigate(retries = 20, delay = 150) {
-    try {
-      router.replace(POST_AUTH_ROUTE);
-    } catch (e) {
-      if (retries > 0) {
-        setTimeout(() => safeNavigate(retries - 1, delay), delay);
-      } else {
-        captureError(e instanceof Error ? e : new Error(String(e)));
-        setError("Navigation failed - please refresh the page.");
-      }
-    }
   }
 
   async function handleWebCallback() {
@@ -85,13 +137,9 @@ export default function CallbackScreen() {
         return;
       }
 
-      const session = await createSessionFromUrl(url);
-
-      if (session) {
-        setSessionFromAuth(session);
-        safeNavigate();
-      } else {
-        setError("Failed to create session from callback");
+      const didResolveSession = await completeCallback(url);
+      if (!didResolveSession) {
+        setError("This sign-in link was already used or expired. Return to sign in and request a new link if needed.");
       }
     } catch (err) {
       console.error("[callback] Error:", err);
@@ -118,11 +166,15 @@ export default function CallbackScreen() {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
-        <Text style={[styles.message, { color: theme.text }]}>Opening the Phina app...</Text>
+        <Text style={[styles.message, { color: theme.text }]}>
+          {nativeFallbackMode === "manual" ? "Return to the Phina app to finish sign in." : "Opening the Phina app..."}
+        </Text>
         {showNativeFallback ? (
           <>
             <Text style={[styles.secondaryMessage, { color: theme.textSecondary }]}>
-              If the app did not open automatically, tap below.
+              {nativeFallbackMode === "manual"
+                ? "If you are not back in the app yet, tap below."
+                : "If the app did not open automatically, tap below."}
             </Text>
             <Text
               style={[styles.link, { color: theme.primary }]}

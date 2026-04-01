@@ -4,6 +4,7 @@ jest.mock("@/lib/supabase", () => ({
       setSession: jest.fn(),
       exchangeCodeForSession: jest.fn(),
       verifyOtp: jest.fn(),
+      getSession: jest.fn(),
     },
   },
 }));
@@ -14,7 +15,9 @@ import {
   buildNativeMagicLinkHandoffUrl,
   createSessionFromUrl,
   getPostAuthRouteFromUrl,
+  isAuthCallbackRoute,
   looksLikeAuthCallback,
+  resolveSessionFromUrl,
 } from "@/lib/auth-callback";
 import { POST_AUTH_ROUTE } from "@/lib/post-auth-route";
 import { supabase } from "@/lib/supabase";
@@ -22,6 +25,10 @@ import { supabase } from "@/lib/supabase";
 describe("auth callback helpers", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+      data: { session: null },
+      error: null,
+    });
   });
 
   it("builds a native handoff URL for PKCE callbacks and preserves next route", () => {
@@ -58,6 +65,19 @@ describe("auth callback helpers", () => {
     expect(handoffUrl.searchParams.get("next")).toBe(POST_AUTH_ROUTE);
   });
 
+  it("builds a native handoff URL without auth params so the app can resume from an existing session", () => {
+    const currentUrl = new URL(
+      `https://phina.appsmithery.co/callback?nativeRedirect=${encodeURIComponent(NATIVE_MAGIC_LINK_REDIRECT_URL)}&next=${encodeURIComponent(POST_AUTH_ROUTE)}`
+    );
+
+    const handoffUrl = new URL(buildNativeMagicLinkHandoffUrl(currentUrl, NATIVE_MAGIC_LINK_REDIRECT_URL)!);
+    expect(handoffUrl.toString()).toContain("phina://auth/callback");
+    expect(handoffUrl.searchParams.get("next")).toBe(POST_AUTH_ROUTE);
+    expect(handoffUrl.searchParams.get("code")).toBeNull();
+    expect(handoffUrl.searchParams.get("token_hash")).toBeNull();
+    expect(handoffUrl.hash).toBe("");
+  });
+
   it("rejects invalid native redirect targets", () => {
     const currentUrl = new URL("https://phina.appsmithery.co/callback?code=test-code");
 
@@ -72,6 +92,12 @@ describe("auth callback helpers", () => {
     ).toBe(NATIVE_MAGIC_LINK_NEXT_ROUTE);
     expect(getPostAuthRouteFromUrl("phina://auth/callback?code=test-code&next=%2F")).toBe(POST_AUTH_ROUTE);
     expect(getPostAuthRouteFromUrl("phina://auth/callback?code=test-code&next=https://example.com")).toBeNull();
+  });
+
+  it("recognizes auth callback routes with or without callback params", () => {
+    expect(isAuthCallbackRoute("phina://auth/callback?next=%2Fpost-auth")).toBe(true);
+    expect(isAuthCallbackRoute("https://phina.appsmithery.co/callback?next=%2Fpost-auth")).toBe(true);
+    expect(isAuthCallbackRoute("phina://event/123")).toBe(false);
   });
 
   it("recognizes token-hash confirmation callbacks as auth callbacks", () => {
@@ -122,6 +148,32 @@ describe("auth callback helpers", () => {
     expect(supabase.auth.verifyOtp).toHaveBeenCalledWith({
       token_hash: "token-hash",
       type: "email",
+    });
+  });
+
+  it("falls back to the current session when the callback URL was already consumed", async () => {
+    const existingSession = { access_token: "token" };
+    (supabase.auth.exchangeCodeForSession as jest.Mock).mockResolvedValue({
+      data: { session: null },
+      error: new Error("Auth code already used"),
+    });
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+      data: { session: existingSession },
+      error: null,
+    });
+
+    await expect(resolveSessionFromUrl("phina://auth/callback?code=test-code")).resolves.toEqual({
+      session: existingSession,
+      outcome: "existing",
+    });
+  });
+
+  it("reports missing when the callback route has no auth params and no session", async () => {
+    await expect(
+      resolveSessionFromUrl(`phina://auth/callback?next=${encodeURIComponent(POST_AUTH_ROUTE)}`)
+    ).resolves.toEqual({
+      session: null,
+      outcome: "missing",
     });
   });
 });
