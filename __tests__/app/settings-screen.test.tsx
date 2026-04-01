@@ -47,6 +47,12 @@ jest.mock("@/hooks/use-billing", () => ({
   useBilling: () => mockBillingState,
 }));
 
+jest.mock("@/hooks/use-member-blocks", () => ({
+  useMemberBlocks: () => ({
+    data: [],
+  }),
+}));
+
 jest.mock("@/lib/update-diagnostics", () => ({
   getUpdateDiagnostics: () => ({
     channel: "preview",
@@ -135,8 +141,9 @@ describe("SettingsScreen", () => {
       )
     ).toBeTruthy();
     expect(screen.queryByText("RevenueCat is not configured for this iOS build.")).toBeNull();
-    expect(screen.getByText("Preview Build Diagnostics")).toBeTruthy();
-    expect(screen.getByText("update-123")).toBeTruthy();
-    expect(screen.getByText("OTA update")).toBeTruthy();
+    expect(screen.getAllByText("Support")).toHaveLength(2);
+    expect(screen.getByText("Send feedback")).toBeTruthy();
+    expect(screen.getByText("Safety")).toBeTruthy();
+    expect(screen.getByText("Blocked members")).toBeTruthy();
   });
 });

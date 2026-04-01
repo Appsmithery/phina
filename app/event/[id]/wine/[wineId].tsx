@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { WineHeroImage } from "@/components/WineHeroImage";
+import { useBlockMemberMutation, useMemberBlocks } from "@/hooks/use-member-blocks";
+import { filterBlockedWines, isMemberBlocked } from "@/lib/member-blocks";
 import { useRemoveWine } from "@/hooks/use-remove-wine";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
@@ -21,6 +23,8 @@ export default function WineDetailScreen() {
   const theme = useTheme();
   const { session, member } = useSupabase();
   const userId = session?.user?.id ?? member?.id;
+  const { blockedMemberIds, isLoading: blockedMembersLoading } = useMemberBlocks();
+  const blockMemberMutation = useBlockMemberMutation();
 
   const { data: wine, isLoading } = useQuery({
     queryKey: ["wine", wineId],
@@ -115,8 +119,12 @@ export default function WineDetailScreen() {
   const isHost = event?.created_by === member?.id;
   const isDoubleBlind = event?.tasting_mode === "double_blind" && event?.status === "active";
   const hideDetails = isDoubleBlind && !isHost;
-  const wineIndex = eventWines.findIndex((w) => w.id === wineId);
+  const visibleEventWines = filterBlockedWines(eventWines, blockedMemberIds);
+  const wineIndex = visibleEventWines.findIndex((w) => w.id === wineId);
   const blindLabel = wineIndex >= 0 ? `Wine #${wineIndex + 1}` : "Wine";
+  const blockedWineOwner = isMemberBlocked(blockedMemberIds, wine?.brought_by);
+  const blockedEventHost = isMemberBlocked(blockedMemberIds, event?.created_by);
+  const isContentBlocked = blockedWineOwner || blockedEventHost;
 
   const canEdit = Boolean(
     wine &&
@@ -125,6 +133,12 @@ export default function WineDetailScreen() {
   );
   const canRemove = Boolean(wine && eventId && event?.created_by === member?.id);
   const canReportWineContent = Boolean(userId && wine && userId !== wine.brought_by);
+  const canBlockWineOwner = Boolean(
+    userId &&
+      wine &&
+      userId !== wine.brought_by &&
+      !blockedWineOwner,
+  );
   const hasAiDetails = Boolean(
     wine?.ai_summary ||
       wine?.ai_geography ||
@@ -161,12 +175,71 @@ export default function WineDetailScreen() {
     );
   };
 
+  const handleBlockWineOwner = () => {
+    if (!wine?.brought_by) return;
+
+    showAlert(
+      "Block member?",
+      "You won't see wines or events from this member unless you unblock them later.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await blockMemberMutation.mutateAsync(wine.brought_by);
+              const nextRoute =
+                event?.created_by === wine.brought_by || !eventId
+                  ? "/(tabs)"
+                  : `/event/${eventId}`;
+              showAlert("Member blocked", "Their content has been hidden from your account.", [
+                { text: "OK", onPress: () => router.replace(nextRoute) },
+              ]);
+            } catch (error) {
+              showAlert(
+                "Could not block member",
+                error instanceof Error ? error.message : "Please try again.",
+              );
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  if (blockedMembersLoading) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading...</Text>
+      </View>
+    );
+  }
+
   if (!wine) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>
           {isLoading ? "Loading…" : "Wine not found."}
         </Text>
+      </View>
+    );
+  }
+
+  if (isContentBlocked) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>
+          {blockedEventHost
+            ? "This event is hidden because you blocked its host."
+            : "This wine is hidden because you blocked its contributor."}
+        </Text>
+        <TouchableOpacity
+          style={[styles.editButton, { backgroundColor: theme.primary }]}
+          onPress={() => router.push("/account/blocks")}
+        >
+          <Text style={styles.editButtonText}>Manage blocked members</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -435,6 +508,16 @@ export default function WineDetailScreen() {
             >
               <Text style={[styles.reportButtonText, { color: theme.textSecondary }]}>
                 Report AI wine details
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+          {canBlockWineOwner ? (
+            <TouchableOpacity
+              style={[styles.reportButton, { borderColor: theme.border }]}
+              onPress={handleBlockWineOwner}
+            >
+              <Text style={[styles.reportButtonText, { color: theme.textSecondary }]}>
+                Block member
               </Text>
             </TouchableOpacity>
           ) : null}

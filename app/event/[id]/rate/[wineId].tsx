@@ -8,6 +8,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { RatingInfoModal, RatingSectionHeader, type RatingInfoKey } from "@/components/rating/RatingInfoModal";
 import { RatingVoteSelector } from "@/components/rating/RatingVoteSelector";
 import { WineHeroImage } from "@/components/WineHeroImage";
+import { useMemberBlocks } from "@/hooks/use-member-blocks";
+import { filterBlockedWines, isMemberBlocked } from "@/lib/member-blocks";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
@@ -111,6 +113,7 @@ export default function RateWineScreen() {
   const [activeInfoKey, setActiveInfoKey] = useState<RatingInfoKey | null>(null);
   const queryClient = useQueryClient();
   const trackedRatingFlowRef = useRef<string | null>(null);
+  const { blockedMemberIds, isLoading: blockedMembersLoading } = useMemberBlocks();
 
   const userId = session?.user?.id ?? member?.id;
   const isAuthenticated = sessionLoaded && !!session;
@@ -149,8 +152,11 @@ export default function RateWineScreen() {
   const isDoubleBlind = event?.tasting_mode === "double_blind" && event?.status === "active";
   const hideDetails = isDoubleBlind && !isHost;
   const showBottleImage = !!wine && (!isDoubleBlind || isHost);
-  const wineIndex = eventWines.findIndex((w) => w.id === wineId);
+  const visibleEventWines = filterBlockedWines(eventWines, blockedMemberIds);
+  const wineIndex = visibleEventWines.findIndex((w) => w.id === wineId);
   const blindLabel = wineIndex >= 0 ? `Wine #${wineIndex + 1}` : "Wine";
+  const blockedWineOwner = isMemberBlocked(blockedMemberIds, wine?.brought_by);
+  const blockedEventHost = isMemberBlocked(blockedMemberIds, event?.created_by);
 
   const { data: round } = useQuery({
     queryKey: ["ratingRound", eventId, wineId],
@@ -323,10 +329,36 @@ export default function RateWineScreen() {
     );
   }
 
+  if (blockedMembersLoading) {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading...</Text>
+      </View>
+    );
+  }
+
   if (!wine) {
     return (
       <View style={[styles.centered, { backgroundColor: theme.background }]}>
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading…</Text>
+      </View>
+    );
+  }
+
+  if (blockedEventHost || blockedWineOwner) {
+    return (
+      <View style={[styles.centered, { backgroundColor: theme.background }]}>
+        <Text style={[styles.hint, { color: theme.textMuted }]}>
+          {blockedEventHost
+            ? "This event is hidden because you blocked its host."
+            : "This wine is hidden because you blocked its contributor."}
+        </Text>
+        <TouchableOpacity
+          style={[styles.submitButton, { backgroundColor: theme.primary }]}
+          onPress={() => router.push("/account/blocks")}
+        >
+          <Text style={styles.submitButtonText}>Manage blocked members</Text>
+        </TouchableOpacity>
       </View>
     );
   }

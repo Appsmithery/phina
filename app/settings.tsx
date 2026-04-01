@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import { useBilling } from "@/hooks/use-billing";
+import { useMemberBlocks } from "@/hooks/use-member-blocks";
 import { US_STATES, getStateLabel } from "@/lib/us-states";
 import { stripPhone, isValidPhone, formatPhone, isValidEmail } from "@/lib/validation";
 import type { Database } from "@/types/database";
@@ -47,6 +48,7 @@ export default function SettingsScreen() {
     purchaseHostCredit,
     restorePurchases,
   } = useBilling();
+  const { data: memberBlocks = [] } = useMemberBlocks();
 
   const [editingInfo, setEditingInfo] = useState(false);
   const [firstName, setFirstName] = useState(member?.first_name ?? "");
@@ -477,8 +479,16 @@ export default function SettingsScreen() {
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.cardTitle, { color: theme.text }]}>Support</Text>
           <Text style={[styles.supportBody, { color: theme.textSecondary }]}>
-            Send structured feedback without leaving the app. Email remains available if you prefer it.
+            Reach support by email, open the in-app support page, or send structured feedback without leaving the app.
           </Text>
+          <TouchableOpacity
+            style={[styles.supportAction, { borderColor: theme.border, backgroundColor: theme.background, marginBottom: 10 }]}
+            onPress={() => router.push("/support")}
+          >
+            <Ionicons name="help-buoy-outline" size={18} color={theme.primary} />
+            <Text style={[styles.supportActionText, { color: theme.text }]}>Support</Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.supportAction, { borderColor: theme.border, backgroundColor: theme.background }]}
             onPress={() =>
@@ -490,6 +500,25 @@ export default function SettingsScreen() {
           >
             <Ionicons name="chatbubble-ellipses-outline" size={18} color={theme.primary} />
             <Text style={[styles.supportActionText, { color: theme.text }]}>Send feedback</Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.cardTitle, { color: theme.text }]}>Safety</Text>
+          <Text style={[styles.supportBody, { color: theme.textSecondary }]}>
+            Manage people you have blocked from event and wine surfaces in the app.
+          </Text>
+          <TouchableOpacity
+            style={[styles.supportAction, { borderColor: theme.border, backgroundColor: theme.background }]}
+            onPress={() => router.push("/account/blocks")}
+          >
+            <Ionicons name="ban-outline" size={18} color={theme.primary} />
+            <Text style={[styles.supportActionText, { color: theme.text }]}>
+              {memberBlocks.length > 0
+                ? `Blocked members (${memberBlocks.length})`
+                : "Blocked members"}
+            </Text>
             <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
           </TouchableOpacity>
         </View>

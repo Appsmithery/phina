@@ -12,11 +12,13 @@ import {
   isEventEnded,
 } from "@/lib/event-scheduling";
 import { PAGE_HORIZONTAL_PADDING, getTabContentBottomPadding, useOptionalBottomTabBarHeight } from "@/lib/layout";
+import { filterBlockedEvents } from "@/lib/member-blocks";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
 import { useTheme } from "@/lib/theme";
 import type { Event } from "@/types/database";
 import { useBilling } from "@/hooks/use-billing";
+import { useMemberBlocks } from "@/hooks/use-member-blocks";
 
 type EventsTab = "upcoming" | "past" | "my-events";
 
@@ -30,6 +32,7 @@ export default function EventsScreen() {
   const theme = useTheme();
   const { member } = useSupabase();
   const { hostCreditBalance, hasAdminBillingBypass, billingAccessLabel } = useBilling();
+  const { blockedMemberIds, isLoading: blockedMembersLoading } = useMemberBlocks();
   const tabBarHeight = useOptionalBottomTabBarHeight();
   const [activeTab, setActiveTab] = useState<EventsTab>("upcoming");
   const [search, setSearch] = useState("");
@@ -60,19 +63,20 @@ export default function EventsScreen() {
   const filteredEvents = useMemo(() => {
     const now = Date.now();
     const query = search.trim().toLowerCase();
+    const visibleEvents = filterBlockedEvents(events, blockedMemberIds);
 
     let filtered: Event[];
     switch (activeTab) {
       case "upcoming":
-        filtered = events
+        filtered = visibleEvents
           .filter((event) => !isEventEnded(event) && new Date(event.ends_at).getTime() >= now)
           .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
         break;
       case "past":
-        filtered = events.filter((event) => isEventEnded(event) || new Date(event.ends_at).getTime() < now);
+        filtered = visibleEvents.filter((event) => isEventEnded(event) || new Date(event.ends_at).getTime() < now);
         break;
       case "my-events":
-        filtered = events.filter((event) => myEventIds.has(event.id) || event.created_by === member?.id);
+        filtered = visibleEvents.filter((event) => myEventIds.has(event.id) || event.created_by === member?.id);
         break;
     }
 
@@ -83,7 +87,7 @@ export default function EventsScreen() {
     }
 
     return filtered;
-  }, [activeTab, events, member?.id, myEventIds, search]);
+  }, [activeTab, blockedMemberIds, events, member?.id, myEventIds, search]);
 
   const emptyMessage = useMemo(() => {
     if (search.trim()) return "No events match your search.";
@@ -214,7 +218,7 @@ export default function EventsScreen() {
         />
       </View>
 
-      {isLoading ? (
+      {isLoading || blockedMembersLoading ? (
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>Loading...</Text>
       ) : isError ? (
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>

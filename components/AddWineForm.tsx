@@ -13,6 +13,7 @@ import { useFocusEffect } from "expo-router";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "@/lib/theme";
 import { showAlert } from "@/lib/alert";
+import { getModerationErrorMessage } from "@/lib/content-moderation";
 import {
   takeLastLabelExtraction,
   type WineAttributes,
@@ -201,6 +202,22 @@ export function AddWineForm({
     const trimmedAiProduction = aiProduction.trim() || null;
     const trimmedAiTastingNotes = aiTastingNotes.trim() || null;
     const trimmedAiPairings = aiPairings.trim() || null;
+
+    const moderationError = getModerationErrorMessage([
+      { label: "Producer", value: trimmedProducer },
+      { label: "Varietal", value: trimmedVarietal },
+      { label: "Region", value: trimmedRegion },
+      { label: "Background", value: trimmedAiSummary },
+      { label: "Geography", value: trimmedAiGeography },
+      { label: "Production", value: trimmedAiProduction },
+      { label: "Tasting notes", value: trimmedAiTastingNotes },
+      { label: "Suggested pairings", value: trimmedAiPairings },
+    ]);
+    if (moderationError) {
+      showAlert("Update required", moderationError);
+      return;
+    }
+
     const isScannedEntry = !!pendingLabelPhotoUrl;
 
     setLoading(true);

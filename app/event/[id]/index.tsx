@@ -23,11 +23,13 @@ import {
   formatEventTimeRange,
   isEventEnded,
 } from "@/lib/event-scheduling";
+import { filterBlockedWines, isMemberBlocked } from "@/lib/member-blocks";
 import {
   useEndEvent,
   useEndRatingRound,
   useStartRatingRound,
 } from "@/hooks/use-event-actions";
+import { useBlockMemberMutation, useMemberBlocks } from "@/hooks/use-member-blocks";
 import { getScreenBottomPadding } from "@/lib/layout";
 import { getEventInviteDetails } from "@/lib/event-invite";
 import { supabase } from "@/lib/supabase";
@@ -45,6 +47,8 @@ export default function EventDetailScreen() {
   const { member, session, sessionLoaded } = useSupabase();
   const theme = useTheme();
   const queryClient = useQueryClient();
+  const { blockedMemberIds, isLoading: blockedMembersLoading } = useMemberBlocks();
+  const blockMemberMutation = useBlockMemberMutation();
 
   const isAuthenticated = sessionLoaded && !!session;
   const viewedEventIdRef = useRef<string | null>(null);
@@ -221,11 +225,19 @@ export default function EventDetailScreen() {
 
   const isHost = event?.created_by === member?.id;
   const eventClosed = event ? isEventEnded(event) : false;
+  const eventBlocked = isMemberBlocked(blockedMemberIds, event?.created_by);
+  const visibleWines = filterBlockedWines(wines, blockedMemberIds);
   const isDoubleBlind =
     event?.tasting_mode === "double_blind" && !eventClosed;
   const hideWineDetails = isDoubleBlind && !isHost;
   const canSeeMetrics = isHost || member?.is_admin;
   const canDeleteEvent = isHost || member?.is_admin;
+  const canBlockHost = Boolean(
+    member?.id &&
+      event?.created_by &&
+      event.created_by !== member.id &&
+      !eventBlocked,
+  );
   const endEventMutation = useEndEvent(id!);
   const inviteDetails = getEventInviteDetails(id);
 
@@ -358,6 +370,35 @@ export default function EventDetailScreen() {
     );
   };
 
+  const handleBlockHost = () => {
+    if (!event?.created_by) return;
+
+    showAlert(
+      "Block host?",
+      "You won't see future events or wines from this member unless you unblock them later.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await blockMemberMutation.mutateAsync(event.created_by);
+              showAlert("Host blocked", "This event has been hidden from your account.", [
+                { text: "OK", onPress: () => router.replace("/(tabs)") },
+              ]);
+            } catch (error) {
+              showAlert(
+                "Could not block member",
+                error instanceof Error ? error.message : "Please try again.",
+              );
+            }
+          },
+        },
+      ],
+    );
+  };
+
   if (!id) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -394,12 +435,36 @@ export default function EventDetailScreen() {
     );
   }
 
-  if (isLoading || !event) {
+  if (isLoading || blockedMembersLoading || !event) {
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <Text style={[styles.placeholder, { color: theme.textMuted }]}>
           Loading...
         </Text>
+      </View>
+    );
+  }
+
+  if (eventBlocked) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <Text style={[styles.placeholder, { color: theme.textMuted }]}>
+          This event is hidden because you blocked its host.
+        </Text>
+        <TouchableOpacity
+          style={[styles.primaryButton, { backgroundColor: theme.primary }]}
+          onPress={() => router.replace("/(tabs)")}
+        >
+          <Text style={styles.primaryButtonText}>Back to Events</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.secondaryActionButton, { borderColor: theme.border }]}
+          onPress={() => router.push("/account/blocks")}
+        >
+          <Text style={[styles.secondaryActionText, { color: theme.text }]}>
+            Manage blocked members
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -510,7 +575,7 @@ export default function EventDetailScreen() {
               color={theme.textSecondary}
             />
             <Text style={[styles.metricValue, { color: theme.text }]}>
-              {wines.length}
+              {visibleWines.length}
             </Text>
             <Text style={[styles.metricLabel, { color: theme.textMuted }]}>
               Wines
@@ -690,6 +755,24 @@ export default function EventDetailScreen() {
             Report
           </Text>
         </TouchableOpacity>
+
+        {canBlockHost ? (
+          <TouchableOpacity
+            style={[
+              styles.secondaryGridItem,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
+            onPress={handleBlockHost}
+          >
+            <Ionicons name="ban-outline" size={18} color={theme.text} />
+            <Text
+              style={[styles.secondaryGridLabel, { color: theme.text }]}
+              numberOfLines={1}
+            >
+              Block host
+            </Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {isHost && event.event_image_status === "pending" ? (
@@ -753,7 +836,7 @@ export default function EventDetailScreen() {
       ) : null}
 
       <Text style={[styles.sectionTitle, { color: theme.text }]}>Wines</Text>
-      {wines.length === 0 ? (
+      {visibleWines.length === 0 ? (
         <View
           style={[styles.emptyWinesContainer, { borderColor: theme.border }]}
         >
@@ -791,7 +874,7 @@ export default function EventDetailScreen() {
         }}
       />
       <FlatList
-        data={wines}
+        data={visibleWines}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={listHeader}
@@ -1068,6 +1151,17 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: "#fff",
     fontWeight: "600",
+    fontFamily: "Montserrat_600SemiBold",
+  },
+  secondaryActionButton: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  secondaryActionText: {
+    fontSize: 15,
     fontFamily: "Montserrat_600SemiBold",
   },
   sectionTitle: {

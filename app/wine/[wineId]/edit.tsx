@@ -17,6 +17,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { enhanceBottleImageInBackground } from "@/lib/bottle-image-background";
 import { showAlert } from "@/lib/alert";
+import { getModerationErrorMessage } from "@/lib/content-moderation";
 import { takeLastLabelExtraction, type WineAttributes } from "@/lib/last-label-extraction";
 import { supabase } from "@/lib/supabase";
 import { useSupabase } from "@/lib/supabase-context";
@@ -205,6 +206,21 @@ export default function EditWineScreen() {
       const trimmedAiProduction = aiProduction.trim() || null;
       const trimmedAiTastingNotes = aiTastingNotes.trim() || null;
       const trimmedAiPairings = aiPairings.trim() || null;
+      const moderationError = getModerationErrorMessage([
+        { label: "Producer", value: trimmedProducer },
+        { label: "Varietal", value: trimmedVarietal },
+        { label: "Region", value: trimmedRegion },
+        { label: "Background", value: trimmedAiSummary },
+        { label: "Geography", value: trimmedAiGeography },
+        { label: "Production", value: trimmedAiProduction },
+        { label: "Tasting notes", value: trimmedAiTastingNotes },
+        { label: "Suggested pairings", value: trimmedAiPairings },
+      ]);
+      if (moderationError) {
+        showAlert("Update required", moderationError);
+        return;
+      }
+
       const nextLabelPhotoUrl = localPhotoUrl ?? null;
       const photoChanged = nextLabelPhotoUrl !== (currentWine.label_photo_url ?? null);
 

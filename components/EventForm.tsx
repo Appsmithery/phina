@@ -18,6 +18,7 @@ import DateTimePicker, {
 } from "@react-native-community/datetimepicker";
 
 import { showAlert } from "@/lib/alert";
+import { getModerationErrorMessage } from "@/lib/content-moderation";
 import {
   combineLocalDateAndTime,
   getDeviceTimeZone,
@@ -299,6 +300,16 @@ export function EventForm({
   const handleSubmit = () => {
     const startsAt = combineLocalDateAndTime(date, startTime);
     const endsAt = combineLocalDateAndTime(date, endTime);
+
+    const moderationError = getModerationErrorMessage([
+      { label: "Title", value: title },
+      { label: "Theme", value: themeText },
+      { label: "Description", value: description },
+    ]);
+    if (moderationError) {
+      showAlert("Update required", moderationError);
+      return;
+    }
 
     if (new Date(endsAt).getTime() <= new Date(startsAt).getTime()) {
       showAlert(

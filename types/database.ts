@@ -36,6 +36,24 @@ export interface Database {
         };
         Relationships: [];
       };
+      member_blocks: {
+        Row: {
+          blocker_id: string;
+          blocked_member_id: string;
+          created_at: string;
+        };
+        Insert: {
+          blocker_id: string;
+          blocked_member_id: string;
+          created_at?: string;
+        };
+        Update: {
+          blocker_id?: string;
+          blocked_member_id?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       members: {
         Row: {
           id: string;
@@ -758,6 +776,7 @@ export interface Database {
 export type Member = Database["public"]["Tables"]["members"]["Row"];
 export type BillingCustomer =
   Database["public"]["Tables"]["billing_customers"]["Row"];
+export type MemberBlock = Database["public"]["Tables"]["member_blocks"]["Row"];
 export type MemberEntitlement =
   Database["public"]["Tables"]["member_entitlements"]["Row"];
 export type HostCreditLedgerEntry =

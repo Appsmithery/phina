@@ -340,8 +340,10 @@ export function SupabaseLayout() {
       <Stack.Screen name="wine/[wineId]/rate" options={{ title: "Rate Wine" }} />
       <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="account/delete" options={{ title: "Delete Account" }} />
+      <Stack.Screen name="account/blocks" options={{ title: "Blocked Members" }} />
       <Stack.Screen name="settings" options={{ title: "Settings" }} />
       <Stack.Screen name="feedback" options={{ title: "Feedback" }} />
+      <Stack.Screen name="support" options={{ title: "Support" }} />
       <Stack.Screen name="privacy" options={{ title: "Privacy Policy" }} />
       <Stack.Screen name="terms" options={{ title: "Terms of Service" }} />
     </Stack>
